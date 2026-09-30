@@ -1,0 +1,23 @@
+{
+  "_comment": "pr90 F4: every guest string in src/content/ui/guest-after.ts, word for word; functions rendered with {0}, {1}. Source per line: PACK v2.2 (G1, decisions 46-47), decision 31, or Jon decision 49 (2026-09-28). Add a line here only with its approval.",
+  "STORY_FORM.send": "Send the story",
+  "STORY_FORM.sending": "Sending…",
+  "STORY_FORM.empty": "Add a line or a photo first, or skip it.",
+  "STORY_FORM.waiting": "Waiting for your photo…",
+  "STORY_FORM.honeypot": "Leave this empty",
+  "PHOTO_PICKER.added": "Added",
+  "PHOTO_PICKER.addedSay": "Photo added.",
+  "PHOTO_PICKER.remove": "Remove",
+  "PHOTO_PICKER.uploading": "Uploading",
+  "PHOTO_PICKER.stop": "Stop",
+  "PHOTO_PICKER.failed": "That one didn’t go through.",
+  "PHOTO_PICKER.tryAgain": "Try again",
+  "PHOTO_PICKER.full": "{0} of {1} · Remove one to swap",
+  "PHOTO_PICKER.photoName": "photo {0}",
+  "AFTER_SEND_STANDBY.promise": "You’re on stand-by for the week of {0}. If something opens up, I’ll email you.",
+  "AFTER_SEND_STANDBY.receiptLine": "stand-by, {0}",
+  "STALE.pill": "Link expired",
+  "STALE.title": "This link’s gone a bit stale.",
+  "STALE.body": "Text me and I’ll send you a fresh one.",
+  "SENT_UI.backHome": "Home"
+}

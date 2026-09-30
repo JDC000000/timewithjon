@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js / build
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# env (never commit secrets; .env.example is the only tracked env file)
+.env
+.env.*
+!.env.example
+
+# vercel / supabase local state
+.vercel/
+supabase/.temp/
+supabase/.branches/
+
+# testing
+coverage/
+playwright-report/
+test-results/
+
+# misc
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# local spikes (T0.6 etc.): never committed
+spikes/

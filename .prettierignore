@@ -1,0 +1,7 @@
+.next
+node_modules
+pnpm-lock.yaml
+supabase/.temp
+CHANGELOG.md
+# Sent as-is by Supabase and kept byte-identical to the live copy (AD-7): never re-wrap it.
+supabase/templates/

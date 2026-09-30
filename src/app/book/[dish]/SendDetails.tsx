@@ -1,0 +1,167 @@
+'use client';
+// S10 details + Send (T1.7.U4), shared by BookingFlow, DatesFlow and PitchFlow: the guest's name and email (a
+// personal invite's arrive filled in and show as one "Sending as Dave · dave@… · Change" line until Change (T1.7.U2);
+// they stay editable), the Turnstile box for a general invite only (AD-9, the
+// admin sign-in's adapter; no site key = no widget), the honeypot, then ONE POST /api/requests. Send shows
+// "Sending…" and refuses a second tap; a refusal from the server is shown as it came, under Send, and takes focus;
+// a saved request goes to /sent (its twj_req capability cookie came with the answer).
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Field, ROUTES } from '@/ui';
+import { moveFocus } from '@/ui/focus';
+import { FLOW } from '@/content';
+import { STORY_FORM } from '@/content/ui/guest-after';
+import { useTurnstile } from '../../admin/sign-in/useTurnstile';
+import { errorFor, FIELD_IDS, type FormError } from './_lib/form-errors';
+import type { GuestView } from './_lib/flow-view';
+import { prefill, SEND_AS } from './_lib/prefill';
+import { createSender, requestPayload, type Picks } from './_lib/send';
+
+const toPage = (href: string) => window.location.assign(href);
+/** the refusal line under Send (focus goes there) */
+const SEND_ERROR_ID = 'send-err';
+
+export function useSend(dish: string, guest: GuestView, go: (href: string) => void = toPage) {
+  const [start] = useState(() => prefill(guest));
+  const [name, setName] = useState(start.name);
+  const [email, setEmail] = useState(start.email);
+  /** T1.7.U2: a personal invite's fields stay behind the summary line until Change */
+  const [changing, setChanging] = useState(false);
+  const [hp, setHp] = useState('');
+  const [sending, setSending] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const busy = useRef(false);
+  /** One key per request: a retry after a lost answer replays it; a refusal the server answered gets a new one. */
+  const clientKey = useRef<string | null>(null);
+  const [send] = useState(() => createSender());
+  const { setContainer, takeToken } = useTurnstile(guest.general ? guest.siteKey : undefined);
+
+  async function submit(picks: Picks): Promise<void> {
+    if (busy.current) return;
+    busy.current = true;
+    setFailed(null);
+    setSending(true);
+    clientKey.current ??= crypto.randomUUID();
+    const token = guest.general ? await takeToken() : undefined;
+    const res = await send(requestPayload(clientKey.current, dish, { name, email, hp }, picks, token));
+    if (res === null) return;
+    if (res.ok) return go(ROUTES.sent); // stays "Sending…" while the page changes
+    if (res.code !== 'network') clientKey.current = null;
+    busy.current = false;
+    flushSync(() => {
+      setSending(false);
+      setFailed(res.message);
+    });
+    moveFocus(document.getElementById(SEND_ERROR_ID), 'script');
+  }
+
+  return {
+    name,
+    setName,
+    email,
+    setEmail,
+    hp,
+    setHp,
+    sending,
+    failed,
+    submit,
+    summary: changing ? null : start.summary,
+    change: () => setChanging(true),
+    turnstileBox: guest.general && guest.siteKey ? setContainer : null,
+  };
+}
+
+export type SendState = ReturnType<typeof useSend>;
+
+/** The details fields; a fixed field clears its own error line. */
+export function DetailsFields({
+  s,
+  errors,
+  onFixed,
+}: {
+  s: SendState;
+  errors: readonly FormError[];
+  onFixed: (key: 'name' | 'email') => void;
+}) {
+  const { name, setName, email, setEmail, hp, setHp, turnstileBox, summary } = s;
+  // A name or email error always shows its field (the summary link lands on it).
+  const collapsed = summary && !errors.some((e) => e.key === 'name' || e.key === 'email');
+  return (
+    <div>
+      {collapsed ? (
+        <p className="sendas">
+          <span>
+            {SEND_AS.lead} <strong>{summary.name}</strong> · {summary.email}
+          </span>
+          <button
+            type="button"
+            className="textbtn"
+            aria-expanded={false}
+            onClick={() => {
+              flushSync(s.change);
+              moveFocus(document.getElementById(FIELD_IDS.name), 'script');
+            }}
+          >
+            {SEND_AS.change}
+          </button>
+        </p>
+      ) : (
+        <>
+          <Field
+            id={FIELD_IDS.name}
+            name="name"
+            label={FLOW.nameLabel}
+            required
+            maxLength={80}
+            autoComplete="name"
+            value={name}
+            error={errorFor(errors, 'name')?.inline ?? null}
+            onChange={(e) => {
+              setName(e.currentTarget.value);
+              if (e.currentTarget.value.trim()) onFixed('name');
+            }}
+          />
+          <Field
+            id={FIELD_IDS.email}
+            name="email"
+            type="email"
+            inputMode="email"
+            label={FLOW.emailLabel}
+            hint={FLOW.emailHint}
+            required
+            maxLength={254}
+            autoComplete="email"
+            spellCheck={false}
+            value={email}
+            error={errorFor(errors, 'email')?.inline ?? null}
+            onChange={(e) => {
+              setEmail(e.currentTarget.value);
+              onFixed('email');
+            }}
+          />
+        </>
+      )}
+      {turnstileBox && <div ref={turnstileBox} />}
+      <div className="vh" aria-hidden="true">
+        <label htmlFor="f-hp">{STORY_FORM.honeypot}</label>
+        <input
+          id="f-hp"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={hp}
+          onChange={(e) => setHp(e.currentTarget.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** The server's answer when it refused the request (or the generic line when it never answered). */
+export function SendFailed({ s }: { s: SendState }) {
+  return s.failed ? (
+    <p className="err" id={SEND_ERROR_ID} tabIndex={-1} role="alert">
+      {s.failed}
+    </p>
+  ) : null;
+}

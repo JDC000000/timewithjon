@@ -1,0 +1,267 @@
+name: CI
+
+# Lint, typecheck, unit tests (+ the engine under 3 time zones), integration tests on Postgres 15 and the
+# /dev exclusion check and the E2E smoke (T4.3.01), on every PR and on main. Any red step fails the run
+# (no branch protection on GitHub Free: run the same checks locally before pushing to main).
+#
+# Minutes budget (GitHub Free: 2,000 a month, each job rounded up to a whole minute):
+# - Quality Checks always run: Prettier checks Markdown too, so a docs-only PR can still break main (review M4).
+# - A PR that changes only Markdown/docs skips the three heavy jobs (the `changes` job decides). Pushes to main
+#   always run every job, so every main commit gets a full verdict.
+# - A newer push to the same PR cancels the older PR run. Main runs are never cancelled: each main commit gets
+#   its own concurrency group (review L7).
+# - Draft PRs run Quality Checks only; the three heavy jobs run once the PR is marked ready for review.
+# - The pnpm store (setup-node `cache: pnpm`) and Turbopack's .next/cache are cached.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # PRs only (not drafts): does this PR touch anything besides Markdown and docs/? Reads the file list from the API.
+  changes:
+    name: Changed paths
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      e2e: ${{ steps.e2e-filter.outputs.e2e }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+
+      # The E2E smoke runs only when something it drives changed: any app source (pages, UI, copy, features, proxy,
+      # config), the build config, the DB schema + seed, the test DB / placeholder env scripts, dependencies, the Node
+      # version, the suite or this workflow. Docs-only PRs skip it. Any match counts, unlike `code` above.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: e2e-filter
+        with:
+          filters: |
+            e2e:
+              - 'src/**'
+              - 'next.config.ts'
+              - 'supabase/**'
+              - 'scripts/test-db.sh'
+              - 'scripts/ci-placeholder-env.sh'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - '.nvmrc'
+              - 'playwright.config.ts'
+              - 'tests/e2e/**'
+              - '.github/workflows/ci.yml'
+
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Engine under 3 time zones
+        run: pnpm test:engine:tz
+
+  db:
+    name: Integration tests (Postgres 15)
+    # Every push to main; on PRs only when ready for review and touching more than docs (see the header).
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'push' || (!github.event.pull_request.draft && needs.changes.outputs.code == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Disposable Postgres 15 on loopback with every migration + the seed (scripts/test-db.sh).
+      - name: Test database
+        run: pnpm db:test
+
+      - name: Integration tests
+        run: pnpm test:int
+
+      # Turbopack's build cache (.next/cache, on by default in Next 16): a warm build takes ~6 s instead of ~22 s.
+      # The build scripts keep this folder and delete the rest of .next.
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-route-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
+          restore-keys: |
+            next-route-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      # T1.7.11: POST /api/requests end to end on a real prototype server (loopback, placeholder env).
+      - name: Route tests
+        run: pnpm test:route
+
+  supabase-db:
+    name: supabase db reset + integration tests
+    # Every push to main; on PRs only when ready for review and touching more than docs (see the header).
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'push' || (!github.event.pull_request.draft && needs.changes.outputs.code == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.0
+
+      # T0.2.18 / T0.2 AC1: every migration + the seed apply cleanly on Supabase's own Postgres (pg_cron, pg_net
+      # included). The runner is disposable, so starting Supabase containers is fine HERE (never on a shared dev host).
+      - name: supabase db start + reset
+        # One retry: hosted runners occasionally report port 54322 in use on the first start (seen once on main).
+        run: |
+          supabase db start || { echo "::warning::supabase db start failed once; retrying (runner port flake?)"; supabase stop --no-backup || true; sleep 10; supabase db start; }
+          supabase db reset
+
+      - name: Integration tests against the Supabase database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: pnpm test:int
+
+  no-dev-routes:
+    name: No /dev routes in production and staging
+    # Every push to main; on PRs only when ready for review and touching more than docs (see the header).
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'push' || (!github.event.pull_request.draft && needs.changes.outputs.code == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Turbopack's build cache (.next/cache, on by default in Next 16): a warm build takes ~6 s instead of ~22 s.
+      # The build scripts keep this folder and delete the rest of .next.
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-nodev-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
+          restore-keys: |
+            next-nodev-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - name: Build production and staging, expect 404 on /dev/outbox
+        run: scripts/check-no-dev-routes.sh
+
+  e2e:
+    name: E2E smoke (Chromium + WebKit)
+    # T4.3.01. The SMOKE profile only (both engines, 375 + 1440, 100% text, 1 run; target <= 5 min). The full
+    # T4.3.09 matrix (6 viewports x 3 text sizes x 2 engines x 5 runs) runs locally: `pnpm test:e2e:full`.
+    # Every push to main; on PRs only when ready for review and touching what the suite drives (see `changes`).
+    # Never retried: a flaky pass is a fail (decision 29).
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name == 'push' || (!github.event.pull_request.draft && needs.changes.outputs.e2e == 'true')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      # The browser builds are pinned by the Playwright version; the system packages are installed every run.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Chromium (headless shell) + WebKit with their system packages
+        run: pnpm exec playwright install --with-deps --only-shell chromium webkit
+
+      # Disposable Postgres 15 on loopback with every migration + the seed (scripts/test-db.sh).
+      - name: Test database
+        run: pnpm db:test
+
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
+          restore-keys: |
+            next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      # Builds the prototype (placeholder env), starts it on loopback and runs the smoke profile.
+      - name: E2E smoke
+        run: pnpm test:e2e
+
+      - name: Playwright report (on failure)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/e2e/
+          retention-days: 7

@@ -1,0 +1,194 @@
+// T1.7.11 (review L9): POST /api/requests end to end on a real prototype server + the loopback test DB.
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import { ERRORS } from '@/content';
+import { VALIDATION_MESSAGE } from '@/features/requests/messages';
+import { pool, q } from '@/lib/db';
+
+const BASE = process.env.ROUTE_BASE_URL ?? 'http://127.0.0.1:3200';
+const GENERAL_LINK = '/?for=friends-g3hx8q2v';
+
+async function inviteCookie(): Promise<string> {
+  const res = await fetch(`${BASE}${GENERAL_LINK}`, { redirect: 'manual' });
+  const c = res.headers.getSetCookie().find((h) => h.startsWith('twj_invite='));
+  if (!c) throw new Error(`no twj_invite cookie (status ${res.status})`);
+  return c.split(';')[0]!;
+}
+async function post(body: unknown, opts: { cookie?: string; origin?: string } = {}) {
+  const res = await fetch(`${BASE}/api/requests`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: opts.origin ?? BASE,
+      ...(opts.cookie ? { cookie: opts.cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  return { res, json: (await res.json()) as { ok: boolean; code?: string; message?: string } };
+}
+
+let cookie = '';
+let goodSlot = '';
+let blockedSlot = '';
+let saved: { general_open_at: Date };
+const email = (tag: string) => `route-${tag}-${randomUUID().slice(0, 8)}@example.com`;
+const body = (over: Record<string, unknown> = {}) => ({
+  clientKey: randomUUID(),
+  dish: 'the-long-lunch',
+  name: 'Route Test',
+  email: email('ok'),
+  crew: 2,
+  slotIds: [goodSlot],
+  ...over,
+});
+const requestFor = async (contactEmail: string) =>
+  await q<{ id: string; spam_suspect: boolean }>(
+    `select id, spam_suspect from request where contact_email = $1`,
+    [contactEmail],
+  );
+const templatesFor = async (requestId: string) =>
+  (
+    await q<{ template: string }>(
+      `select template from email_log where request_id = $1 and status = 'sent' order by template`,
+      [requestId],
+    )
+  ).map((r) => r.template);
+const outboxFor = async (to: string) =>
+  (
+    await q<{ template: string }>(`select template from dev_outbox where to_email = $1 order by template`, [
+      to,
+    ])
+  ).map((r) => r.template);
+
+beforeAll(async () => {
+  // Off Vercel every caller shares one rate-limit bucket (T4.2.01a M2), so start this suite from a clean slate
+  // (the loopback TEST database only).
+  await q(`delete from rate_limit`);
+  [saved] = (await q<{ general_open_at: Date }>(`select general_open_at from settings where id`)) as [
+    { general_open_at: Date },
+  ];
+  await q(`update settings set general_open_at = now() - interval '1 day'`); // the season opens in 2027
+  goodSlot = (
+    await q<{ id: string }>(`select id from slot where date = '2027-04-22' and window_kind = 'lunch'`)
+  )[0]!.id;
+  blockedSlot = (
+    await q<{ id: string }>(`select id from slot where date = '2027-04-29' and window_kind = 'lunch'`)
+  )[0]!.id;
+  await q(
+    `insert into availability_block (start_date, end_date, kind, note) values ('2027-04-29', '2027-04-29', 'blocked', 'route test')`,
+  );
+  await q(`update week set cap_override = 0 where week_start = '2027-05-03'`); // a spoken-for week for stand-by
+  cookie = await inviteCookie();
+});
+afterAll(async () => {
+  await q(`update settings set general_open_at = $1`, [saved.general_open_at]);
+  await q(`delete from availability_block where note = 'route test'`);
+  await q(`update week set cap_override = null where week_start = '2027-05-03'`);
+  await pool().end();
+});
+
+describe('POST /api/requests (route level)', () => {
+  it('no invite → 403 invite_required', async () => {
+    const { res, json } = await post(body());
+    expect(res.status).toBe(403);
+    expect(json).toMatchObject({ code: 'invite_required', message: ERRORS.noInvite });
+  });
+  it('before the release time → 403 not_released', async () => {
+    await q(`update settings set general_open_at = now() + interval '1 day'`);
+    try {
+      const { res, json } = await post(body(), { cookie });
+      expect(res.status).toBe(403);
+      expect(json.code).toBe('not_released');
+    } finally {
+      await q(`update settings set general_open_at = now() - interval '1 day'`);
+    }
+  });
+  it('a foreign Origin → 403', async () => {
+    const { res, json } = await post(body(), { cookie, origin: 'https://evil.example' });
+    expect(res.status).toBe(403);
+    expect(json.code).toBe('bad_origin');
+  });
+  it('a bad email → 400 with the badEmail line', async () => {
+    const { res, json } = await post(body({ email: 'not-an-email' }), { cookie });
+    expect(res.status).toBe(400);
+    expect(json).toMatchObject({ code: 'email_invalid', message: ERRORS.badEmail });
+  });
+  it('an unknown dish → 400', async () => {
+    const { res, json } = await post(body({ dish: 'the-mystery-dish' }), { cookie });
+    expect(res.status).toBe(400);
+    expect(json.code).toBe('unknown_dish');
+  });
+  it('a blocked slot → 409 with the VALIDATION_MESSAGE line', async () => {
+    const { res, json } = await post(body({ slotIds: [blockedSlot] }), { cookie });
+    expect(res.status).toBe(409);
+    expect(json).toMatchObject({ code: 'time_gone', message: VALIDATION_MESSAGE.time_gone });
+  });
+  it('the honeypot filled → 200, spam_suspect, and no E1/E2', async () => {
+    const b = body({ email: email('spam'), hp: 'http://spam.example' });
+    const { res } = await post(b, { cookie });
+    expect(res.status).toBe(200);
+    const [r] = await requestFor(b.email as string);
+    expect(r!.spam_suspect).toBe(true);
+    expect(await templatesFor(r!.id)).toEqual([]);
+    expect(await outboxFor(b.email as string)).toEqual([]);
+  });
+  it('a good request → 200 + twj_req + E1 (guest) and E2 (Jon); a replay → same result, one row', async () => {
+    const b = body({ email: email('good') });
+    const { res, json } = await post(b, { cookie });
+    expect(res.status).toBe(200);
+    expect(json).toMatchObject({ ok: true });
+    expect(res.headers.getSetCookie().some((c) => c.startsWith('twj_req='))).toBe(true);
+    const [r] = await requestFor(b.email as string);
+    expect(await templatesFor(r!.id)).toEqual(['E1', 'E2']);
+    expect(await outboxFor(b.email as string)).toEqual(['E1']);
+    const again = await post(b, { cookie });
+    expect(again.res.status).toBe(200);
+    expect(await requestFor(b.email as string)).toHaveLength(1);
+    expect(await outboxFor(b.email as string)).toEqual(['E1']);
+  });
+  it('stand-by on a spoken-for week → E6 + E2, never E1', async () => {
+    const b = body({ email: email('standby'), slotIds: [], standbyWeek: '2027-05-03' });
+    const { res } = await post(b, { cookie });
+    expect(res.status).toBe(200);
+    const [r] = await requestFor(b.email as string);
+    expect(await templatesFor(r!.id)).toEqual(['E2', 'E6']);
+    expect(await outboxFor(b.email as string)).toEqual(['E6']);
+  });
+
+  // T3.8 AC3 end to end: the limiter runs before the invite check, so even refused probes count.
+  it('the 11th request from one IP in an hour → the friendly 429', async () => {
+    await q(`delete from rate_limit`);
+    for (let i = 1; i <= 10; i++) expect((await post(body())).res.status, `send ${i}`).toBe(403);
+    const { res, json } = await post(body(), { cookie });
+    expect(res.status).toBe(429);
+    expect(json).toEqual({ ok: false, code: 'rate_limited', message: ERRORS.rateLimited });
+    await q(`delete from rate_limit`);
+  });
+  it('T3.8.03 a filled story honeypot, even oversize (review F2) → the same 200, stored as spam_suspect', async () => {
+    await q(`delete from rate_limit`);
+    const b = body({ email: email('story-hp') });
+    const sent = await post(b, { cookie });
+    const req = sent.res.headers
+      .getSetCookie()
+      .find((c) => c.startsWith('twj_req='))!
+      .split(';')[0]!;
+    const res = await fetch(`${BASE}/api/stories`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: BASE, cookie: req },
+      body: JSON.stringify({ body: 'Buy cheap watches', consent: true, hp: 'x'.repeat(300) }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const [r] = await requestFor(b.email as string);
+    const [s] = await q<{ spam_suspect: boolean }>(`select spam_suspect from story where request_id = $1`, [
+      r!.id,
+    ]);
+    expect(s!.spam_suspect).toBe(true);
+    const signed = await fetch(`${BASE}/api/photos/sign`, {
+      method: 'POST',
+      headers: { origin: BASE, cookie: req },
+    });
+    expect(signed.status).toBe(200);
+    expect(signed.headers.get('cache-control')).toBe('no-store'); // review F4: the upload token is never cached
+  });
+});
