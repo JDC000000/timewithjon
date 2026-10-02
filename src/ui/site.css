@@ -3436,3 +3436,74 @@ html:has(.menu-head + nav) {
 li[hidden] {
   display: none;
 }
+
+/* ---- T2.6.U1 A5 links (wireframe 09 A5/A5c; pack tokens only). The preview is the S2 hero itself (PersonalHero),
+   framed small: no photo, no page padding. Revoke/Rotate confirm in place (Carried 9). ---- */
+.a5-status:empty {
+  display: none;
+}
+.a5-status {
+  margin-top: var(--s2);
+}
+.a5-general {
+  margin-top: var(--s4);
+  padding-block: var(--s3);
+  border-block: 1px solid var(--c-rule);
+}
+.a5-link {
+  margin-top: var(--s1);
+  overflow-wrap: anywhere;
+  color: var(--c-ink-2);
+}
+.a5-row {
+  display: block;
+  padding-block: var(--s3);
+  border-bottom: 1px solid var(--c-rule);
+}
+.a5-row .who {
+  font-weight: var(--fw-strong);
+  margin-right: var(--s2);
+}
+.a5-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s3);
+  margin-top: var(--s2);
+}
+.a5-confirm {
+  margin-top: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-control);
+  background: var(--c-paper);
+}
+.a5-count {
+  font-variant-numeric: tabular-nums;
+}
+.a5-count.over {
+  color: var(--c-error);
+}
+.a5-preview {
+  margin-bottom: var(--s4);
+  padding: var(--s3);
+  border: 1px solid var(--c-rule);
+  border-radius: var(--r-control);
+  background: var(--c-paper);
+}
+.a5-preview .hero {
+  padding-block: var(--s2) 0;
+}
+.a5-preview .hero .wrap {
+  padding-inline: 0;
+  max-width: none;
+}
+.a5-preview .hero-in {
+  grid-column: 1 / -1;
+}
+.a5-preview .ph {
+  display: none;
+}
+.a5-preview .hero .cta {
+  margin-top: var(--s4);
+}

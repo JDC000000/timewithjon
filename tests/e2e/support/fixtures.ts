@@ -10,13 +10,7 @@ import { injectTextModeStyle, TEXT_MODE_CSS, type TextMode } from './text-size';
  * Known app defects that log a console error, each with its owner lane. Everything else stays strict. A match is
  * recorded on the test as a `known-issue` annotation (visible in every report); delete the entry when the fix lands.
  */
-export const KNOWN_CONSOLE_ISSUES: { owner: string; why: string; url: RegExp }[] = [
-  {
-    owner: 'the A5 Links screen lane (src/ui/routes.ts links it)',
-    why: 'the admin nav links /admin/invites (A5 Links) before that page exists: its prefetch 404s on every admin page',
-    url: /\/admin\/invites\?_rsc=/,
-  },
-];
+export const KNOWN_CONSOLE_ISSUES: { owner: string; why: string; url: RegExp }[] = [];
 
 /**
  * Browser noise, not an app defect: WebKit logs an aborted Next.js RSC prefetch (a `?_rsc=` fetch cancelled by a
