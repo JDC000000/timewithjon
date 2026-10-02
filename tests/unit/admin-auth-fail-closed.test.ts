@@ -70,3 +70,9 @@ describe('admin sign-in fails closed when the limiter is down', () => {
     expect(completeSignIn).not.toHaveBeenCalled();
   });
 });
+
+describe('sign-in unavailable copy', () => {
+  it('is exactly the approved wording (guards against constant-vs-literal drift)', () => {
+    expect(SIGN_IN.unavailable).toBe('Sign-in is paused for a moment. Please try again in a few minutes.');
+  });
+});
