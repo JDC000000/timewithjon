@@ -1,8 +1,8 @@
 'use client';
 // S10 details + Send (T1.7.U4), shared by BookingFlow, DatesFlow and PitchFlow: the guest's name and email (a
 // personal invite's arrive filled in and show as one "Sending as Dave · dave@… · Change" line until Change (T1.7.U2);
-// they stay editable), the Turnstile box for a general invite only (AD-9, the
-// admin sign-in's adapter; no site key = no widget), the honeypot, then ONE POST /api/requests. Send shows
+// they stay editable), the Turnstile box for a general invite only (T1.7.U3, AD-9: height reserved, reset after
+// any refusal (L11); no site key = no widget), the honeypot, then ONE POST /api/requests. Send shows
 // "Sending…" and refuses a second tap; a refusal from the server is shown as it came, under Send, and takes focus;
 // a saved request goes to /sent (its twj_req capability cookie came with the answer).
 import { useRef, useState } from 'react';
@@ -11,7 +11,7 @@ import { Field, ROUTES } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
-import { useTurnstile } from '../../admin/sign-in/useTurnstile';
+import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
 import { errorFor, FIELD_IDS, type FormError } from './_lib/form-errors';
 import type { GuestView } from './_lib/flow-view';
 import { prefill, SEND_AS } from './_lib/prefill';
@@ -34,7 +34,7 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
   /** One key per request: a retry after a lost answer replays it; a refusal the server answered gets a new one. */
   const clientKey = useRef<string | null>(null);
   const [send] = useState(() => createSender());
-  const { setContainer, takeToken } = useTurnstile(guest.general ? guest.siteKey : undefined);
+  const turnstile = useGuestTurnstile(guest.general ? guest.siteKey : undefined);
 
   async function submit(picks: Picks): Promise<void> {
     if (busy.current) return;
@@ -42,11 +42,12 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     setFailed(null);
     setSending(true);
     clientKey.current ??= crypto.randomUUID();
-    const token = guest.general ? await takeToken() : undefined;
+    const token = guest.general ? await turnstile.takeToken() : undefined;
     const res = await send(requestPayload(clientKey.current, dish, { name, email, hp }, picks, token));
     if (res === null) return;
     if (res.ok) return go(ROUTES.sent); // stays "Sending…" while the page changes
     if (res.code !== 'network') clientKey.current = null;
+    turnstile.reset(); // L11: the token went with the refused (or unanswered) request
     busy.current = false;
     flushSync(() => {
       setSending(false);
@@ -67,7 +68,7 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     submit,
     summary: changing ? null : start.summary,
     change: () => setChanging(true),
-    turnstileBox: guest.general && guest.siteKey ? setContainer : null,
+    turnstileBox: turnstile.box,
   };
 }
 
@@ -141,7 +142,7 @@ export function DetailsFields({
           />
         </>
       )}
-      {turnstileBox && <div ref={turnstileBox} />}
+      {turnstileBox && <TurnstileSlot box={turnstileBox} />}
       <div className="vh" aria-hidden="true">
         <label htmlFor="f-hp">{STORY_FORM.honeypot}</label>
         <input
