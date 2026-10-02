@@ -37,7 +37,7 @@ function onEmail(fn: () => void): () => void {
   return () => window.removeEventListener(EMAIL_EVENT, fn);
 }
 
-export function SignInFlow({ siteKey, linkSpent }: { siteKey?: string; linkSpent: boolean }) {
+export function SignInFlow({ siteKey, notice }: { siteKey?: string; notice: string | null }) {
   const router = useRouter();
   const params = useSearchParams();
   // null on the server and in the first client render (no sessionStorage there): the email step shows first.
@@ -61,12 +61,12 @@ export function SignInFlow({ siteKey, linkSpent }: { siteKey?: string; linkSpent
   return (
     <>
       {step === 'email' ? (
-        <EmailStep initialEmail={email} takeToken={takeToken} onSent={toCodeStep} linkSpent={linkSpent} />
+        <EmailStep initialEmail={email} takeToken={takeToken} onSent={toCodeStep} notice={notice} />
       ) : (
         <CodeStep
           email={email}
           takeToken={takeToken}
-          linkSpent={linkSpent}
+          notice={notice}
           onSignedIn={() => {
             saveEmail(null);
             router.replace('/admin');
@@ -85,17 +85,17 @@ function EmailStep({
   initialEmail,
   takeToken,
   onSent,
-  linkSpent,
+  notice,
 }: {
   initialEmail: string;
   takeToken: () => Promise<string | undefined>;
   onSent: (email: string) => void;
-  linkSpent: boolean;
+  notice: string | null;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [value, setValue] = useState(initialEmail);
   const [fieldError, setFieldError] = useState<string | null>(null);
-  const [problems, setProblems] = useState<Problem[]>(linkSpent ? [{ message: SIGN_IN.linkSpent }] : []);
+  const [problems, setProblems] = useState<Problem[]>(notice ? [{ message: notice }] : []);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   useLandingFocus(heading, []);
@@ -155,18 +155,18 @@ function EmailStep({
 function CodeStep({
   email,
   takeToken,
-  linkSpent,
+  notice,
   onSignedIn,
 }: {
   email: string;
   takeToken: () => Promise<string | undefined>;
-  linkSpent: boolean;
+  notice: string | null;
   onSignedIn: () => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [code, setCode] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
-  const [problems, setProblems] = useState<Problem[]>(linkSpent ? [{ message: SIGN_IN.linkSpent }] : []);
+  const [problems, setProblems] = useState<Problem[]>(notice ? [{ message: notice }] : []);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   useLandingFocus(heading, []);

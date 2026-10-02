@@ -11,8 +11,14 @@ import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { completeSignIn } from '@/features/admin/verify';
 import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
-import { hit } from '@/lib/ratelimit';
-import { ADMIN_HOME, SIGN_IN_FAILED, TOKEN_HASH, verifyConfirm } from '@/app/admin/auth/confirm-token';
+import { check } from '@/lib/ratelimit';
+import {
+  ADMIN_HOME,
+  SIGN_IN_FAILED,
+  SIGN_IN_UNAVAILABLE,
+  TOKEN_HASH,
+  verifyConfirm,
+} from '@/app/admin/auth/confirm-token';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,7 +47,10 @@ export async function POST(req: NextRequest) {
   }
   if (!verifyConfirm(tokenHash, csrf)) return noStore(jsonError(403, 'bad_csrf', ERRORS.generic));
   // Review F2 (T2.1.04): link confirms share the code route's per-IP bucket.
-  if (!(await hit('adminSignInVerify', clientIp(req)))) return see(SIGN_IN_FAILED);
+  const verdict = await check('adminSignInVerify', clientIp(req));
+  // Fail closed (security review 2026-09-30): the token is NOT spent while the limiter is down.
+  if (verdict === 'unavailable') return see(SIGN_IN_UNAVAILABLE);
+  if (verdict === 'limited') return see(SIGN_IN_FAILED);
 
   const result = await completeSignIn({ tokenHash });
   if (!result.ok && result.reason === 'not_admin') {

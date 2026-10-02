@@ -8,7 +8,8 @@ import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { sendAdminSignIn } from '@/features/admin/signin';
 import { clientIp, jsonError, sameOrigin } from '@/lib/http';
-import { hit } from '@/lib/ratelimit';
+import { check } from '@/lib/ratelimit';
+import { SIGN_IN } from '@/content/ui/admin-requests';
 import { report } from '@/lib/report';
 import { verifyTurnstile } from '@/lib/turnstile';
 
@@ -31,7 +32,10 @@ export async function POST(req: NextRequest) {
   if (!(await verifyTurnstile(parsed.data.turnstileToken, ip))) {
     return jsonError(400, 'bot_check', ERRORS.botCheck);
   }
-  if (await hit('adminSignInStart', ip)) {
+  const verdict = await check('adminSignInStart', ip);
+  // Fail closed (security review 2026-09-30): no limiter, no email. Same answer for every address.
+  if (verdict === 'unavailable') return jsonError(503, 'unavailable', SIGN_IN.unavailable);
+  if (verdict === 'allowed') {
     const { email } = parsed.data;
     after(async () => {
       try {

@@ -1,4 +1,5 @@
-// src/lib/ratelimit.ts — AD-9 atomic Postgres limiter. Fails OPEN and alerts Sentry.
+// src/lib/ratelimit.ts — AD-9 atomic Postgres limiter. Fails OPEN and alerts Sentry, EXCEPT the auth scopes in
+// FAIL_CLOSED, which refuse while the limiter can't count (security review 2026-09-30, C1).
 import 'server-only';
 import { report } from '@/lib/report';
 import { q } from '@/lib/db';
@@ -22,8 +23,25 @@ export const LIMITS = {
   adminSignInVerifyEmail: { limit: 10, windowSec: 3600 }, // review F1: per address, so no IP pool out-guesses a code
 } as const;
 
-/** Returns true when the call is ALLOWED. */
-export async function hit(scope: keyof typeof LIMITS, key: string): Promise<boolean> {
+export type LimitScope = keyof typeof LIMITS;
+
+/**
+ * Security review 2026-09-30 (C1): sign-in and guessing surfaces must FAIL CLOSED. If the limiter can't count
+ * (DB down, pooler fault, a read-only backend), these scopes refuse the call instead of letting unthrottled
+ * code/link guesses through. Everything else keeps failing open so a DB blip never blocks a guest.
+ */
+export const FAIL_CLOSED: ReadonlySet<LimitScope> = new Set<LimitScope>([
+  'adminSignInStart',
+  'adminSignInVerify',
+  'adminSignInVerifyEmail',
+  'devLogin',
+]);
+
+/** 'allowed' | 'limited' (over the window) | 'unavailable' (limiter error on a FAIL_CLOSED scope). */
+export type LimitVerdict = 'allowed' | 'limited' | 'unavailable';
+
+/** Counts one hit and says what to do. A limiter error is reported, then fails open or closed by scope. */
+export async function check(scope: LimitScope, key: string): Promise<LimitVerdict> {
   const { limit, windowSec } = LIMITS[scope];
   try {
     const rows = await q<{ count: number }>(
@@ -33,11 +51,17 @@ export async function hit(scope: keyof typeof LIMITS, key: string): Promise<bool
        returning count`,
       [scope, key, windowSec],
     );
-    return (rows[0]?.count ?? 0) <= limit;
+    return (rows[0]?.count ?? 0) <= limit ? 'allowed' : 'limited';
   } catch (e) {
-    report(e, { area: 'ratelimit', scope });
-    return true;
+    const closed = FAIL_CLOSED.has(scope);
+    report(e, { area: 'ratelimit', scope, ...(closed ? { mode: 'fail_closed' } : {}) });
+    return closed ? 'unavailable' : 'allowed';
   }
+}
+
+/** Returns true when the call is ALLOWED. A FAIL_CLOSED scope returns false while the limiter is down. */
+export async function hit(scope: LimitScope, key: string): Promise<boolean> {
+  return (await check(scope, key)) === 'allowed';
 }
 
 /**

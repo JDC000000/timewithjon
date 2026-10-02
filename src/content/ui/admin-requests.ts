@@ -27,6 +27,8 @@ export const SIGN_IN = {
   tooManyTries: 'Too many tries. Use the link in the same email.', // NEW COPY (needs Jon) (tasks.md T2.1.U1 example; Jon writes the final line)
   /** /admin/sign-in?error=link: the emailed link was used up or expired; the code in the same email still works. */
   linkSpent: 'That link has already been used. Use the code in the same email.', // NEW COPY (needs Jon) (no pack line; T2.1.04 "link expired, use the code")
+  /** 503 from start/verify/confirm while the sign-in limiter can't count (fail closed, security review 2026-09-30). */
+  unavailable: 'Sign-in is paused for a moment on my end. Try again in a few minutes.', // NEW COPY (needs Jon)
   // A1c: the one-tap confirm page (V5, g1 #20 (a))
   confirmTitle: 'One more tap.', // approved (g1 copy, a1c)
   confirmPageTitle: 'Confirm sign-in · Time with Jon admin',

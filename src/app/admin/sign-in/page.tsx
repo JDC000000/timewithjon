@@ -27,7 +27,10 @@ export default async function SignInPage({
   return (
     <AdminSolo>
       <Suspense>
-        <SignInFlow siteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} linkSpent={error === 'link'} />
+        <SignInFlow
+          siteKey={env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+          notice={error === 'link' ? SIGN_IN.linkSpent : error === 'unavailable' ? SIGN_IN.unavailable : null}
+        />
       </Suspense>
     </AdminSolo>
   );
