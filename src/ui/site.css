@@ -3425,3 +3425,14 @@ html:has(.menu-head + nav) {
   min-height: 44px;
   align-items: center;
 }
+
+/* ---- T2.9.U2 · Check these answers (A2b/A2c, wireframe 09 n15): the in-place question, the optimistic status,
+   and a row hidden while its delete is in flight (a list row's own display must not show it again). ---- */
+.check-question,
+.check-status {
+  margin-top: var(--s6);
+  color: var(--c-ink);
+}
+li[hidden] {
+  display: none;
+}
