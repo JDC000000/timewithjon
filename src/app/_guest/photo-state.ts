@@ -82,3 +82,32 @@ export const doneCount = (state: PhotoState): number => state.items.filter((p) =
 export function canPreview(type: string): boolean {
   return /^image\/(jpeg|png|gif|webp|avif)$/.test(type);
 }
+
+/** T3.6.U1: tries per upload step (C7 "3 automatic retries"): after the 3rd failure the tile shows its failed state. */
+export const UPLOAD_ATTEMPTS = 3;
+
+/**
+ * Runs `step` up to `attempts` times. An error `isFinal` accepts (a refusal, not a flaky network) or an abort ends
+ * it at once; the last error is rethrown. `wait` sits between tries (injectable so tests don't sleep).
+ */
+export async function withRetries<T>(
+  step: (attempt: number) => Promise<T>,
+  opts: {
+    signal: AbortSignal;
+    isFinal?: (e: unknown) => boolean;
+    attempts?: number;
+    wait?: (ms: number) => Promise<void>;
+  },
+): Promise<T> {
+  const attempts = opts.attempts ?? UPLOAD_ATTEMPTS;
+  const wait = opts.wait ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await step(attempt);
+    } catch (e) {
+      if (attempt >= attempts || opts.signal.aborted || opts.isFinal?.(e)) throw e;
+      await wait(500 * attempt);
+      if (opts.signal.aborted) throw e;
+    }
+  }
+}
