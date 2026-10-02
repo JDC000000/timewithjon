@@ -49,6 +49,8 @@ export const RAIL = {
 export const FLOW_UI = {
   backToMenu: MENU_TITLE, // PACK v1.12 s06-picker (header back link); v2.1 COPY (decision 37d)
   sending: 'Sending…', // PACK v1.12 s10-details-send (busy Send; T1.7.U4)
+  /** The sticky bar's Send (T1.7.U5): the visually hidden rest of its name, apart from the form's own Send. */
+  barSendRest: ' request', // NEW COPY (needs Jon)
 };
 
 /** S10 details on every flow's Send (T1.7.U4): the lines FLOW and ERRORS don't carry. */

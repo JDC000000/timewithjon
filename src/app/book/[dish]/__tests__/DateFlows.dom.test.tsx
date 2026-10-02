@@ -100,7 +100,8 @@ describe('S7 month grid (T1.6.U1)', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual(['Sun May 9×', 'Mon May 10×']);
-    expect(screen.getByText(DATES.count(2))).toBeTruthy();
+    // the count by Send (the sticky bar repeats it, T1.7.U5)
+    expect(document.querySelector('.send')?.textContent).toContain(DATES.count(2));
     await user.keyboard('{Enter}');
     expect(live()).toBe(DATES.removed('Monday May 10'));
   });

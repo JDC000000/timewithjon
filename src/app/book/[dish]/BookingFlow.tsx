@@ -6,7 +6,7 @@
 import Link from 'next/link';
 import { useMemo, useReducer, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { Button, Field, KeepWhole, PhotoSlot } from '@/ui';
+import { Button, SummaryBar, Field, KeepWhole, PhotoSlot } from '@/ui';
 import { announce, holdStill, moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
 import { FLOW_UI, PICKER, RAIL, SURPRISE } from '@/content/ui/booking';
@@ -15,6 +15,7 @@ import { DetailsFields, SendFailed, useSend } from './SendDetails';
 import { PicksRail } from './PicksRail';
 import { TimePicker, tabId } from './TimePicker';
 import {
+  DETAILS_ID,
   detailsErrors,
   errorFor,
   FIELD_IDS,
@@ -205,16 +206,27 @@ export function BookingFlow({
             />
           </section>
         )}
-        <DetailsFields s={s} errors={errors} onFixed={(k) => setErrors((x) => withoutError(x, k))} />
-        <p className="send">
-          <Button variant="commit" type="submit" busy={s.sending ? FLOW_UI.sending : undefined}>
-            {FLOW.send}
-          </Button>
-          <span className="ui muted">
-            {selection.picks.length ? PICKER.count(selection.picks.length) : PICKER.countNone}
-          </span>
-        </p>
-        <SendFailed s={s} />
+        <div id={DETAILS_ID}>
+          <DetailsFields s={s} errors={errors} onFixed={(k) => setErrors((x) => withoutError(x, k))} />
+          <p className="send">
+            <Button variant="commit" type="submit" busy={s.sending ? FLOW_UI.sending : undefined}>
+              {FLOW.send}
+            </Button>
+            <span className="ui muted">
+              {selection.picks.length ? PICKER.count(selection.picks.length) : PICKER.countNone}
+            </span>
+          </p>
+          <SendFailed s={s} />
+        </div>
+        <SummaryBar
+          count={selection.picks.length ? PICKER.count(selection.picks.length) : null}
+          detailsId={DETAILS_ID}
+          jumpTo={FIELD_IDS.name}
+          detailsLabel={RAIL.yourDetails}
+          sendLabel={FLOW.send}
+          sendRest={FLOW_UI.barSendRest}
+          busy={s.sending ? FLOW_UI.sending : undefined}
+        />
       </form>
       <PicksRail
         dish={dish}

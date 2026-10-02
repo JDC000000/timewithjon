@@ -36,6 +36,9 @@ export function pickErrors(sel: Selection, shownTabId: string | null): FormError
       ];
 }
 
+/** The details block (name, email, Send): the sticky bar's jump target (T1.7.U5, pack #details). */
+export const DETAILS_ID = 'details';
+
 /** The textarea / input ids the summary links land on. */
 export const FIELD_IDS = {
   need: 'f-need',

@@ -13,6 +13,7 @@ export { PHOTO_SLOTS, type Photo, type PhotoCredit } from './photo-slots';
 export { KeepWhole } from './KeepWhole';
 export { splitWhole, type Piece } from './keep-whole';
 export { Tick } from './Tick';
+export { SummaryBar, type SummaryBarProps } from './SummaryBar';
 export { StagingBanner } from './StagingBanner';
 export { ROUTES } from './routes';
 export { cx } from './cx';

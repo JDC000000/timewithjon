@@ -6,16 +6,24 @@
 import Link from 'next/link';
 import { useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
-import { Button, KeepWhole, PhotoSlot } from '@/ui';
+import { Button, SummaryBar, KeepWhole, PhotoSlot } from '@/ui';
 import { announce, holdStill, moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
-import { DATES, FLOW_UI, TIME_ZONE } from '@/content/ui/booking';
+import { DATES, FLOW_UI, RAIL, TIME_ZONE } from '@/content/ui/booking';
 import { DateGrid } from './DateGrid';
 import { ErrorSummary } from './ErrorSummary';
 import { DetailsFields, SendFailed, useSend } from './SendDetails';
 import { PicksRail } from './PicksRail';
 import { initialCalMonth, toggleDate, type CalDay, type CalMonth } from './_lib/date-grid';
-import { dateErrors, detailsErrors, errorFor, withoutError, type FormError } from './_lib/form-errors';
+import {
+  dateErrors,
+  DETAILS_ID,
+  detailsErrors,
+  errorFor,
+  FIELD_IDS,
+  withoutError,
+  type FormError,
+} from './_lib/form-errors';
 import { dishPhotoSlot, NO_GUEST, type DishView, type FlowNotices, type GuestView } from './_lib/flow-view';
 import { ELSEWHERE, initialZoneOption, postedZone } from './_lib/time-zone';
 
@@ -201,14 +209,25 @@ export function DatesFlow({
             </select>
           </div>
         )}
-        <DetailsFields s={s} errors={errors} onFixed={(k) => setErrors((x) => withoutError(x, k))} />
-        <p className="send">
-          <Button variant="commit" type="submit" busy={s.sending ? FLOW_UI.sending : undefined}>
-            {FLOW.send}
-          </Button>
-          <span className="ui muted">{DATES.count(order.length)}</span>
-        </p>
-        <SendFailed s={s} />
+        <div id={DETAILS_ID}>
+          <DetailsFields s={s} errors={errors} onFixed={(k) => setErrors((x) => withoutError(x, k))} />
+          <p className="send">
+            <Button variant="commit" type="submit" busy={s.sending ? FLOW_UI.sending : undefined}>
+              {FLOW.send}
+            </Button>
+            <span className="ui muted">{DATES.count(order.length)}</span>
+          </p>
+          <SendFailed s={s} />
+        </div>
+        <SummaryBar
+          count={order.length ? DATES.count(order.length) : null}
+          detailsId={DETAILS_ID}
+          jumpTo={FIELD_IDS.name}
+          detailsLabel={RAIL.yourDetails}
+          sendLabel={FLOW.send}
+          sendRest={FLOW_UI.barSendRest}
+          busy={s.sending ? FLOW_UI.sending : undefined}
+        />
       </form>
       <PicksRail dish={dish} heading={DATES.chipsLabel} items={railItems} />
     </div>
