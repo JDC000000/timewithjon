@@ -5,6 +5,7 @@ import { render } from '@react-email/render';
 import type { TemplateId } from '@/content/emails';
 import { E1 } from './E1';
 import { E2 } from './E2';
+import { REST_HTML } from './rest';
 
 export interface HtmlContext {
   /** The P.S. tag link (site origin + ROUTES.tag). */
@@ -15,6 +16,7 @@ type Vars = Record<string, string | number>;
 const HTML: Partial<Record<TemplateId, (vars: Vars, ctx: HtmlContext) => ReactElement>> = {
   E1: (vars, ctx) => createElement(E1, { vars, tagUrl: ctx.tagUrl }),
   E2: (vars) => createElement(E2, { vars }),
+  ...REST_HTML,
 };
 
 export const HTML_TEMPLATES = Object.keys(HTML) as TemplateId[];
