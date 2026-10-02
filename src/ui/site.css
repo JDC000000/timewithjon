@@ -3328,6 +3328,33 @@ dialog.sheet .ph--sheet {
   }
 }
 
+/* ---- S04b (T1.3.U3, R1-16; G0.5 J.06 default "as drawn"): the sticky course bar. The S04 Courses nav held at the
+   top of the screen while the courses scroll under it. v2.2 tokens only, no new look: the header's canvas + rule,
+   the nav's own hover underline for the course in view (aria-current, set by src/app/menu/CourseBar.tsx, which also
+   publishes the bar's height as --course-bar-h). A jump or a Tab stops below the bar (2.4.11). */
+.menu-head + nav {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--c-canvas);
+  border-bottom: var(--bw) solid var(--c-rule);
+}
+.menu-head + nav .course-nav a[aria-current] {
+  text-decoration: underline;
+}
+html:has(.menu-head + nav) {
+  scroll-padding-top: calc(var(--course-bar-h, var(--header-h)) + var(--s4));
+}
+@media (max-height: 400px) {
+  /* 400% zoom / short screens (VD1-11): pinned chrome sits in the page flow instead, like .sbar / .tabbar */
+  .menu-head + nav {
+    position: static;
+  }
+  html:has(.menu-head + nav) {
+    scroll-padding-top: var(--s4);
+  }
+}
+
 /* T1.1a.U2 (R1-21): under reduced motion nothing moves, whatever a later rule sets (the tokens already zero the durations) */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -5,6 +5,7 @@ import { MENU_TITLE } from '@/content';
 import { SiteFooter, SiteHeader } from '@/ui';
 import { Closing } from '../_landing/Why';
 import { Menu } from '../_menu/Menu';
+import { CourseBar } from './CourseBar';
 import { loadMenuGate } from '../_menu/menu-data';
 import { menuModel } from '../_menu/menu-model';
 
@@ -19,6 +20,7 @@ export default async function MenuPage() {
       <SiteHeader />
       <main id="main">
         <Menu model={model} gate={gate} />
+        <CourseBar />
         <Closing quiet />
       </main>
       <SiteFooter photos={model.photos} />
