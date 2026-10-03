@@ -2577,12 +2577,13 @@ dialog.sheet .actions {
   color: var(--c-ink-3);
   margin-top: var(--s-hair);
 }
+/* QA L8: 4 or 5 choices wrap into rows, so each tile draws its own right and bottom line and the box the top and
+   left: one even line around every tile, whatever the count (tests/unit/ui/seg-grid.test.ts) */
 .seg {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
-  border: var(--bw) solid var(--c-line);
-  border-radius: var(--r-control);
-  background: var(--c-field);
+  border-top: var(--bw) solid var(--c-line);
+  border-left: var(--bw) solid var(--c-line);
 }
 .seg label {
   position: relative;
@@ -2593,12 +2594,12 @@ dialog.sheet .actions {
   min-height: var(--tap);
   min-width: var(--seg-w);
   padding: 0 var(--s3);
+  background: var(--c-field);
+  border-right: var(--bw) solid var(--c-line);
+  border-bottom: var(--bw) solid var(--c-line);
   font: var(--fw-ui) var(--fs-ui) var(--font-ui);
   color: var(--c-ink);
   cursor: pointer;
-}
-.seg label + label {
-  border-left: var(--bw) solid var(--c-line);
 }
 .seg input {
   position: absolute;

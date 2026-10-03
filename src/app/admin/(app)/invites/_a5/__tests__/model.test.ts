@@ -3,10 +3,13 @@
 import { describe, expect, it } from 'vitest';
 import { OPEN_LINE, PERSONAL } from '@/content/site';
 import { OurThings } from '@/features/invites/our-things';
+import { INBOX } from '@/content/ui/admin-requests';
+import type { InviteListItem } from '@/features/admin/invites';
 import { A5 } from '../copy';
 import {
   createBody,
   createErrors,
+  inviteMeta,
   keptThings,
   previewModel,
   serverErrors,
@@ -63,5 +66,55 @@ describe('A5 our-things editor', () => {
     expect(serverErrors([{ path: 'pickedDish', code: 'not_bookable' }], ['', '', ''])).toEqual({
       dish: A5.err.not_bookable,
     });
+  });
+});
+
+describe('inviteMeta (QA L3): the request status and the hoped-for flag in the admin’s own words', () => {
+  const item = (over: Partial<InviteListItem>): InviteListItem => ({
+    id: 'i',
+    kind: 'personal',
+    isTest: false,
+    name: 'Dave',
+    slug: 'dave',
+    ourThings: [],
+    pickedDish: null,
+    dishNotBookable: false,
+    prefillEmail: null,
+    hopedFor: false,
+    revoked: false,
+    openCount: 1,
+    firstOpenedAt: null,
+    createdAt: '2026-10-01T00:00:00Z',
+    link: 'https://example.com/i/dave',
+    text: '',
+    requests: { count: 0, latest: null },
+    ...over,
+  });
+  const latest = (status: NonNullable<InviteListItem['requests']['latest']>['status'], count = 1) =>
+    item({ requests: { count, latest: { id: 'r', status } } });
+
+  it('each status reads as its inbox filter, never the raw value', () => {
+    const cases = [
+      ['requested', INBOX.filters.needs],
+      ['needs_new_time', INBOX.filters.waiting],
+      ['standby', INBOX.filters.standby],
+      ['locked', INBOX.filters.locked],
+      ['done', INBOX.filters.done],
+      ['cancelled', INBOX.filters.cancelled],
+    ] as const;
+    for (const [status, label] of cases) {
+      const meta = inviteMeta(latest(status));
+      expect(meta).toEqual([A5.opens(1), A5.requests(1), label]);
+      expect(meta.join(' ')).not.toMatch(/_|\blatest\b/);
+    }
+    expect(inviteMeta(latest('needs_new_time', 2))).toEqual([
+      A5.opens(1),
+      A5.requests(2),
+      INBOX.filters.waiting,
+    ]);
+  });
+
+  it('the hoped-for flag says what it is', () => {
+    expect(inviteMeta(item({ hopedFor: true }))).toEqual([A5.opens(1), A5.noRequest, A5.hopedFor]);
   });
 });

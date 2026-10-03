@@ -24,7 +24,6 @@ export const A5 = {
   keep: 'Keep it',
   revoked: 'Revoked',
   test: 'test',
-  hoped: 'hoped for',
   opens: (n: number) => (n === 1 ? '1 open' : `${n} opens`),
   notOpened: 'not opened',
   requests: (n: number) => (n === 1 ? '1 request' : `${n} requests`),
