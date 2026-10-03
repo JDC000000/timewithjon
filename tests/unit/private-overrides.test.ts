@@ -8,12 +8,14 @@ import {
   DEFAULT_TEXT_FILE,
   parsePosOverrides,
   parseTextOverrides,
+  singleQuotedSpans,
   TEXT_FILES,
 } from '../../scripts/private-overrides.mjs';
 import { PHOTO_SLOTS } from '../../src/ui/photo-slots';
 
 const MENU = 'src/content/menu.ts';
 const SLOTS_SRC = readFileSync(new URL('../../src/ui/photo-slots.ts', import.meta.url), 'utf8');
+const MENU_SRC = readFileSync(new URL('../../src/content/menu.ts', import.meta.url), 'utf8');
 
 describe('text overrides', () => {
   it('allow-lists the menu copy only', () => {
@@ -36,15 +38,15 @@ describe('text overrides', () => {
   });
 
   it('applies several overrides in order to the same file', () => {
-    const src = { [MENU]: 'Alpha Gamma' };
+    const src = { [MENU]: "a: 'Alpha Gamma'," };
     const out = applyTextOverrides(src, parseTextOverrides({ Alpha: 'Beta', Gamma: 'Delta' }));
-    expect(out[MENU]).toBe('Beta Delta');
+    expect(out[MENU]).toBe("a: 'Beta Delta',");
   });
 
   it.each([
-    ['missing', 'Gamma Gamma', 'Alpha', /occurs 0 times/],
-    ['twice', 'Alpha and Alpha', 'Alpha', /occurs 2 times/],
-    ['case-different', 'alpha', 'Alpha', /occurs 0 times/],
+    ['missing', "a: 'Gamma Gamma',", 'Alpha', /occurs 0 times/],
+    ['twice', "a: 'Alpha and Alpha',", 'Alpha', /occurs 2 times/],
+    ['case-different', "a: 'alpha',", 'Alpha', /occurs 0 times/],
   ])('fails closed when the find string is %s', (_, file, find, err) => {
     expect(() => applyTextOverrides({ [MENU]: file }, parseTextOverrides({ [find]: 'Beta' }))).toThrow(err);
   });
@@ -54,15 +56,81 @@ describe('text overrides', () => {
       expect(() => parseTextOverrides([{ file, find: 'Alpha', replace: 'Beta' }])).toThrow(/allow-list/);
   });
 
-  it.each(['<b>Beta</b>', 'Be`ta', "Be'ta", 'Be"ta', 'Be\\ta', 'Be\nta', 'Be\rta', 'Be\u2028ta'])(
-    'refuses a replacement holding %j',
-    (replace) => {
-      expect(() => parseTextOverrides({ Alpha: replace })).toThrow(/forbidden character/);
+  it.each([
+    '<b>Beta</b>',
+    'Be>ta',
+    'Be`ta',
+    "Be'ta",
+    'Be"ta',
+    'Be\\ta',
+    'Be\nta',
+    'Be\rta',
+    'Be\u2028ta',
+    'Be\tta',
+    '${Beta}',
+    'Beta{}',
+    'Be/ta',
+    'Beta=1',
+    'Beta+Gamma',
+    'Be[t]a',
+    'Beta & Gamma',
+    'Beta#',
+  ])('refuses a replacement holding %j', (replace) => {
+    expect(() => parseTextOverrides({ Alpha: replace })).toThrow(/replace holds a forbidden character/);
+  });
+
+  it.each(["Al'pha", 'Al"pha', 'Al<pha', 'Al\\pha', 'Al${pha}', 'Al\npha'])(
+    'refuses a find holding %j',
+    (find) => {
+      expect(() => parseTextOverrides({ [find]: 'Beta' })).toThrow(/find holds a forbidden character/);
     },
   );
 
+  it('accepts plain copy: letters, accents, digits and the copy punctuation', () => {
+    const copy = 'Zoë, Renée and me (2 of us): one more… “Yes!” – right? Jon’s ‘best’ — fine; ok-ish.';
+    expect(parseTextOverrides({ Alpha: copy })[0]!.replace).toBe(copy);
+  });
+
   it('accepts typographic quotes in a replacement', () => {
     expect(parseTextOverrides({ Alpha: 'Beta’s “Gamma”' })[0]!.replace).toBe('Beta’s “Gamma”');
+  });
+
+  it('a find at the start of a longer menu line works on the real menu file, and only that string changes', () => {
+    const find = 'Jane Doe and me, you and yours.';
+    const out = applyTextOverrides(
+      { [MENU]: MENU_SRC },
+      parseTextOverrides({ [find]: 'Sam and me, you and yours.' }),
+    );
+    const changed = out[MENU]!.split('\n');
+    const before = MENU_SRC.split('\n');
+    const diff = changed.filter((l, i) => l !== before[i]);
+    expect(diff).toHaveLength(1);
+    expect(diff[0]).toMatch(/^ +line: 'Sam and me, you and yours\. A table for four/);
+  });
+
+  it.each([
+    ['code, not a string', "const Alpha = 1;\na: 'Gamma',", 'Alpha'],
+    ['a key name', "Alpha: 'Gamma',", 'Alpha'],
+    ['a double-quoted string', 'a: "Alpha",', 'Alpha'],
+    ['a template literal', 'a: `Alpha`,', 'Alpha'],
+    ['a line comment', "a: 'Gamma', // Alpha", 'Alpha'],
+    ['a block comment', "/* Alpha */ a: 'Gamma',", 'Alpha'],
+    ['an unclosed string', "a: 'Alpha", 'Alpha'],
+  ])('fails closed when the find string is in %s', (_, file, find) => {
+    expect(() => applyTextOverrides({ [MENU]: file }, parseTextOverrides({ [find]: 'Beta' }))).toThrow(
+      /inside one quoted string|forbidden character/,
+    );
+  });
+
+  it('reads the single-quoted strings of a line', () => {
+    expect(singleQuotedSpans("a: 'Al', b: 'Be\\'ta', // 'x'")).toEqual([
+      [4, 6],
+      [13, 19],
+    ]);
+    expect(singleQuotedSpans('a: "Al"')).toEqual([]);
+    expect(singleQuotedSpans("a: 'Al")).toBeNull();
+    expect(singleQuotedSpans('a: `Al`')).toBeNull();
+    expect(singleQuotedSpans("a: x / 2, 'Al'")).toBeNull();
   });
 
   it('refuses malformed entries', () => {

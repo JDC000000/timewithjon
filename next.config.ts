@@ -14,6 +14,8 @@ export const SECURITY_HEADERS = [
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  // Framing is also refused by the proxy's CSP (frame-ancestors 'none'); this covers the paths the proxy skips.
+  { key: 'X-Frame-Options', value: 'DENY' },
 ];
 
 /**

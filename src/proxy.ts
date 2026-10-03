@@ -29,4 +29,8 @@ export function proxy(req: NextRequest) {
   res.headers.set('Content-Security-Policy', csp);
   return res;
 }
-export const config = { matcher: ['/((?!api|_next|dev|favicon.ico|robots.txt).*)'] };
+// Skips whole path segments only (api, _next, dev) and the two root files, so a page such as /devices or /apix
+// still gets the nonce CSP. tests/unit/proxy-matcher.test.ts compiles it the way Next does.
+export const config = {
+  matcher: ['/((?!(?:api|_next|dev)(?:/|$)|favicon\\.ico$|robots\\.txt$).*)'],
+};

@@ -35,8 +35,11 @@ The folder at the base URL holds a `manifest.json` and the files it names:
   exact string replace. The object form applies to `src/content/menu.ts`; the list form
   (`[{ "file": "src/content/menu.ts", "find": "…", "replace": "…" }]`) names the file, which must be on the
   allow-list (`TEXT_FILES` in `scripts/private-overrides.mjs`, the menu copy only). Each find string must occur
-  **exactly once** in its file. A replacement may not contain `<`, a backtick, a straight quote (`'` or `"`), a
-  backslash or a line break (use typographic quotes, as the copy does). The replacement text is never logged.
+  **exactly once** in its file, inside one single-quoted string on one line (it may be the start or any part of
+  that string). Find and replace are plain copy only (`PLAIN_TEXT`): letters (accented ones too), digits, spaces
+  and `. , ! ? ’ ‘ “ ” – — … : ; ( ) -`. Anything else, including a straight quote, `<`, a backtick, `$`, braces, a
+  slash, a backslash or a line break, fails the build (use typographic quotes, as the copy does). The replacement
+  text is never logged.
 - `pos`: focal points for Jon's own photos, which may need framing different from the stand-ins'. Each key must be
   an existing slot in `src/ui/photo-slots.ts`; each value is a CSS `object-position` in whole percents, `"x% y%"`
   (0 to 100). It is written as that slot's `pos` (the `<img>` `object-position`). It only moves the crop where the
