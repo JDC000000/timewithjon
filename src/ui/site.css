@@ -1970,6 +1970,17 @@ dialog.sheet[open] {
   min-height: calc(var(--row-h) - var(--s2));
   padding-top: var(--s2);
 }
+/* QA B: S17's Cancel asks in place: the question, then "Yes, cancel" (.btn, 52 px) and "Keep it" (.textbtn, 44 px) */
+.actions .manage-confirm {
+  padding: var(--s3) 0;
+}
+.manage-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s4);
+  margin-top: var(--s2);
+}
 .states {
   display: grid;
   gap: var(--s7);
