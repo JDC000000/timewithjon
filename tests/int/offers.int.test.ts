@@ -190,7 +190,7 @@ describe('T2.4.02 Suggest another time → E5', () => {
     expect(mail.subject).toBe('Another time for The Long Lunch?');
     expect(mail.text_body).toMatch(/^Thursday went before I could grab it\. These are still open:\n/);
     // Earliest first, one line each; then exactly one take link.
-    expect(mail.text_body).toMatch(/still open:\nThu Jun 10, [^\n]+\nFri Jun 11, [^\n]+\nTap one/);
+    expect(mail.text_body).toMatch(/still open:\nThu Jun 10 · [^\n]+\nFri Jun 11 · [^\n]+\nTap one/); // QA C: the site's style
     expect(mail.text_body.match(/\/offer\?t=/g)).toHaveLength(1);
     // The log keeps the link SPEC, never a token (the rulings: minted at send time).
     const [log] = await q<{ vars: Record<string, unknown>; event_key: string; status: string }>(
@@ -409,7 +409,7 @@ describe('T2.4.07 the guest takes an offer (S18 POST)', () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as { status: string; message: string };
       expect(body.status).toBe('locked');
-      expect(body.message).toMatch(/^You’re locked in for Thu May 13, /);
+      expect(body.message).toMatch(/^You’re locked in for Thu May 13 · /);
     }
     const r = await req(id);
     expect(r.status).toBe('locked');
@@ -510,12 +510,12 @@ describe('T2.4.07 the guest takes an offer (S18 POST)', () => {
     const res = await suggestTimes(id, { ranges: [{ startsAt, endsAt, where: 'The Commodore' }] }, '', NOW);
     expect(res.ok).toBe(true);
     const mail = (await lastMail(email))!;
-    expect(mail.text_body).toMatch(/still open:\nSat May 22, /);
+    expect(mail.text_body).toMatch(/still open:\nSat May 22 · /);
     const token = tokenIn(mail.text_body)!;
     const answer = await takeRoute(post('/api/offer/take', { token, rangeIndex: 0 }));
     expect(answer.status).toBe(200);
     expect(((await answer.json()) as { message: string }).message).toMatch(
-      /^You’re locked in for Sat May 22, /,
+      /^You’re locked in for Sat May 22 · 7:30–11 pm\./,
     );
     const r = await req(id);
     expect(r).toMatchObject({ status: 'locked', locked_starts_at: startsAt, locked_ends_at: endsAt });

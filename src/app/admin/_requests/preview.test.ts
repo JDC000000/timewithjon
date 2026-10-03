@@ -9,11 +9,11 @@ describe('emailPreview', () => {
     const p = emailPreview('E5', {
       dish: 'The Flat White',
       lead: '',
-      times: 'Fri May 21, 12:00 Vancouver time\nThu May 27, 12:00 Vancouver time',
+      times: 'Fri May 21 · noon–2 pm\nThu May 27 · noon–2 pm',
     });
     expect(p.subject).toBe('Another time for The Flat White?');
     expect(p.lines.join('\n')).not.toMatch(/\{\w+\}/);
-    expect(p.lines.join('\n')).toContain('Fri May 21, 12:00 Vancouver time');
+    expect(p.lines.join('\n')).toContain('Fri May 21 · noon–2 pm');
     expect(p.lines.some((l) => l.includes('Link'))).toBe(false);
     expect(p.signOff).toBe('Jon');
   });
@@ -25,7 +25,9 @@ describe('emailPreview', () => {
 });
 
 describe('emailTime', () => {
-  it('"Fri May 21, 12:00 Vancouver time"', () => {
-    expect(emailTime(vancouverInstant('2027-05-21', '12:00'))).toBe('Fri May 21, 12:00 Vancouver time');
+  it('"Fri May 21 · noon–2 pm", as the site writes it (QA C)', () => {
+    expect(emailTime(vancouverInstant('2027-05-21', '12:00'), vancouverInstant('2027-05-21', '14:00'))).toBe(
+      'Fri May 21 · noon–2 pm',
+    );
   });
 });

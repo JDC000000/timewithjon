@@ -195,7 +195,7 @@ test('AC1: taking an offer twice acts once; the second visit shows "You’re loc
   await page.goto(offerUrl(s.token));
   await page.getByRole('radio').check();
   await page.getByRole('button', { name: FLOW.send }).click();
-  await expect(page.getByRole('status')).toHaveText(/^You’re locked in for Thu May 13, /);
+  await expect(page.getByRole('status')).toHaveText(/^You’re locked in for Thu May 13 · /);
   expect((await row(s.requestId)).status).toBe('locked');
   // The same tap again from a stale tab: 200, the same line, nothing done twice.
   const again = await page.evaluate(
@@ -210,7 +210,7 @@ test('AC1: taking an offer twice acts once; the second visit shows "You’re loc
       ).json(),
     { token: s.token, slotId: may13.id },
   );
-  expect(again.message).toMatch(/^You’re locked in for Thu May 13, /);
+  expect(again.message).toMatch(/^You’re locked in for Thu May 13 · /);
   expect(
     await db(
       async (c) =>
@@ -245,7 +245,7 @@ test.describe('AC4', () => {
     const apr23 = await slot('2027-04-23');
     await seed({ status: 'locked', lock: { start: apr23.starts_at, end: apr23.ends_at } });
     await page.goto(offerUrl(s.token));
-    await page.getByRole('radio', { name: /^Thu Apr 22, / }).check();
+    await page.getByRole('radio', { name: /^Thu Apr 22 · / }).check();
     const take = page.waitForResponse(
       (r) => r.url().endsWith('/api/offer/take') && r.request().method() === 'POST',
     );
@@ -256,7 +256,7 @@ test.describe('AC4', () => {
     await expect(page.locator('main').getByRole('alert')).toHaveText(ERRORS.offerGone);
     // Only the time still open is offered now.
     await expect(page.getByRole('radio')).toHaveCount(1);
-    await expect(page.getByRole('radio', { name: /^Thu Apr 29, / })).toBeVisible();
+    await expect(page.getByRole('radio', { name: /^Thu Apr 29 · / })).toBeVisible();
     const r = await row(s.requestId);
     expect(r.status).toBe('needs_new_time');
     expect(r.awaiting_jon_since).not.toBeNull();
@@ -278,9 +278,9 @@ test('AC6: a dates-mode offer (the Encore, Sat Apr 3, 19:30–23:00) can be take
     ],
   });
   await page.goto(offerUrl(s.token));
-  await expect(page.getByRole('radio', { name: /^Sat Apr 3, / })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /^Sat Apr 3 · / })).toBeChecked();
   await page.getByRole('button', { name: FLOW.send }).click();
-  await expect(page.getByRole('status')).toHaveText(/^You’re locked in for Sat Apr 3, /);
+  await expect(page.getByRole('status')).toHaveText(/^You’re locked in for Sat Apr 3 · /);
   expect(await row(s.requestId)).toMatchObject({ status: 'locked', locked_where: 'The Commodore' });
 });
 

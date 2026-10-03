@@ -111,7 +111,7 @@ describe('T2.4.10 E5-E10 and E16: the copy, sent by the real senders', () => {
     expect(await mail(r.email, 'E5')).toEqual({
       subject: 'Another time for The Long Lunch?',
       text:
-        'Thursday went before I could grab it. These are still open:\nFri May 14, 12:00 Vancouver time\nTap one and it’s yours.\n' +
+        'Thursday went before I could grab it. These are still open:\nFri May 14 · noon–2 pm\nTap one and it’s yours.\n' +
         `${SITE}/offer?t=TOKEN\n\nJon\n`,
     });
   });
@@ -138,7 +138,7 @@ describe('T2.4.10 E5-E10 and E16: the copy, sent by the real senders', () => {
     // Approved copy (decision 31): "{when} is free now" (creative v1.4 has "Thursday the 13th at noon") and the link line.
     expect(await mail(r.email, 'E7')).toEqual({
       subject: 'Friday just opened up',
-      text: `Fri Apr 2, 12:00 Vancouver time is free now. Want it?\n${SITE}/offer?t=TOKEN\n\nJon\n`,
+      text: `Fri Apr 2 · noon–2 pm is free now. Want it?\n${SITE}/offer?t=TOKEN\n\nJon\n`,
     });
   });
 

@@ -206,7 +206,7 @@ describe('T2.4.04 Offer a freed window to one stand-by guest → E7', () => {
     expect(r.awaiting_jon_since).toBeNull();
     const mail = (await lastMail(email))!;
     expect(mail.subject).toBe('Thursday just opened up');
-    expect(mail.text_body).toMatch(/^Thu May 6, [^\n]+ is free now\. Want it\?\n/);
+    expect(mail.text_body).toMatch(/^Thu May 6 · [^\n]+ is free now\. Want it\?\n/);
     const token = tokenIn(mail.text_body)!;
     const [t] = await q<{ expires_at: Date }>(`select expires_at from action_token where offer_id = $1`, [
       offerId,

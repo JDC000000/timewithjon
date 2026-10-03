@@ -51,8 +51,8 @@ describe('T3.2.U2 html: each template renders on the Layout with its copy', () =
   it('E5b with times draws the E5B_PARTS frame with the times as a list; without, no list and no link', async () => {
     const withTimes = (await renderEmail('E5b', VARS.E5b, { siteUrl: SITE })).html!;
     expect(withTimes.match(/<li>[^<]*<\/li>/g)).toEqual([
-      '<li>Fri Oct 2, 12:00 pm</li>',
-      '<li>Sun Oct 4, 11:00 am</li>',
+      '<li>Fri Oct 2 · noon–2 pm</li>',
+      '<li>Sun Oct 4 · 11 am–1 pm</li>',
     ]);
     expect(words(withTimes)).toContain('Something came up that week, and it’s on me. These are still open:');
     expect(words(withTimes)).toContain('Tap one and it’s yours.');
@@ -88,8 +88,8 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
           "fromLocal": "jon",
           "subject": "Got it: The Long Lunch",
           "text": "Got your times:
-      Thu Oct 1, 12:00 pm
-      Sat Oct 3, 6:00 pm
+      Thu Oct 1 · noon–2 pm
+      Sat Oct 3 · 7 pm
       I’ll lock one in within two days.
 
       Jon
@@ -161,7 +161,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E4": {
           "fromLocal": "jon",
           "subject": "Locked in: The Long Lunch, Thu Oct 1",
-          "text": "Thu Oct 1, 12:00 pm. You pick the place, just tell me where. The calendar invite comes from Time with Jon, so look out for it. If plans change, use the link below and we’ll find another day.
+          "text": "Thu Oct 1 · noon–2 pm. You pick the place, just tell me where. The calendar invite comes from Time with Jon, so look out for it. If plans change, use the link below and we’ll find another day.
       https://timewithjon.com/r/manage/tok_3f9a2b7c
 
       Jon
@@ -170,7 +170,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E4c": {
           "fromLocal": "jon",
           "subject": "Calendar update: The Long Lunch",
-          "text": "Here’s the calendar invite for The Long Lunch, Thu Oct 1, 12:00 pm. It’s attached: open it to add it to your calendar.
+          "text": "Here’s the calendar invite for The Long Lunch, Thu Oct 1 · noon–2 pm. It’s attached: open it to add it to your calendar.
 
       Jon
       ",
@@ -179,8 +179,8 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
           "fromLocal": "jon",
           "subject": "Another time for The Long Lunch?",
           "text": "That one went. These are still open:
-      Fri Oct 2, 12:00 pm
-      Sun Oct 4, 11:00 am
+      Fri Oct 2 · noon–2 pm
+      Sun Oct 4 · 11 am–1 pm
       Tap one and it’s yours.
       https://timewithjon.com/r/take/tok_3f9a2b7c
 
@@ -191,8 +191,8 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
           "fromLocal": "jon",
           "subject": "Another time for The Long Lunch?",
           "text": "Something came up that week, and it’s on me. These are still open:
-      Fri Oct 2, 12:00 pm
-      Sun Oct 4, 11:00 am
+      Fri Oct 2 · noon–2 pm
+      Sun Oct 4 · 11 am–1 pm
       Tap one and it’s yours.
       https://timewithjon.com/r/take/tok_3f9a2b7c
 
@@ -218,7 +218,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E7": {
           "fromLocal": "jon",
           "subject": "Friday just opened up",
-          "text": "Fri Oct 2, 12:00 pm is free now. Want it?
+          "text": "Fri Oct 2 · noon–2 pm is free now. Want it?
       https://timewithjon.com/r/take/tok_3f9a2b7c
 
       Jon

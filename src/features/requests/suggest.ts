@@ -11,7 +11,7 @@ import type { CountsToward, RequestStatus } from '@/features/availability/types'
 import { takeLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
-import { dayLabel, formatGuestTime } from '@/lib/time';
+import { guestWhen } from '@/lib/when';
 import { createOffer, releaseLiveOffers, sameLiveOffer, type OfferRange } from './offers';
 import { noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
 
@@ -44,28 +44,36 @@ export async function requestForOffer(c: PoolClient, requestId: string): Promise
   return rows[0] ?? null;
 }
 
-/** The offered starts, earliest first, or a refusal (an unknown slot, or a time that has already started). */
-export async function offeredStarts(
+export interface OfferedTime {
+  startsAt: Date;
+  endsAt: Date;
+}
+
+/** The offered times, earliest first, or a refusal (an unknown slot, or a time that has already started). */
+export async function offeredTimes(
   c: PoolClient,
   o: SuggestOptions,
   now: Date,
-): Promise<Date[] | 'slot_not_found' | 'in_the_past'> {
-  let starts: Date[];
+): Promise<OfferedTime[] | 'slot_not_found' | 'in_the_past'> {
+  let times: OfferedTime[];
   if ('slotIds' in o) {
-    const { rows } = await c.query<{ starts_at: Date }>(
-      `select starts_at from slot where id = any($1::uuid[]) order by starts_at`,
+    const { rows } = await c.query<{ starts_at: Date; ends_at: Date }>(
+      `select starts_at, ends_at from slot where id = any($1::uuid[]) order by starts_at`,
       [o.slotIds],
     );
     if (rows.length !== new Set(o.slotIds).size) return 'slot_not_found';
-    starts = rows.map((r) => r.starts_at);
+    times = rows.map((r) => ({ startsAt: r.starts_at, endsAt: r.ends_at }));
   } else {
-    starts = o.ranges.map((r) => r.startsAt).sort((a, b) => a.getTime() - b.getTime());
+    times = o.ranges
+      .map((r) => ({ startsAt: r.startsAt, endsAt: r.endsAt }))
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   }
-  return starts.some((s) => s <= now) ? 'in_the_past' : starts;
+  return times.some((t) => t.startsAt <= now) ? 'in_the_past' : times;
 }
 
-export function timeLabel(startsAt: Date, guestTimeZone: string | null): string {
-  return `${dayLabel(startsAt)}, ${formatGuestTime(startsAt, guestTimeZone)}`;
+/** An offered time in an email (E5, E5b, E7): as the site writes it, with the guest's own zone (QA C). */
+export function timeLabel(t: OfferedTime, guestTimeZone: string | null): string {
+  return guestWhen(t.startsAt, t.endsAt, guestTimeZone);
 }
 
 export async function audit(
@@ -92,9 +100,9 @@ async function suggestTx(
   if (!SUGGESTABLE.has(r.status) || r.joined_to_request_id) {
     return { result: { ok: false, status: 409, reason: 'not_allowed' }, after: none };
   }
-  const starts = await offeredStarts(c, a.options, a.now);
-  if (starts === 'slot_not_found') return { result: { ok: false, status: 404, reason: starts }, after: none };
-  if (starts === 'in_the_past') return { result: { ok: false, status: 409, reason: starts }, after: none };
+  const times = await offeredTimes(c, a.options, a.now);
+  if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
+  if (times === 'in_the_past') return { result: { ok: false, status: 409, reason: times }, after: none };
 
   // A double submit acts once: the same windows already on offer keep their offer and their one E5.
   const same =
@@ -122,7 +130,7 @@ async function suggestTx(
         vars: {
           dish: dishBySlug(r.dish)?.name ?? r.dish,
           lead: a.lead ? `${a.lead} ` : '',
-          times: starts.map((s) => timeLabel(s, r.guest_time_zone)).join('\n'),
+          times: times.map((t) => timeLabel(t, r.guest_time_zone)).join('\n'),
           takeLink: takeLink(offerId),
         },
       }),

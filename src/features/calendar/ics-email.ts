@@ -7,7 +7,7 @@ import type { PoolClient } from 'pg';
 import { E4C_LEAD, fill } from '@/content/emails';
 import { dishBySlug } from '@/content/menu-helpers';
 import { queueEmail } from '@/features/email/send';
-import { dayLabel, formatGuestTime } from '@/lib/time';
+import { guestWhen } from '@/lib/when';
 import { calendarEvent, LOCKED_COLUMNS, type LockedRow } from './event';
 import type { IcsMethod } from './ics';
 
@@ -32,7 +32,7 @@ export async function queueIcsEmail(c: PoolClient, requestId: string, method: Ic
   const startsAt = r.locked_starts_at!;
   const event = calendarEvent(requestId, r);
   const dish = dishBySlug(r.dish)?.name ?? r.dish;
-  const when = `${dayLabel(startsAt)}, ${formatGuestTime(startsAt, r.guest_time_zone)}`;
+  const when = guestWhen(startsAt, r.locked_ends_at!, r.guest_time_zone); // QA C: the email's words, not the .ics
   const queued = await queueEmail(c, {
     template: 'E4c',
     to: r.contact_email,

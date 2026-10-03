@@ -98,13 +98,14 @@ export async function createRequestTx(
   );
   // L-3: the emails are queued as 'pending' rows in THIS transaction and sent after commit (AD-9: never for spam).
   if (!a.spam) {
-    const starts =
+    const slots =
       a.mode === 'slots'
         ? (
-            await c.query<{ starts_at: Date }>(`select starts_at from slot where id = any($1::uuid[])`, [
-              b.slotIds,
-            ])
-          ).rows.map((r) => r.starts_at)
+            await c.query<{ startsAt: Date; endsAt: Date }>(
+              `select starts_at as "startsAt", ends_at as "endsAt" from slot where id = any($1::uuid[])`,
+              [b.slotIds],
+            )
+          ).rows
         : [];
     const emails = intakeEmails({
       requestId,
@@ -117,7 +118,7 @@ export async function createRequestTx(
       bigCrew: a.bigCrew,
       choiceCount: a.mode === 'slots' ? b.slotIds.length : b.dates.length,
       standbyWeek: b.standbyWeek ?? null,
-      requestedTimes: requestedTimeLines(starts, a.mode === 'dates' ? b.dates : [], b.guestTimeZone ?? null),
+      requestedTimes: requestedTimeLines(slots, a.mode === 'dates' ? b.dates : [], b.guestTimeZone ?? null),
       jonEmail: jonEmail(),
       siteUrl: getEnv().NEXT_PUBLIC_SITE_URL,
     });
