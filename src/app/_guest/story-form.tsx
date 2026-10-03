@@ -10,6 +10,7 @@ import { AFTER_SEND, ERRORS } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import { Button, Field } from '@/ui';
 import { moveFocus } from '@/ui/focus';
+import { HoneypotField } from './honeypot';
 import { PhotoPicker, usePhotos } from './photo-picker';
 import { decideSubmit, storyBody } from './story-submit';
 import { photoUploader, type PhotoTarget } from './uploader';
@@ -168,17 +169,7 @@ export function StoryForm(p: StoryFormProps) {
           onChange={(e) => setBefore60(e.target.value)}
         />
       )}
-      <div className="vh" aria-hidden="true">
-        <label htmlFor={ids.hp}>{STORY_FORM.honeypot}</label>
-        <input
-          id={ids.hp}
-          name="website"
-          tabIndex={-1}
-          autoComplete="off"
-          value={hp}
-          onChange={(e) => setHp(e.target.value)}
-        />
-      </div>
+      <HoneypotField id={ids.hp} value={hp} onChange={setHp} />
       {failed && (
         <p className="err" ref={errRef} tabIndex={-1} role="alert">
           {failed}

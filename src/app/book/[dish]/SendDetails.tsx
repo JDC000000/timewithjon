@@ -11,8 +11,8 @@ import { flushSync } from 'react-dom';
 import { Field, ROUTES } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
-import { STORY_FORM } from '@/content/ui/guest-after';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
+import { HoneypotField } from '../../_guest/honeypot';
 import { clearDraft, draftStore } from './_lib/draft';
 import { errorFor, FIELD_IDS, type FormError } from './_lib/form-errors';
 import type { GuestView } from './_lib/flow-view';
@@ -158,17 +158,7 @@ export function DetailsFields({
         </>
       )}
       {turnstileBox && <TurnstileSlot box={turnstileBox} />}
-      <div className="vh" aria-hidden="true">
-        <label htmlFor="f-hp">{STORY_FORM.honeypot}</label>
-        <input
-          id="f-hp"
-          name="website"
-          tabIndex={-1}
-          autoComplete="off"
-          value={hp}
-          onChange={(e) => setHp(e.currentTarget.value)}
-        />
-      </div>
+      <HoneypotField id="f-hp" value={hp} onChange={setHp} />
     </div>
   );
 }

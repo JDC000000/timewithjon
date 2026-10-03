@@ -152,6 +152,17 @@ select {
   white-space: nowrap;
   border: 0;
 }
+/* QA L2: the AD-9 honeypot (src/app/_guest/honeypot.tsx) is for bots only: off-screen and visibility: hidden, so
+   its label is neither seen nor read nor copied (.vh text still is), and browsers don't autofill it */
+.hp {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  visibility: hidden;
+}
 [hidden] {
   display: none !important;
 }
