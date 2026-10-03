@@ -12,9 +12,9 @@ export const MANAGE_UI = {
   frees: (when: string) => `Sending new times frees up ${when}.`, // PACK v2.2 s17 (note under Ask for another time)
   cancel: 'Cancel', // PACK v2.2 s17
   /** QA B: Cancel asks first, in place (the row becomes the question and its two answers). */
-  cancelAsk: 'Cancel this one?', // NEW COPY (needs Jon)
-  cancelYes: 'Yes, cancel', // NEW COPY (needs Jon)
-  cancelKeep: 'Keep it', // NEW COPY (needs Jon) (the admin A3l answer, word for word)
+  cancelAsk: 'Cancel this one?', // approved: Jon (2026-10-03, QA B)
+  cancelYes: 'Yes, cancel', // approved: Jon (2026-10-03, QA B)
+  cancelKeep: 'Keep it', // approved: Jon (2026-10-03, QA B)
   addStory: 'Add a story or photo', // PACK v2.2 s17
   backToMenu: 'Back to the activity menu', // PACK v2.2 s17b
 };
