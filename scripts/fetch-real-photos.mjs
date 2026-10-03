@@ -6,20 +6,31 @@
 //                            forks and local dev build with the stand-ins.
 //   PRIVATE_PHOTOS_TOKEN     optional; sent as `Authorization: Bearer <token>` (never logged).
 //
-// manifest.json (at the base URL) may hold either or both:
+// manifest.json (at the base URL) may hold any of:
 //   "prebuilt": ["hero-480.webp", ...]   finished files, copied over the stand-in of the same name
 //   "sha256":   { "hero-480.webp": "<hex>" }   optional integrity pins for prebuilt files
 //   "slots":    { "<slot>": { "file": "rel/path.jpg", "pos": "50% 40%" } }   sources, rendered by
 //                                          scripts/build-real-photos.mjs (same format it already takes)
+//   "text":     { "<exact find>": "<replacement>" }   or   [{ "file", "find", "replace" }]   private copy, applied
+//                                          by exact string replace to allow-listed source files (TEXT_FILES)
+//   "pos":      { "<slot>": "50% 20%" }   focal-point overrides for existing slots in src/ui/photo-slots.ts
+//                                          (scripts/private-overrides.mjs; a find string must occur exactly once)
 // Only files that already exist in public/img may be replaced, at the same pixel size, and a replacement must carry
 // no metadata (EXIF/XMP/IPTC/ICC). When the env var is set, any failure fails the build (no silent stand-in deploy).
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import {
+  applyPosOverrides,
+  applyTextOverrides,
+  parsePosOverrides,
+  parseTextOverrides,
+  PHOTO_SLOTS_FILE,
+} from './private-overrides.mjs';
 
 const BASE = process.env.PRIVATE_PHOTOS_BASE_URL?.trim();
 if (!BASE) {
@@ -59,6 +70,19 @@ function safeRel(rel) {
 }
 
 const manifest = JSON.parse((await get('manifest.json')).toString('utf8'));
+// the source overrides are worked out (and validated) before any file is touched; written after the photos
+const textOverrides = parseTextOverrides(manifest.text);
+const posOverrides = parsePosOverrides(manifest.pos);
+const sourceFiles = [...new Set(textOverrides.map((t) => t.file))];
+const rewritten = applyTextOverrides(
+  Object.fromEntries(sourceFiles.map((f) => [f, readFileSync(join(ROOT, f), 'utf8')])),
+  textOverrides,
+);
+if (posOverrides.length > 0) {
+  const slotsSrc = rewritten[PHOTO_SLOTS_FILE] ?? readFileSync(join(ROOT, PHOTO_SLOTS_FILE), 'utf8');
+  rewritten[PHOTO_SLOTS_FILE] = applyPosOverrides(slotsSrc, posOverrides);
+}
+
 const prebuilt = manifest.prebuilt ?? [];
 const pins = manifest.sha256 ?? {};
 let count = 0;
@@ -105,4 +129,10 @@ if (Object.keys(slots).length > 0) {
   }
 }
 
+// counts and file names only: the replacement text is private and never logged
+for (const [file, contents] of Object.entries(rewritten)) writeFileSync(join(ROOT, file), contents);
+if (textOverrides.length + posOverrides.length > 0)
+  console.log(
+    `fetch-real-photos: ${textOverrides.length} text and ${posOverrides.length} focal-point override(s) applied (${Object.keys(rewritten).join(', ')})`,
+  );
 console.log(`fetch-real-photos: ${count} private photo file(s)/slot(s) applied from ${base.host}`);

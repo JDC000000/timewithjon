@@ -39,6 +39,7 @@ describe('token pages (pr32-review L3)', () => {
       TOKEN_PAGES,
       '/admin/:path*',
       '/admin/auth/callback',
+      '/img/:path*',
     ]);
     expect(rules[1]!.headers).toEqual([
       { key: 'Referrer-Policy', value: 'no-referrer' },

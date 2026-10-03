@@ -19,7 +19,9 @@ The folder at the base URL holds a `manifest.json` and the files it names:
 {
   "prebuilt": ["hero-480.webp", "hero-800.webp"],
   "sha256": { "hero-480.webp": "<hex>", "hero-800.webp": "<hex>" },
-  "slots": { "grind": { "file": "sources/grind.jpg", "pos": "50% 40%" } }
+  "slots": { "grind": { "file": "sources/grind.jpg", "pos": "50% 40%" } },
+  "text": { "<exact public wording>": "<private wording>" },
+  "pos": { "grind": "50% 20%" }
 }
 ```
 
@@ -29,9 +31,22 @@ The folder at the base URL holds a `manifest.json` and the files it names:
 - `slots`: source photos, downloaded to a temp folder and rendered by `scripts/build-real-photos.mjs` (same
   manifest format it has always taken: widths, aspect, focal point, all metadata stripped). The temp folder is
   deleted afterwards.
+- `text`: private copy. The public repo carries stand-in wording; the private build swaps in the real wording by
+  exact string replace. The object form applies to `src/content/menu.ts`; the list form
+  (`[{ "file": "src/content/menu.ts", "find": "…", "replace": "…" }]`) names the file, which must be on the
+  allow-list (`TEXT_FILES` in `scripts/private-overrides.mjs`, the menu copy only). Each find string must occur
+  **exactly once** in its file. A replacement may not contain `<`, a backtick, a straight quote (`'` or `"`), a
+  backslash or a line break (use typographic quotes, as the copy does). The replacement text is never logged.
+- `pos`: focal points for Jon's own photos, which may need framing different from the stand-ins'. Each key must be
+  an existing slot in `src/ui/photo-slots.ts`; each value is a CSS `object-position` in whole percents, `"x% y%"`
+  (0 to 100). It is written as that slot's `pos` (the `<img>` `object-position`). It only moves the crop where the
+  slot's box is a different shape from the file (e.g. a 4:3 photo in a 16:9 sheet); it cannot bring back what the
+  file itself cut off.
 
-When `PRIVATE_PHOTOS_BASE_URL` is set, any failure (HTTP error, wrong size, metadata, hash mismatch) **fails the
-build**, so a production deploy never silently ships stand-ins. The token is never logged.
+When `PRIVATE_PHOTOS_BASE_URL` is set, any failure (HTTP error, wrong size, metadata, hash mismatch, a `text` find
+string not found exactly once, an unknown slot or a bad `pos`) **fails the build**, so a production deploy never
+silently ships stand-ins or stand-in wording. The overrides are checked before any file is written. The token is
+never logged.
 
 Any https store that answers a plain GET works, e.g. a private Supabase Storage bucket
 (`https://<ref>.supabase.co/storage/v1/object/authenticated/<bucket>/` with a read-only key as the token), a
@@ -43,9 +58,11 @@ a fork's pull request never builds with them.
 
 ## After a private build
 
-The swap rewrites files in `public/img`. The unit tests pin the committed stand-ins byte for byte
-(`tests/unit/ui/public-img-allowlist.test.ts`), so if you run the swap locally, restore the stand-ins with
-`git checkout -- public/img` before running the tests, and never commit the swapped files.
+The swap rewrites files in `public/img` and, with `text` or `pos` overrides, `src/content/menu.ts` and
+`src/ui/photo-slots.ts`. The unit tests pin the committed stand-ins byte for byte
+(`tests/unit/ui/public-img-allowlist.test.ts`) and the public copy, so if you run the swap locally, restore with
+`git checkout -- public/img src/content/menu.ts src/ui/photo-slots.ts` before running the tests, and never commit
+the swapped files.
 
 ## Stand-in sources (Unsplash License)
 
