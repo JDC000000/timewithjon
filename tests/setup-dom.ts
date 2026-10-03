@@ -3,7 +3,12 @@
 // A focus near the end of a file left that timer pending; it fired after jsdom was torn down and threw
 // "ReferenceError: document is not defined" (intermittent CI Unit failure, e.g. run 36374518871 from DateFlows).
 // Let pending settle/pointer timers run while the jsdom globals still exist, before the environment closes.
-import { afterAll, vi } from 'vitest';
+import { afterAll, beforeEach, vi } from 'vitest';
+
+// QA M3: the booking flows keep a draft in sessionStorage; every test starts from an empty tab.
+beforeEach(() => {
+  sessionStorage.clear();
+});
 
 /** One frame (~16 ms) + SETTLE_MS (120 ms) + margin for a loaded CI runner. */
 export const DOM_SETTLE_WAIT_MS = 250;

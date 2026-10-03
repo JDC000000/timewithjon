@@ -2,7 +2,8 @@
 // S7 date request (T1.6.U1-U3, pack gen.py s07()): the dish header, the month grid with its chips, the rough
 // window, the overnight row (dishes that allow it), the Long Distance time zone, Send and the rail. The Old Haunt's
 // weekend mode is this flow on weekends only, with the switch back to Thu/Fri times (T1.6.U6, wireframe 05-G2).
-// Send checks for a date or a rough window: the error summary takes focus, a pick or a window clears it.
+// Send checks for a date or a rough window: the error summary takes focus, a pick or a window clears it. The picks
+// and the details are kept for this tab (useDraft, QA M3): a reload or Back restores the dates still open.
 import Link from 'next/link';
 import { useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
@@ -14,7 +15,7 @@ import { DateGrid } from './DateGrid';
 import { ErrorSummary } from './ErrorSummary';
 import { DetailsFields, SendFailed, useSend } from './SendDetails';
 import { PicksRail } from './PicksRail';
-import { initialCalMonth, toggleDate, type CalDay, type CalMonth } from './_lib/date-grid';
+import { initialCalMonth, MAX_DATES, toggleDate, type CalDay, type CalMonth } from './_lib/date-grid';
 import {
   dateErrors,
   DETAILS_ID,
@@ -25,7 +26,8 @@ import {
   type FormError,
 } from './_lib/form-errors';
 import { dishPhotoSlot, NO_GUEST, type DishView, type FlowNotices, type GuestView } from './_lib/flow-view';
-import { ELSEWHERE, initialZoneOption, postedZone } from './_lib/time-zone';
+import { ELSEWHERE, initialZoneOption, isZoneOption, postedZone } from './_lib/time-zone';
+import { useDraft } from './_lib/useDraft';
 
 export interface DatesFlowProps {
   dish: DishView;
@@ -67,6 +69,20 @@ export function DatesFlow({
   const summaryRef = useRef<HTMLDivElement>(null);
   const s = useSend(dish.slug, guest);
   const days = new Map(months.flatMap((m) => m.rows.flat()).flatMap((d) => (d ? [[d.date, d]] : [])));
+  useDraft(
+    dish.slug,
+    { dates: order, rough, roughOpen, overnight, zone, name: s.name, email: s.email },
+    (d) => {
+      const dates = (d.dates ?? []).filter((x) => days.get(x)?.off === null).slice(0, MAX_DATES);
+      setOrder(dates);
+      setShownMonth(initialCalMonth(months, dates));
+      setRough(d.rough ?? '');
+      setRoughOpen(Boolean(d.roughOpen || d.rough?.trim()));
+      setOvernight(Boolean(d.overnight && dish.overnightAllowed));
+      if (dish.asksTimeZone && d.zone && isZoneOption(d.zone)) setZone(d.zone);
+      s.restoreDetails(d);
+    },
+  );
 
   function onToggle(d: CalDay, el: HTMLButtonElement) {
     const next = toggleDate(order, d.date);

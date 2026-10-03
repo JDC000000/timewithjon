@@ -5,6 +5,9 @@ import { TIME_ZONE } from '@/content/ui/booking';
 export const ELSEWHERE = 'elsewhere';
 const LISTED = new Set(TIME_ZONE.options.map((o) => o.value));
 
+/** A value the select can hold (a kept draft's zone is checked with this, QA M3). */
+export const isZoneOption = (v: string) => v === ELSEWHERE || LISTED.has(v);
+
 /** Zones the list draws under another name (Calgary's zone is Edmonton's; Berlin shares Paris's option). */
 const ALIASES: Readonly<Record<string, string>> = {
   'America/Calgary': 'America/Edmonton',

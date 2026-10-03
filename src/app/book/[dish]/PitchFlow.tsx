@@ -2,7 +2,8 @@
 // Pitch Me (T1.6.U5, wireframe 06-B/C2/F): the idea first, then the "Try:" starters (each one drops its words into
 // the idea: into an empty idea, else on a new line; never replacing what the guest wrote; focus goes to the end of
 // the idea and "Added a starter" is announced), then when, then the one-night row, which reveals "Which night?".
-// Send checks the idea, then when: the error summary takes focus, fixing a field clears its error.
+// Send checks the idea, then when: the error summary takes focus, fixing a field clears its error. What the guest
+// typed is kept for this tab (useDraft, QA M3): a reload or Back restores it.
 import { useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Button, Field, KeepWhole } from '@/ui';
@@ -21,6 +22,7 @@ import {
   type FormError,
 } from './_lib/form-errors';
 import { NO_GUEST, type DishView, type FlowNotices, type GuestView } from './_lib/flow-view';
+import { useDraft } from './_lib/useDraft';
 
 /** A starter into the idea: the idea itself when empty, else appended on a new line (wireframe 06 n4). */
 export function addStarter(idea: string, starter: string): string {
@@ -43,6 +45,13 @@ export function PitchFlow({
   const [errors, setErrors] = useState<FormError[]>([]);
   const summaryRef = useRef<HTMLDivElement>(null);
   const s = useSend(dish.slug, guest);
+  useDraft(dish.slug, { idea, when, overnight, night, name: s.name, email: s.email }, (d) => {
+    setIdea(d.idea ?? '');
+    setWhen(d.when ?? '');
+    setOvernight(Boolean(d.overnight && dish.overnightAllowed));
+    setNight(d.night ?? '');
+    s.restoreDetails(d);
+  });
 
   function onStarter(starter: string) {
     const next = addStarter(idea, starter);

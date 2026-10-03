@@ -34,4 +34,15 @@ describe('selection (T1.5.U2/U3)', () => {
     expect(hasTimes({ picks: ['a'], standbyWeek: null })).toBe(true);
     expect(hasTimes({ picks: [], standbyWeek: '2027-04-12' })).toBe(true);
   });
+
+  it('restore (QA M3): picks, or one stand-by week, never both', () => {
+    expect(r(EMPTY_SELECTION, { type: 'restore', picks: ['a', 'b'], standbyWeek: '2027-04-12' })).toEqual({
+      picks: ['a', 'b'],
+      standbyWeek: null,
+    });
+    expect(r(EMPTY_SELECTION, { type: 'restore', picks: [], standbyWeek: '2027-04-12' })).toEqual({
+      picks: [],
+      standbyWeek: '2027-04-12',
+    });
+  });
 });
