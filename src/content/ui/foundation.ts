@@ -21,7 +21,7 @@ export const ADMIN_SHELL = {
 } as const;
 
 /** The staging banner (T3.16.U1). */
-export const STAGING_BANNER = 'Staging. Test data only.'; // NEW COPY (needs Jon)
+export const STAGING_BANNER = 'Staging. Test data only.'; // approved: Jon (2026-10-03)
 
 /** The 404 page title (the line and the link are NOT_FOUND in src/content/site.ts). */
 export const NOT_FOUND_TITLE = 'Page not found · Time with Jon'; // PACK v1.12 wireframe 01 state D

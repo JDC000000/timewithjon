@@ -1,7 +1,7 @@
 // src/content/ui/booking.ts — lane U3 copy for the booking flow (S6 picker, S7 dates, S8 Surprise Me / Pitch Me,
 // S10 details) that isn't in src/content yet. Every line is word for word from the approved design pack v1.12
 // (designs/final + site.js) or the approved wireframes 05/06, marked '// PACK v1.12 <screen>'; a genuinely new line
-// is marked '// NEW COPY (needs Jon)'.
+// is marked '// approved: Jon (2026-10-03)'.
 // Lines that already live in src/content (FLOW, ERRORS) are imported from there, never repeated here.
 
 import { MENU_TITLE } from '@/content/menu';
@@ -50,12 +50,12 @@ export const FLOW_UI = {
   backToMenu: MENU_TITLE, // PACK v1.12 s06-picker (header back link); v2.1 COPY (decision 37d)
   sending: 'Sending…', // PACK v1.12 s10-details-send (busy Send; T1.7.U4)
   /** The sticky bar's Send (T1.7.U5): the visually hidden rest of its name, apart from the form's own Send. */
-  barSendRest: ' request', // NEW COPY (needs Jon)
+  barSendRest: ' request', // approved: Jon (2026-10-03)
 };
 
 /** S10 details on every flow's Send (T1.7.U4): the lines FLOW and ERRORS don't carry. */
 export const DETAILS = {
-  nameError: 'Tell me your name.', // NEW COPY (needs Jon)
+  nameError: 'Tell me your name.', // approved: Jon (2026-10-03)
 };
 
 /** S7 date request (T1.6.U1-U3) and the Old Haunt weekend mode (T1.6.U6). */
