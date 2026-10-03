@@ -112,6 +112,7 @@ export function DateLockSheet(props: {
       }
     >
       <form
+        method="post"
         id={`${id}-form`}
         noValidate
         onSubmit={(e) => {

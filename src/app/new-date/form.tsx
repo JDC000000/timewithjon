@@ -92,7 +92,13 @@ export function NewDateForm(p: {
     </div>
   );
   return (
-    <form className="flow-main s18-new-date" noValidate onSubmit={onSubmit} data-s18-form={p.form}>
+    <form
+      method="post"
+      className="flow-main s18-new-date"
+      noValidate
+      onSubmit={onSubmit}
+      data-s18-form={p.form}
+    >
       {need && (
         <p className="ui s18-line" role="alert" tabIndex={-1} ref={errRef}>
           {need}

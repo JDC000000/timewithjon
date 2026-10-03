@@ -75,7 +75,7 @@ export function OpeningForm({ saved }: { saved: { personalOpenAt: string; genera
   };
 
   return (
-    <form noValidate onSubmit={submit}>
+    <form method="post" noValidate onSubmit={submit}>
       {FIELDS.map(({ key, label }) => {
         const date = key === 'personal' ? 'personalDate' : 'generalDate';
         const time = key === 'personal' ? 'personalTime' : 'generalTime';

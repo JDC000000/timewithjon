@@ -124,7 +124,7 @@ function EmailStep({
       <h1 className="h1" tabIndex={-1} ref={heading}>
         {SIGN_IN.title}
       </h1>
-      <form noValidate onSubmit={submit}>
+      <form method="post" noValidate onSubmit={submit}>
         <ErrorSummary problems={problems} attempt={attempt} />
         <Field
           id="s-email"
@@ -214,7 +214,7 @@ function CodeStep({
       <p className="ui" id="a1b-st" style={{ marginTop: 'var(--s3)', color: 'var(--c-ink)' }}>
         {SIGN_IN.onTheirWay(email)}
       </p>
-      <form noValidate onSubmit={submit}>
+      <form method="post" noValidate onSubmit={submit}>
         <ErrorSummary problems={problems} attempt={attempt} />
         <Field
           id="s-code"

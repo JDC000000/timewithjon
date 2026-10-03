@@ -214,6 +214,7 @@ export function AwayForm({
     <>
       {back}
       <form
+        method="post"
         className="pane-pad"
         style={{ paddingTop: 'var(--s4)' }}
         noValidate

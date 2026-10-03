@@ -50,6 +50,7 @@ function ActionSheet(props: {
       }
     >
       <form
+        method="post"
         id={formId}
         noValidate
         onSubmit={(e: FormEvent) => {

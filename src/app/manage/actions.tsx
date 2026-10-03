@@ -358,7 +358,7 @@ function AnotherForm(p: {
   );
 
   return (
-    <form className="flow-main" noValidate onSubmit={onSubmit} data-manage-another={p.form}>
+    <form method="post" className="flow-main" noValidate onSubmit={onSubmit} data-manage-another={p.form}>
       {need && (
         <p className="ui" role="alert" tabIndex={-1} ref={errRef} style={{ color: 'var(--c-ink)' }}>
           {need}

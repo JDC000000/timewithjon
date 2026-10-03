@@ -115,6 +115,7 @@ export function StoryForm(p: StoryFormProps) {
 
   return (
     <form
+      method="post"
       className="section"
       style={{ paddingTop: 'var(--s8)' }}
       aria-labelledby={`${ids.story}-q`}

@@ -74,7 +74,7 @@ export function TakeOffer({ token, choices }: { token: string; choices: Choice[]
       </p>
     );
   return (
-    <form className="flow-main s18-take" noValidate onSubmit={onSubmit}>
+    <form method="post" className="flow-main s18-take" noValidate onSubmit={onSubmit}>
       {failed && (
         <p className="ui s18-line" role="alert">
           {failed}

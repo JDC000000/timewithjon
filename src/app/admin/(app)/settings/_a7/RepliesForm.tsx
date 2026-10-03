@@ -44,7 +44,7 @@ export function RepliesForm({
   };
 
   return (
-    <form noValidate onSubmit={submit}>
+    <form method="post" noValidate onSubmit={submit}>
       <FieldGroup id="rp-promise" label={REPLIES.promise} hint={REPLIES.promiseHelp}>
         {({ labelId, hintId }) => (
           <div
