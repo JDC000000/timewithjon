@@ -3,6 +3,7 @@
 // is never selected (C4). Server-only; every caller has passed requireAdmin().
 import 'server-only';
 import { dishBySlug } from '@/content/menu-helpers';
+import { STORY_HAS_CONTENT } from '@/features/photos/story-content';
 import { q, withTx } from '@/lib/db';
 
 const LIST_MAX = 500; // ~100 guests; a cap keeps a runaway story page from building a huge response
@@ -48,6 +49,7 @@ export async function listStories(): Promise<{ stories: StoryItem[]; truncated: 
             (select count(*)::int from photo p where p.story_id = s.id) as photos,
             r.id as request_id, r.dish, r.contact_name
        from story s left join request r on r.id = s.request_id
+      where ${STORY_HAS_CONTENT}
       order by s.spam_suspect, s.consent_needs_jon desc, s.created_at desc, s.id
       limit $1`,
     [LIST_MAX + 1],

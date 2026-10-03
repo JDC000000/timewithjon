@@ -53,6 +53,9 @@ async function freshInvite(): Promise<string> {
   return row!.id;
 }
 
+// New story-page stories are limited per invite per day; every run here starts with a fresh allowance.
+test.beforeEach(() => sql(`delete from rate_limit where scope = 'storyPageNew'`, []));
+
 async function openStory(page: Page): Promise<void> {
   const response = await page.goto(STORY_PATH);
   expect(response?.status()).toBe(200);
@@ -108,8 +111,8 @@ test('S19 AC1 photo-first: 2 photos picked at once before the first Send make ex
   page,
   baseURL,
 }) => {
-  // T3.12.U1-F3: both signs have no twj_story yet; the sign gate (uploader.ts) holds the 2nd until the 1st has
-  // created the story and issued twj_story, so there is no orphan empty story.
+  // T3.12.U1-F3: neither photo has a story yet; the sign gate (uploader.ts) holds the 2nd until the 1st has saved
+  // the story (the first save creates it and issues twj_story), so there is no orphan empty story.
   const inviteId = await withInvite(page, baseURL, await freshInvite());
   await openStory(page);
   await page.getByLabel(AFTER_SEND.photoButton).setInputFiles([

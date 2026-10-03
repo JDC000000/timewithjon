@@ -76,12 +76,13 @@ describe('POST /api/story-page (T3.12)', () => {
     expect(await signed.json()).toEqual({ mock: true });
     // the After-Send default needs twj_req, and story_page needs twj_story: each capability is its own key
     expect((await post('/api/photos/sign', {}, both)).status).toBe(403);
-    // T3.12.U1 GAP: a sign with the invite but no twj_story yet (a photo picked before the first Send) creates a
-    // new story and issues its twj_story; finalise never creates one (403).
+    // A sign with the invite but no twj_story yet creates nothing (the page's first save creates the story), and
+    // neither does finalise (403).
+    const before = (await q(`select 1 from story where source = 'story_page'`)).length;
     const firstSign = await post('/api/photos/sign?for=story_page', {}, invite);
-    expect(firstSign.status).toBe(200);
-    expect(cookieOf(firstSign, 'twj_story')).toBeTruthy();
-    expect(cookieOf(firstSign, 'twj_story')).not.toBe(story);
+    expect(firstSign.status).toBe(403);
+    expect(cookieOf(firstSign, 'twj_story')).toBeUndefined();
+    expect((await q(`select 1 from story where source = 'story_page'`)).length).toBe(before);
     const finInviteOnly = await post(
       '/api/photos/finalise?for=story_page',
       { photoUploadId: randomUUID() },

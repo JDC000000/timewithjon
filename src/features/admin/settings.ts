@@ -4,6 +4,7 @@
 // (e.g. personal_open_at) moves the picker at once (AC2). Server-only; every caller has passed requireAdmin().
 import 'server-only';
 import { z } from 'zod';
+import { STORY_HAS_CONTENT } from '@/features/photos/story-content';
 import { q, withTx } from '@/lib/db';
 import { loadSettings, type SettingsRow } from '@/lib/settings';
 import { ENDED } from './inbox';
@@ -158,7 +159,8 @@ export async function adminCounts(now = new Date()): Promise<AdminCounts> {
               count(*) filter (where consent and not spam_suspect)::int as consented,
               count(*) filter (where consent_needs_jon and not spam_suspect)::int as needs_jon,
               count(*) filter (where spam_suspect)::int as spam
-         from story`,
+         from story s
+        where ${STORY_HAS_CONTENT}`,
     ),
   ]);
   const requests: AdminCounts['requests'] = {
