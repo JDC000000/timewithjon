@@ -1,0 +1,138 @@
+'use client';
+// src/app/new-date/form.tsx — T2.4.U2 S18 new-date form: the S7 date grid (or the pitch's rough window) and ONE
+// POST, Send → /api/offer/propose with the single-use token in the BODY (ProposeBody: token, clientKey, hp and the
+// choices), never the URL; strict-origin referrer. The pick_new_date token opens no availability feed, so the grid
+// shows the season and the server validates the dates (its line is shown as is). After Send the page re-reads.
+import { useRouter } from 'next/navigation';
+import { flushSync } from 'react-dom';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { ERRORS, FLOW } from '@/content';
+import { DATES } from '@/content/ui/booking';
+import { STORY_FORM } from '@/content/ui/guest-after';
+import { Button } from '@/ui';
+import { announce, moveFocus } from '@/ui/focus';
+import { DateGrid } from '../book/[dish]/DateGrid';
+import { calMonths, initialCalMonth, toggleDate, type CalDay } from '../book/[dish]/_lib/date-grid';
+import type { DishView } from '../book/[dish]/_lib/flow-view';
+import { postJson } from '../offer/take';
+
+function span(): { start: string; end: string } {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
+  const d = new Date(`${today}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 120);
+  return { start: today, end: d.toISOString().slice(0, 10) };
+}
+
+export function NewDateForm(p: { token: string; dish: DishView; form: 'dates' | 'pitch' }) {
+  const router = useRouter();
+  const cal = useMemo(
+    () => (p.form === 'dates' ? calMonths(span(), [], p.dish.dateRule) : []),
+    [p.form, p.dish.dateRule],
+  );
+  const [order, setOrder] = useState<string[]>([]);
+  const [shown, setShown] = useState(() => (cal.length ? initialCalMonth(cal, []) : ''));
+  const [rough, setRough] = useState('');
+  const [overnight, setOvernight] = useState(false);
+  const [need, setNeed] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [clientKey] = useState(() => crypto.randomUUID());
+  const errRef = useRef<HTMLParagraphElement>(null);
+
+  function onDay(d: CalDay) {
+    const next = toggleDate(order, d.date);
+    setOrder(next.order);
+    if (next.order.length) setNeed(null);
+    announce(next.order.includes(d.date) ? DATES.picked(d.short) : DATES.removed(d.long));
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    if (order.length === 0 && rough.trim() === '') {
+      flushSync(() => setNeed(ERRORS.noTimes));
+      return moveFocus(errRef.current, 'script');
+    }
+    setBusy(true);
+    setFailed(null);
+    const choices = { dates: order, ...(rough.trim() ? { windowText: rough.trim() } : {}), overnight };
+    const json = await postJson('/api/offer/propose', { token: p.token, ...choices, clientKey, hp: '' });
+    setBusy(false);
+    if (!json.ok) return setFailed(json.message ?? ERRORS.generic);
+    if (json.message) setSaid(json.message);
+    router.refresh();
+  }
+
+  if (said)
+    return (
+      <p className="lead intro s18-line" role="status">
+        {said}
+      </p>
+    );
+  const roughField = (
+    <div className="field">
+      <label htmlFor="s18-rough">
+        {FLOW.pitchWhenLabel} <span className="hint">{FLOW.pitchWhenHint}</span>
+      </label>
+      <input
+        className="input"
+        id="s18-rough"
+        name="windowText"
+        maxLength={200}
+        placeholder={DATES.roughPlaceholder}
+        value={rough}
+        onChange={(e) => {
+          setRough(e.currentTarget.value);
+          if (e.currentTarget.value.trim()) setNeed(null);
+        }}
+      />
+    </div>
+  );
+  return (
+    <form className="flow-main s18-new-date" noValidate onSubmit={onSubmit} data-s18-form={p.form}>
+      {need && (
+        <p className="ui s18-line" role="alert" tabIndex={-1} ref={errRef}>
+          {need}
+        </p>
+      )}
+      {p.form === 'dates' ? (
+        <DateGrid
+          months={cal}
+          order={order}
+          shownMonth={shown}
+          onShowMonth={setShown}
+          onToggle={onDay}
+          onRemove={(d) => setOrder((o) => o.filter((x) => x !== d.date))}
+          weekendsOnly={false}
+          picksError={null}
+        >
+          {roughField}
+          {p.dish.overnightAllowed && (
+            <label className="check" style={{ marginTop: 'var(--s3)' }}>
+              <input
+                type="checkbox"
+                name="overnight"
+                checked={overnight}
+                onChange={(e) => setOvernight(e.currentTarget.checked)}
+              />
+              <span>{DATES.oneNight}</span>
+            </label>
+          )}
+        </DateGrid>
+      ) : (
+        roughField
+      )}
+      {failed && (
+        <p className="ui s18-line" role="alert">
+          {failed}
+        </p>
+      )}
+      <p className="send">
+        <Button type="submit" variant="commit" busy={busy ? STORY_FORM.sending : undefined}>
+          {FLOW.send}
+        </Button>
+      </p>
+    </form>
+  );
+}

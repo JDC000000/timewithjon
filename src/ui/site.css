@@ -3404,3 +3404,24 @@ html:has(.menu-head + nav) {
   max-width: 100%;
   min-height: var(--turnstile-h);
 }
+
+/* ---- T2.4.U2 S18 take-an-offer / pick-a-new-date (the S17 column; one POST button) ---- */
+.s18-line {
+  color: var(--c-ink);
+  margin-top: var(--s4);
+}
+.s18-times {
+  border: 0;
+  margin: var(--s4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+.s18-times legend {
+  padding: 0;
+  margin-bottom: var(--s2);
+}
+.s18-time {
+  min-height: 44px;
+  align-items: center;
+}
