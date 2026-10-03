@@ -51,3 +51,14 @@ export function commitLabel(date: string, start: string): string {
   const at = vancouverInstant(date, start);
   return LOCK_SHEET.lockIn(dayLabel(at), clockLabel(at));
 }
+
+/**
+ * QA L4: the commit as the .btn--dt button's two flex items, the verb and then the day and time ("Lock in" | "Sat May
+ * 8, 9 am"), cut from the copy line itself. Given the whole line, KeepWhole's pieces were each a flex item, so the
+ * column gap opened before the comma ("Sat Apr 3 , 9 am").
+ */
+export function commitParts(date: string, start: string): { verb: string; when: string } {
+  const label = commitLabel(date, start);
+  const at = label.indexOf(dayLabel(vancouverInstant(date, start)));
+  return { verb: label.slice(0, at).trimEnd(), when: label.slice(at) };
+}

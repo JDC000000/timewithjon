@@ -1042,9 +1042,8 @@ a.dish-row:hover .dish-name {
   min-height: var(--tap);
   border-bottom: var(--bw) solid var(--c-rule);
   font-size: var(--fs-ui);
-  font-variant-numeric: tabular-nums;
   color: var(--c-ink);
-}
+} /* QA L4: proportional figures; tabular ones widen "." and "," in this face (tests/unit/ui/tabular-nums.test.ts) */
 .picks li .rm {
   white-space: nowrap;
   min-width: var(--row-h);
@@ -1866,10 +1865,9 @@ dialog.sheet[open] {
   margin-top: var(--s3);
   display: grid;
   gap: var(--s1);
-  font-variant-numeric: tabular-nums;
   color: var(--c-ink);
   font-size: var(--fs-ui);
-}
+} /* QA L4: guest text (a rough window) can hold punctuation: proportional figures */
 .receipt .sentto {
   margin-top: var(--s4);
   padding-top: var(--s3);
@@ -2502,8 +2500,7 @@ dialog.sheet .actions {
   display: block;
   color: var(--c-ink-3);
   font-size: var(--fs-ui-s);
-  font-variant-numeric: tabular-nums;
-}
+} /* QA L4: "Invite goes out in 10 s." in proportional figures (a tabular "." reads as " .") */
 .wk {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
