@@ -54,8 +54,8 @@ export const WEEK = {
   openBooking: 'Open', // PACK v1.12 a4b-week
   openBookingVh: (name: string) => ` ${name}’s booking`, // PACK v1.12 a4b-week
   busy: 'Busy on your calendar', // PACK v1.12 a3-request-detail
-  heldForFamily: 'Held for family', // NEW COPY (needs Jon): the list's "held for family" as a window's note
-  done: 'Done', // NEW COPY (needs Jon): a past booking's window ("Done · Robin")
+  heldForFamily: 'Held for family', // approved: Jon (2026-10-03): the list's "held for family" as a window's note
+  done: 'Done', // approved: Jon (2026-10-03): a past booking's window ("Done · Robin")
   thisWeek: 'This week', // PACK v1.12 a4b-week
   blockWholeWeek: 'Block the whole week', // PACK v1.12 a4b-week
   allowThird: 'Allow a 3rd this week', // PACK v1.12 a4b-week
@@ -70,11 +70,11 @@ export const BLOCK = {
   title: 'Block anyway?', // PACK v1.12 a4b (wf09 state-block)
   lockedFor: (when: string, name: string) => `${when} is locked for ${name}.`, // PACK v1.12 a4b (wf09 state-block)
   // wf09 said '…with fresh times.', but E5b goes with no times (ruling Q3; E5B_PARTS.noTimes): pr78-review F2
-  tell: 'I’ll send them “Something came up that week” and some new times soon.', // NEW COPY (needs Jon)
+  tell: 'I’ll send them “Something came up that week” and some new times soon.', // approved: Jon (2026-10-03)
   confirm: (names: string[]) =>
     names.length === 1
       ? `Block and tell ${names[0]}` // PACK v1.12 a4b (wf09 state-block)
-      : 'Block and tell them', // NEW COPY (needs Jon): more than one locked booking
+      : 'Block and tell them', // approved: Jon (2026-10-03): more than one locked booking
   keep: 'Keep it open', // PACK v1.12 a4b (wf09 state-block)
 } as const;
 
@@ -82,7 +82,7 @@ export const BLOCK = {
 export const AWAY = {
   cap: 'Season', // PACK v1.12 a4c-away
   title: 'Away mode', // PACK v1.12 a4c-away
-  off: 'Off', // NEW COPY (needs Jon): the list card when no away range is set ("Away · Off")
+  off: 'Off', // approved: Jon (2026-10-03): the list card when no away range is set ("Away · Off")
   from: 'From', // PACK v1.12 a4c-away
   backOn: 'Back on', // PACK v1.12 a4c-away
   errDate: 'Add a date.', // PACK v1.12 a4c-away
@@ -103,7 +103,7 @@ export const AWAY = {
   save: 'Save away mode', // PACK v1.12 a4c-away
   saving: 'Saving…', // PACK v1.12 a4c-away
   turnOff: 'Turn away mode off', // PACK v1.12 a4c-away
-  oldStill: 'Your new dates are saved, but the old ones are still there. Save again to clear them.', // NEW COPY (needs Jon): pr78-review F6
+  oldStill: 'Your new dates are saved, but the old ones are still there. Save again to clear them.', // approved: Jon (2026-10-03): pr78-review F6
   saved: 'Away mode saved.', // PACK v1.12 (g1-pack copy list: "Away mode, after it saves")
 } as const;
 
@@ -115,25 +115,25 @@ export const STORIES = {
   add: 'Add emailed story', // PACK v1.12 wf09 A6
   after: (dish: string) => `after ${dish}`, // PACK v1.12 wf09 A6
   capAfter: (dish: string) => `After ${dish}`, // PACK v1.12 wf09 A6
-  byEmail: 'sent by email', // NEW COPY (needs Jon) (an emailed story has no dish)
+  byEmail: 'sent by email', // approved: Jon (2026-10-03) (an emailed story has no dish)
   ok: 'OK for the book', // PACK v1.12 wf09 A6
   notOk: 'not for the book', // PACK v1.12 wf09 A6
   spam: 'possible spam', // PACK v1.12 wf09 A2 ("Check these · 1 possible spam")
-  noName: 'No name', // NEW COPY (needs Jon)
-  empty: 'No stories yet.', // NEW COPY (needs Jon)
-  pick: 'Pick a story to read it.', // NEW COPY (needs Jon)
+  noName: 'No name', // approved: Jon (2026-10-03)
+  empty: 'No stories yet.', // approved: Jon (2026-10-03)
+  pick: 'Pick a story to read it.', // approved: Jon (2026-10-03)
   back: 'Stories', // PACK v1.12 wf09 A6 ("‹ Stories")
   photo: (n: number) => `Photo ${n}`, // PACK v1.12 wf09 A6 ("Photo 1 thumbnail")
-  photoMissing: (n: number) => `Photo ${n} couldn’t load`, // NEW COPY (needs Jon)
+  photoMissing: (n: number) => `Photo ${n} couldn’t load`, // approved: Jon (2026-10-03)
   before60: 'Before 60', // PACK v1.12 a3k ("Before 60")
-  spamNote: 'This one looks like spam, so it can’t go in the book.', // NEW COPY (needs Jon)
+  spamNote: 'This one looks like spam, so it can’t go in the book.', // approved: Jon (2026-10-03)
   consentSaved: (name: string, ok: boolean) =>
-    ok ? `${name}’s story is OK for the book.` : `${name}’s story is not for the book.`, // NEW COPY (needs Jon)
-  added: 'Added to the book pile.', // NEW COPY (needs Jon)
+    ok ? `${name}’s story is OK for the book.` : `${name}’s story is not for the book.`, // approved: Jon (2026-10-03)
+  added: 'Added to the book pile.', // approved: Jon (2026-10-03)
   addedNoPhotos: (failed: number) =>
     failed === 1
       ? 'Added to the book pile, but 1 photo didn’t upload.'
-      : `Added to the book pile, but ${failed} photos didn’t upload.`, // NEW COPY (needs Jon)
+      : `Added to the book pile, but ${failed} photos didn’t upload.`, // approved: Jon (2026-10-03)
 } as const;
 
 /** The A6 "Add emailed story" sheet (T3.7.U1): wireframe 09 A6. */
@@ -144,19 +144,19 @@ export const ADD_STORY = {
   storyHelp: 'Paste it from the email.', // PACK v1.12 wf09 A6
   photos: 'Photos (up to 5)', // PACK v1.12 wf09 A6
   addPhotos: 'Add photos', // PACK v1.12 wf09 A6
-  picked: (n: number) => (n === 1 ? '1 photo picked' : `${n} photos picked`), // NEW COPY (needs Jon)
+  picked: (n: number) => (n === 1 ? '1 photo picked' : `${n} photos picked`), // approved: Jon (2026-10-03)
   consent: 'They said yes in email', // PACK v1.12 wf09 A6
   submit: 'Add to the book pile', // PACK v1.12 wf09 A6
-  busy: 'Adding…', // NEW COPY (needs Jon)
-  errName: 'Add their name.', // NEW COPY (needs Jon)
-  errStory: 'Paste the story.', // NEW COPY (needs Jon)
-  errPhotos: 'Up to 5 photos.', // NEW COPY (needs Jon)
+  busy: 'Adding…', // approved: Jon (2026-10-03)
+  errName: 'Add their name.', // approved: Jon (2026-10-03)
+  errStory: 'Paste the story.', // approved: Jon (2026-10-03)
+  errPhotos: 'Up to 5 photos.', // approved: Jon (2026-10-03)
 } as const;
 
 /** A7 settings (T2.9.U1, T3.3.U1, T3.15.U1 A7 part): wireframe 09 A7, A7b, A7c, A7d. */
 export const SETTINGS = {
   title: 'Settings', // PACK v1.12 wf09 A7
-  titlePage: 'Settings · Time with Jon admin', // NEW COPY (needs Jon) (the phone's group list)
+  titlePage: 'Settings · Time with Jon admin', // approved: Jon (2026-10-03) (the phone's group list)
   back: 'Settings', // PACK v1.12 wf09 A7 ("‹ Settings")
   calendar: 'Calendar', // PACK v1.12 wf09 A7
   opening: 'Opening times', // PACK v1.12 wf09 A7
@@ -165,9 +165,9 @@ export const SETTINGS = {
   titleOpening: 'Opening times · Settings · Time with Jon admin', // PACK v1.12 wf09 A7b
   titleReplies: 'Replies · Settings · Time with Jon admin', // PACK v1.12 wf09 A7c
   save: 'Save', // PACK v1.12 wf09 A7b
-  saving: 'Saving…', // NEW COPY (needs Jon)
-  saved: 'Saved.', // NEW COPY (needs Jon)
-  nothingChanged: 'Nothing changed.', // NEW COPY (needs Jon)
+  saving: 'Saving…', // approved: Jon (2026-10-03)
+  saved: 'Saved.', // approved: Jon (2026-10-03)
+  nothingChanged: 'Nothing changed.', // approved: Jon (2026-10-03)
 } as const;
 
 /** A7 / A7d Calendar (T3.3.U1 Connect Google + the health banner, T3.15.U1 Re-sync). */
@@ -187,13 +187,13 @@ export const CALENDAR = {
   connect: 'Connect Google', // PACK v1.12 wf09 A7d
   reconnect: 'Reconnect Google', // PACK v1.12 wf09 A7d
   resync: 'Re-sync calendar', // PACK v1.12 wf09 A7
-  resyncing: 'Re-syncing…', // NEW COPY (needs Jon)
-  resyncNone: 'Nothing to re-sync: no bookings ahead.', // NEW COPY (needs Jon)
+  resyncing: 'Re-syncing…', // approved: Jon (2026-10-03)
+  resyncNone: 'Nothing to re-sync: no bookings ahead.', // approved: Jon (2026-10-03)
   resyncAll: (n: number) =>
-    n === 1 ? 'Your 1 booking is on your calendar.' : `All ${n} bookings are on your calendar.`, // NEW COPY (needs Jon)
+    n === 1 ? 'Your 1 booking is on your calendar.' : `All ${n} bookings are on your calendar.`, // approved: Jon (2026-10-03)
   resyncSome: (done: number, all: number) =>
-    `${done} of ${all} bookings are on your calendar; the rest follow in a few minutes.`, // NEW COPY (needs Jon)
-  resyncNotConnected: 'Google isn’t connected. Connect it first.', // NEW COPY (needs Jon)
+    `${done} of ${all} bookings are on your calendar; the rest follow in a few minutes.`, // approved: Jon (2026-10-03)
+  resyncNotConnected: 'Google isn’t connected. Connect it first.', // approved: Jon (2026-10-03)
   disconnect: 'Disconnect Google',
   disconnectAsk: 'Disconnect Google? New bookings go out as .ics invites until you reconnect.',
   disconnectAskGmail: 'Disconnect Google? Emails and invites stop sending until you reconnect.',
@@ -203,12 +203,12 @@ export const CALENDAR = {
   disconnectRetry: 'Google didn’t answer, so it’s still connected. Try again in a minute.',
   /** After Google's consent screen (?google=… from /api/admin/google/callback). */
   result: {
-    connected: 'Google is connected.', // NEW COPY (needs Jon)
-    cancelled: 'Google isn’t connected: you said no on Google’s screen.', // NEW COPY (needs Jon)
-    expired: 'That took too long. Try Connect Google again.', // NEW COPY (needs Jon)
-    foreign_account: 'That Google account isn’t yours on the list. Try again with your own.', // NEW COPY (needs Jon)
-    scopes: 'Google needs every box ticked. Try again and leave them all on.', // NEW COPY (needs Jon)
-    failed: 'Google didn’t connect. Try again.', // NEW COPY (needs Jon)
+    connected: 'Google is connected.', // approved: Jon (2026-10-03)
+    cancelled: 'Google isn’t connected: you said no on Google’s screen.', // approved: Jon (2026-10-03)
+    expired: 'That took too long. Try Connect Google again.', // approved: Jon (2026-10-03)
+    foreign_account: 'That Google account isn’t yours on the list. Try again with your own.', // approved: Jon (2026-10-03)
+    scopes: 'Google needs every box ticked. Try again and leave them all on.', // approved: Jon (2026-10-03)
+    failed: 'Google didn’t connect. Try again.', // approved: Jon (2026-10-03)
     /** After A7 "Disconnect Google" (T3.3.05 route): revoked at Google, or only forgotten here. */
     disconnected: 'Google is disconnected.',
     disconnected_here:
@@ -222,10 +222,10 @@ export const OPENING = {
   general: 'The general link opens', // PACK v1.12 wf09 A7b
   tz: 'Vancouver time', // PACK v1.12 wf09 A7b
   time: (label: string) => `${label} time`, // PACK v1.12 wf09 A7b ("Personal links open time")
-  date: (label: string) => `${label} date`, // NEW COPY (needs Jon) (the date field's name)
-  errOrder: 'Personal links have to open before the general link.', // NEW COPY (needs Jon)
-  errRange: 'Pick a time between now and the end of the season.', // NEW COPY (needs Jon)
-  errDate: 'Pick a date.', // NEW COPY (needs Jon)
+  date: (label: string) => `${label} date`, // approved: Jon (2026-10-03) (the date field's name)
+  errOrder: 'Personal links have to open before the general link.', // approved: Jon (2026-10-03)
+  errRange: 'Pick a time between now and the end of the season.', // approved: Jon (2026-10-03)
+  errDate: 'Pick a date.', // approved: Jon (2026-10-03)
 } as const;
 
 /** A7c Replies and stories (T2.9.U1): wireframe 09 A7c. */
