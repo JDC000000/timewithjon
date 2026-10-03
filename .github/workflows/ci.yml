@@ -128,7 +128,7 @@ jobs:
 
       # Turbopack's build cache (.next/cache, on by default in Next 16): a warm build takes ~6 s instead of ~22 s.
       # The build scripts keep this folder and delete the rest of .next.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .next/cache
           key: next-route-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
@@ -196,7 +196,7 @@ jobs:
 
       # Turbopack's build cache (.next/cache, on by default in Next 16): a warm build takes ~6 s instead of ~22 s.
       # The build scripts keep this folder and delete the rest of .next.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .next/cache
           key: next-nodev-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
@@ -233,7 +233,7 @@ jobs:
         run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
       # The browser builds are pinned by the Playwright version; the system packages are installed every run.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
@@ -245,7 +245,7 @@ jobs:
       - name: Test database
         run: pnpm db:test
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .next/cache
           key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
