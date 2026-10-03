@@ -265,6 +265,8 @@ test('AC6: after the general link is rotated, Ask for another time still works e
     )
     .toBe('sometime in June');
   await expect(page.locator('.status-pill')).toHaveText(GUEST_LABEL.requested);
+  // QA L7: the page shows what was sent, not just "Sent: <dish>".
+  await expect(page.locator('[data-manage-sent]')).toContainText('sometime in June');
   // The token rode only in the header: no API call carried it in its URL.
   expect(seen).toContain('GET /api/availability?dish=the-encore');
   expect(seen.some((x) => x.includes(s.token))).toBe(false);

@@ -21,3 +21,42 @@ describe('loadSentModel', () => {
     expect(q).toHaveBeenCalledOnce();
   });
 });
+
+describe('loadRequestLines (QA L7: S17 shows what was sent while nothing is locked)', () => {
+  const slot = (iso: string, kind: 'lunch' | 'evening', hours: number) => ({
+    starts_at: new Date(iso),
+    ends_at: new Date(Date.parse(iso) + hours * 3_600_000),
+    window_kind: kind,
+  });
+  it('the times, then the dates and the rough window, as /sent writes them', async () => {
+    q.mockResolvedValueOnce([
+      {
+        status: 'requested',
+        date_prefs: { dates: ['2027-05-08'], window_text: 'late May' },
+        standby_week: null,
+      },
+    ]).mockResolvedValueOnce([
+      slot('2027-05-14T19:00:00Z', 'lunch', 2),
+      slot('2027-05-21T02:00:00Z', 'evening', 3),
+    ]);
+    const { loadRequestLines } = await import('../model');
+    await expect(loadRequestLines('req-1')).resolves.toEqual([
+      'Fri May 14 · noon–2 pm',
+      'Thu May 20 · 7 pm',
+      'Sat May 8',
+      'late May',
+    ]);
+  });
+  it('a stand-by: its receipt line', async () => {
+    q.mockResolvedValueOnce([
+      { status: 'standby', date_prefs: null, standby_week: '2027-04-12' },
+    ]).mockResolvedValueOnce([]);
+    const { loadRequestLines } = await import('../model');
+    await expect(loadRequestLines('req-2')).resolves.toEqual(['stand-by, Apr 15–16']);
+  });
+  it('no such request: no lines', async () => {
+    q.mockResolvedValueOnce([]);
+    const { loadRequestLines } = await import('../model');
+    await expect(loadRequestLines('req-x')).resolves.toEqual([]);
+  });
+});
