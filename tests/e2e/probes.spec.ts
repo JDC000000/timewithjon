@@ -30,17 +30,17 @@ test('scopes pick the right projects; the route map fixmes unlanded screens with
   // On the app: a landed screen opens at its route; an unlanded one throws and fixmes, naming what is missing + owner.
   expect(unavailable('a2-requests', 'app')).toBeNull();
   expect(screenPath('a2-requests', 375, 'app')).toBe('/admin');
-  expect(unavailable('s11-after-send', 'app')).toContain('owner lane U4');
-  expect(() => screenPath('s11-after-send', 375, 'app')).toThrow(/U4/);
+  expect(unavailable('s10b-send-errors', 'app')).toContain('owner lane U3');
+  expect(() => screenPath('s10b-send-errors', 375, 'app')).toThrow(/U3/);
   expect(unavailable('a3-request-detail', 'app')).toMatch(/lockable guest request.*owner lane U7/);
   const calls: [boolean, string][] = [];
   fixmeUnlessLanded(
     (condition, reason) => calls.push([condition, reason]),
-    ['a2-requests', 's11-after-send'],
+    ['a2-requests', 's10b-send-errors'],
   );
   expect(calls).toEqual([
     [unavailable('a2-requests') !== null, unavailable('a2-requests') ?? ''],
-    [unavailable('s11-after-send') !== null, unavailable('s11-after-send') ?? ''],
+    [unavailable('s10b-send-errors') !== null, unavailable('s10b-send-errors') ?? ''],
   ]);
 });
 

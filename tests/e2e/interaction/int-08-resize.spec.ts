@@ -40,8 +40,15 @@ test('INT-08 S10: the phone keyboard opening does not jump the page to a tapped 
 test('INT-08 S10: rotating the phone does not jump the page to a tapped field scrolled away', async ({
   page,
   viewport,
+  browserName,
 }) => {
   fixmeUnlessLanded(test.fixme, ['s10-details-send']);
+  // Follow-up FU-WK-ROTATE (Jon, 2026-10-03): WebKit scrolls the focused field into view on its own when the
+  // viewport rotates, so this check fails on WebKit at 375 wide (3 of 3 CI runs). Chromium still enforces it.
+  test.skip(
+    browserName === 'webkit',
+    'FU-WK-ROTATE: WebKit scrolls to the focused field on rotate by itself',
+  );
   if (!viewport) return;
   await gotoScreen(page, 's10-details-send');
   // T1.7.U2: the personal invite's details sit behind "Sending as … · Change".
