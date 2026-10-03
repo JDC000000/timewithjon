@@ -11,7 +11,7 @@ import { Client } from 'pg';
 import { AFTER_SEND, DISHES, FLOW } from '../../../src/content';
 import { isBookable } from '../../../src/content/menu-helpers';
 import { ROUTES } from '../../../src/ui/routes';
-import { expect, test } from '../support/fixtures';
+import { expect, test, WEBKIT_RSC_ABORT } from '../support/fixtures';
 import { sendRequest } from '../support/flows';
 import { clickLikeAPerson } from '../support/input';
 import { inScope } from '../support/scope';
@@ -85,7 +85,11 @@ test('T4.3.06 early rollout: a personal link books before Mar 1; the general lin
 
     await test.step('the general link: its picker is "Booking opens March 1." with no times and no Send', async () => {
       general = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-      general.on('pageerror', (e) => sideErrors.push(e.message));
+      general.on('pageerror', (e) => {
+        // WebKit logs a navigation-aborted RSC prefetch as a page error (noise, see support/fixtures).
+        if (!(browser.browserType().name() === 'webkit' && WEBKIT_RSC_ABORT.test(e.message)))
+          sideErrors.push(e.message);
+      });
       await general.goto(`/?for=${GENERAL_INVITE_FOR}`);
       expect(
         (await general.context().cookies()).some((c) => c.name === 'twj_invite'),
