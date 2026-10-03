@@ -9,11 +9,12 @@ import type { DishRowModel, MenuModel } from './menu-model';
 
 const DISH_SIZES = '(min-width: 1024px) 360px, (min-width: 640px) 45vw, 92vw';
 
-function DishInner({ d }: { d: DishRowModel }) {
+// T4.6.04: the first dish's photo is in the first viewport on a phone (the page's largest paint): fetched first, not lazy.
+function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
   return (
     <>
       <h3 className="dish-name">{d.name}</h3>
-      <PhotoSlot slot={d.slot} kind="dish" sizes={DISH_SIZES} />
+      <PhotoSlot slot={d.slot} kind="dish" sizes={DISH_SIZES} priority={first ? 'hero' : undefined} />
       <p className="dish-desc">{d.line}</p>
       <p className="dish-detail detail">
         {d.detail.map((l) => (
@@ -27,6 +28,7 @@ function DishInner({ d }: { d: DishRowModel }) {
 }
 
 export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
+  const firstSlug = model.courses[0]?.dishes[0]?.slug;
   return (
     <DishSheets dishes={model.courses.flatMap((c) => c.dishes)} gate={gate}>
       <section className="menu" id="menu" aria-labelledby="menu-h">
@@ -60,13 +62,13 @@ export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
                   d.href ? (
                     <li className="dish" key={d.slug}>
                       <DishLink slug={d.slug} href={d.href}>
-                        <DishInner d={d} />
+                        <DishInner d={d} first={d.slug === firstSlug} />
                       </DishLink>
                     </li>
                   ) : (
                     <li className="dish dish--off" key={d.slug}>
                       <div className="dish-row">
-                        <DishInner d={d} />
+                        <DishInner d={d} first={d.slug === firstSlug} />
                       </div>
                     </li>
                   ),

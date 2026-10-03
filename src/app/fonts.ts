@@ -3,11 +3,10 @@
 // Both faces are SIL OFL 1.1: the licences ship next to the files (public/fonts/OFL-*.txt).
 import localFont from 'next/font/local';
 
+// T4.6.04: the roman face only. Newsreader's italic is added after the page has loaded (src/ui/late-italic.ts), so it
+// never competes with the page's main photo for the first bytes on a slow phone (italic text swaps in late).
 export const newsreader = localFont({
-  src: [
-    { path: '../../public/fonts/newsreader-roman.woff2', style: 'normal', weight: '200 800' },
-    { path: '../../public/fonts/newsreader-italic.woff2', style: 'italic', weight: '200 800' },
-  ],
+  src: [{ path: '../../public/fonts/newsreader-roman.woff2', style: 'normal', weight: '200 800' }],
   variable: '--font-newsreader',
   display: 'swap',
   // a serif fallback while the face loads (the default is Arial): the voice stays a serif and the metrics barely shift

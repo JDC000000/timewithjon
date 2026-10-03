@@ -121,7 +121,7 @@ export function BookingFlow({
     <div className="wrap flow">
       <form className="flow-main" noValidate onSubmit={onSubmit}>
         <div className="flow-top">
-          {!surprise && <PhotoSlot slot={dishPhotoSlot(dish.slug)} kind="thumb" />}
+          {!surprise && <PhotoSlot slot={dishPhotoSlot(dish.slug)} kind="thumb" priority="hero" />}
           <p className="cap">{`${dish.course} · ${dish.name}`}</p>
           <p className="detail">
             <KeepWhole text={dish.detail} />

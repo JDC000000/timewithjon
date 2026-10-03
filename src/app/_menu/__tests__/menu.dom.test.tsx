@@ -130,4 +130,13 @@ describe('S04 /menu', () => {
     await act(() => new Promise((r) => requestAnimationFrame(() => r(null))));
     expect(open()).toBeNull();
   });
+  it('T4.6.04: the first dish photo (in the first screen on a phone) loads first; every other row photo is lazy', () => {
+    const { container } = render(<Menu model={model} gate={{ kind: 'book' }} />);
+    const rows = [...container.querySelectorAll('li.dish img')].map((img) => [
+      img.getAttribute('loading'),
+      img.getAttribute('fetchpriority'),
+    ]);
+    expect(rows[0]).toEqual(['eager', 'high']);
+    expect(rows.slice(1).every(([loading, priority]) => loading === 'lazy' && priority === null)).toBe(true);
+  });
 });

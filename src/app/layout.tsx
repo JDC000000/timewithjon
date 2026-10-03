@@ -5,6 +5,7 @@ import { HEADLINE, OPEN_LINE } from '@/content/site';
 import { SKIP_TO_CONTENT } from '@/content/ui/foundation';
 import { getAppMode } from '@/config/env';
 import { FocusRoot } from '@/ui';
+import { LateItalic } from '@/ui/LateItalic';
 import { StagingBanner } from '@/ui/StagingBanner';
 import { newsreader, schibsted } from './fonts';
 import '@/ui/tokens.css';
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <StagingBanner mode={getAppMode()} />
         {children}
         <FocusRoot />
+        <LateItalic />
       </body>
     </html>
   );
