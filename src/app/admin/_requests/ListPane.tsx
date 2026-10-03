@@ -3,6 +3,8 @@
 // A3 detail renders it too (desktop shows both panes), with the open request's row marked current.
 import 'server-only';
 import Link from 'next/link';
+import { CheckLanding } from '../(app)/requests/_check/CheckLanding';
+import { CHECK_CAPTION_ID } from '../(app)/requests/_check/landing';
 import { Fragment } from 'react';
 import { CHECK, INBOX, MAIL } from '@/content/ui/admin-requests';
 import { INBOX_LIMIT, listRequests } from '@/features/admin/inbox';
@@ -92,11 +94,12 @@ export async function ListPane({
           <p className="meter">
             <span>{INBOX.meter(meter.count, meter.target)}</span>
           </p>
-          <p className="cap muted" style={{ marginTop: 'var(--s4)' }}>
+          <p id={CHECK_CAPTION_ID} tabIndex={-1} className="cap muted" style={{ marginTop: 'var(--s4)' }}>
             {CHECK.listCaption}
           </p>
         </div>
         <Rows rows={rows} current={current} empty={INBOX.emptyFilter} />
+        <CheckLanding />
       </>
     );
   }

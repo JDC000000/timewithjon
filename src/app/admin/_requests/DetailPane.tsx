@@ -23,7 +23,7 @@ import { send } from './api';
 import { type LockOutcome, type LockTicks, sendLock } from './lock-logic';
 import { commitOnLeave, createPendingCommit } from './pending-lock';
 import { NoteField } from './NoteField';
-import { SpamActions } from './SpamActions';
+import { CheckActions } from '../(app)/requests/_check/CheckActions';
 import { Tick } from './Tick';
 import { useAction } from './useAction';
 
@@ -415,7 +415,7 @@ export function DetailPane(p: DetailPaneProps) {
           </fieldset>
         ) : null}
 
-        {view.spam ? <SpamActions requestId={requestId} who={view.who} /> : null}
+        {view.spam ? <CheckActions requestId={requestId} who={view.who} /> : null}
 
         {!view.open && !view.spam ? (
           <NoteField
