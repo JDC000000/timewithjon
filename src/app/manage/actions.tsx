@@ -337,6 +337,7 @@ function AnotherForm(p: {
     setFailed(json.message ?? ERRORS.generic);
   }
 
+  // QA L9: always on show here (S7 hides it behind a toggle), so no example inside the box: the hint gives one.
   const roughField = (
     <div className="field">
       <label htmlFor="m-rough">
@@ -347,7 +348,6 @@ function AnotherForm(p: {
         id="m-rough"
         name="windowText"
         maxLength={200}
-        placeholder={DATES.roughPlaceholder}
         value={rough}
         onChange={(e) => {
           setRough(e.currentTarget.value);

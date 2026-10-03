@@ -87,4 +87,25 @@ describe('S17 Cancel asks first (QA B)', () => {
     expect(document.activeElement).toBe(cancelRow());
     expect(f).not.toHaveBeenCalled();
   });
+
+  it('Ask for another time: the rough window starts empty, no example inside it (QA L9)', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    render(
+      <ManageActions
+        token="tok"
+        header="x-twj-manage"
+        dish={lunch}
+        form="pitch"
+        frees={null}
+        canCancel
+        canAskAnother
+        canAddStory
+        maxPhotos={3}
+      />,
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: MANAGE_UI.askAnother }));
+    const rough = document.getElementById('m-rough') as HTMLInputElement;
+    expect(rough.value).toBe('');
+    expect(rough.hasAttribute('placeholder')).toBe(false);
+  });
 });

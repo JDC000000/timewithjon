@@ -58,4 +58,13 @@ describe('S18 new-date grid (QA H2)', () => {
     expect(document.querySelector('.cal-month')).toBeNull();
     expect(document.getElementById('s18-rough')).toBeTruthy();
   });
+
+  it('the rough window starts empty, with no example inside it (QA L9: the hint above already gives one)', () => {
+    render(
+      <NewDateForm token="t" dish={grind} form="dates" span={{ start: '2027-04-01', end: '2027-06-30' }} />,
+    );
+    const rough = document.getElementById('s18-rough') as HTMLInputElement;
+    expect(rough.value).toBe('');
+    expect(rough.hasAttribute('placeholder')).toBe(false);
+  });
 });

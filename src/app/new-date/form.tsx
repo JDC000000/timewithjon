@@ -72,6 +72,7 @@ export function NewDateForm(p: {
         {said}
       </p>
     );
+  // QA L9: always on show here (S7 hides it behind a toggle), so no example inside the box: the hint gives one.
   const roughField = (
     <div className="field">
       <label htmlFor="s18-rough">
@@ -82,7 +83,6 @@ export function NewDateForm(p: {
         id="s18-rough"
         name="windowText"
         maxLength={200}
-        placeholder={DATES.roughPlaceholder}
         value={rough}
         onChange={(e) => {
           setRough(e.currentTarget.value);
