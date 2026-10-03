@@ -45,6 +45,16 @@ export const ADMIN_PAGE_HEADERS = [{ key: 'Cache-Control', value: 'private, no-s
 export const SIGN_IN_LINK_PAGE = '/admin/auth/callback';
 export const SIGN_IN_LINK_PAGE_HEADERS = [{ key: 'Referrer-Policy', value: 'strict-origin' }];
 
+/**
+ * The photos in public/img (docs/PHOTOS.md). Next serves public files with max-age=0, must-revalidate, so every
+ * page view re-asked for every photo. A day fresh, then a week served stale while it refreshes. NOT immutable: the
+ * file names carry no content hash, and a private build swaps the files in under the same names.
+ */
+export const IMAGE_FILES = '/img/:path*';
+export const IMAGE_HEADERS = [
+  { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+];
+
 export const baseConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -63,6 +73,7 @@ export const baseConfig: NextConfig = {
       { source: TOKEN_PAGES, headers: TOKEN_PAGE_HEADERS },
       { source: ADMIN_PAGES, headers: ADMIN_PAGE_HEADERS },
       { source: SIGN_IN_LINK_PAGE, headers: SIGN_IN_LINK_PAGE_HEADERS },
+      { source: IMAGE_FILES, headers: IMAGE_HEADERS },
     ];
   },
 };
