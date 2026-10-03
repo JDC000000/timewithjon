@@ -12,7 +12,7 @@ import { Button, Field } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { PhotoPicker, usePhotos } from './photo-picker';
 import { decideSubmit, storyBody } from './story-submit';
-import { mockUploader, type PhotoTarget } from './uploader';
+import { photoUploader, type PhotoTarget } from './uploader';
 
 export interface StoryFormProps {
   /** '/api/stories' (S11, S17) or '/api/story-page' (S19). */
@@ -36,7 +36,7 @@ const QUESTION_STYLE = {
 
 export function StoryForm(p: StoryFormProps) {
   const ids = { story: useId(), storyErr: useId(), b60: useId(), thanks: useId(), hp: useId() };
-  const uploader = useMemo(() => mockUploader(p.target), [p.target]);
+  const uploader = useMemo(() => photoUploader(p.target), [p.target]);
   const photos = usePhotos(p.maxPhotos, uploader);
   const [text, setText] = useState('');
   const [consent, setConsent] = useState(false);

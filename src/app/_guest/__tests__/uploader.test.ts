@@ -1,7 +1,7 @@
 // T3.12.U1-F3: the sign gate. On S19 the first sign with no twj_story creates the story, so 2 photos picked in one
 // go must not sign at once (the second would create an orphan story). Later signs wait for the first answer.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mockUploader, signGate, UploadRefused } from '../uploader';
+import { photoUploader, signGate, UploadRefused } from '../uploader';
 
 interface Pending {
   url: string;
@@ -31,10 +31,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('mockUploader on ?for=story_page (T3.12.U1-F3)', () => {
+describe('photoUploader on ?for=story_page (T3.12.U1-F3)', () => {
   it('2 files picked at once: the 2nd sign starts only after the 1st resolves, then later signs run in parallel', async () => {
     const calls = manualFetch();
-    const upload = mockUploader({ query: '?for=story_page' });
+    const upload = photoUploader({ query: '?for=story_page' });
     const signal = new AbortController().signal;
 
     const first = upload(file(), signal);
@@ -62,7 +62,7 @@ describe('mockUploader on ?for=story_page (T3.12.U1-F3)', () => {
 
   it('a refused first sign hands the turn to the next; the gate opens on the first 2xx', async () => {
     const calls = manualFetch();
-    const upload = mockUploader({ query: '?for=story_page' });
+    const upload = photoUploader({ query: '?for=story_page' });
     const signal = new AbortController().signal;
 
     const a = upload(file(), signal);
@@ -86,7 +86,7 @@ describe('mockUploader on ?for=story_page (T3.12.U1-F3)', () => {
 
   it('a failed (network) first sign does not wedge the gate', async () => {
     const calls = manualFetch();
-    const upload = mockUploader({});
+    const upload = photoUploader({});
     const signal = new AbortController().signal;
 
     const a = upload(file(), signal);
