@@ -36,6 +36,7 @@ import {
   resetHealthCacheForTests,
 } from '@/features/jobs/health';
 import { SIGNIN_FAILED_KEY } from '@/features/admin/signin';
+import { SEED_INVITE_SECRETS } from '@/features/invites/seed-invites';
 import { cancelMade, newRequest } from '../fixtures/requests-db';
 
 const NOW = new Date('2031-03-12T20:00:00Z');
@@ -153,6 +154,7 @@ describe('healthReport (T3.14.01)', () => {
         google: 'skipped',
         media: 'ok',
         signin_email: 'ok',
+        seed_invites: 'skipped',
       },
       failing: [],
       // other files' abandoned emails and given-up media rows
@@ -317,6 +319,40 @@ describe('healthReport (T3.14.01)', () => {
       checks: { database: 'down' },
     });
     expect(report).toHaveBeenCalledWith(expect.any(Error), { area: 'health' });
+  });
+});
+
+describe('seed invites outside the prototype', () => {
+  it('a demo invite from seed.sql fails seed_invites in staging and production, and is reported', async () => {
+    await healthy();
+    vi.mocked(report).mockClear();
+    for (const mode of ['staging', 'production'] as const) {
+      const r = await healthReport(NOW, mode);
+      expect(r.ok).toBe(false);
+      expect(r.failing).toContain('seed_invites');
+      expect(r.checks.seed_invites).toBe('present');
+    }
+    expect(report).toHaveBeenCalledWith(expect.objectContaining({ name: 'SeedInvitePresent' }), {
+      area: 'health',
+      check: 'seed_invites',
+    });
+  });
+
+  it('with none of them, seed_invites is ok', async () => {
+    await healthy();
+    const secrets = [...SEED_INVITE_SECRETS];
+    const renamed = await q<{ id: string; token_secret: string }>(
+      `select id, token_secret from invite where token_secret = any($1::text[])`,
+      [secrets],
+    );
+    try {
+      for (const [i, r] of renamed.entries())
+        await q(`update invite set token_secret = $2 where id = $1`, [r.id, `zz${i}zzzzz`]);
+      expect((await healthReport(NOW, 'production')).checks.seed_invites).toBe('ok');
+    } finally {
+      for (const r of renamed)
+        await q(`update invite set token_secret = $2 where id = $1`, [r.id, r.token_secret]);
+    }
   });
 });
 

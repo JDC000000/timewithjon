@@ -5,12 +5,15 @@
 // retry job gave up on (review V3) and media outbox items out of tries (pr61 F2). They stay failed until someone
 // acts, so a 503 would hold the monitor down for days; the admin lists are where they're acted on.
 // A public, unauthenticated URL: the route serves cachedHealthReport, so a flood costs one check per 15 s (pr61 F6).
+// Outside the prototype, a demo invite from supabase/seed.sql (its secret is public) fails `seed_invites`.
 import 'server-only';
+import { getEnv, type AppMode } from '@/config/env';
 import { SIGNIN_FAILED_KEY } from '@/features/admin/signin';
 import { BROKEN_REASONS } from '@/features/calendar/alerts';
 import { OUTBOX_MAX_ATTEMPTS } from '@/features/calendar/outbox';
 import { MAX_ATTEMPTS as EMAIL_MAX_ATTEMPTS } from '@/features/email/send';
 import { budgetHitTwoDaysRunning } from '@/features/email/status';
+import { SeedInvitePresent, seedSecretsToCheck } from '@/features/invites/seed-invites';
 import { q } from '@/lib/db';
 import { report } from '@/lib/report';
 import { MEDIA_MAX_ATTEMPTS } from './media-limits';
@@ -25,7 +28,7 @@ export const HEALTH_LIMITS = {
   signinEmailMs: 24 * 60 * MIN,
 } as const;
 
-export type CheckName = 'database' | 'tick' | 'outbox' | 'google' | 'media' | 'signin_email';
+export type CheckName = 'database' | 'tick' | 'outbox' | 'google' | 'media' | 'signin_email' | 'seed_invites';
 export interface HealthReport {
   ok: boolean;
   /** Each check's state: 'ok', 'skipped' (google before T3.3), or a short reason code. */
@@ -56,6 +59,7 @@ interface Row {
   google_error: string | null;
   abandoned_emails: number;
   media_given_up: number;
+  seed_invites: boolean;
 }
 
 /** A heartbeat older than `limitMs`, or never written, fails. */
@@ -70,7 +74,11 @@ function googleCheck(r: Row, now: Date): string {
   return heartbeat(r.google_ok_at, now, HEALTH_LIMITS.googleOkMs);
 }
 
-export async function healthReport(now = new Date()): Promise<HealthReport> {
+export async function healthReport(
+  now = new Date(),
+  mode: AppMode = getEnv().APP_MODE,
+): Promise<HealthReport> {
+  const seedSecrets = seedSecretsToCheck(mode);
   let row: Row;
   try {
     // One query (plus the budget warning's). "Due" mirrors exactly what the processors take (pr61 F3): calendar
@@ -96,8 +104,9 @@ export async function healthReport(now = new Date()): Promise<HealthReport> {
                        where provider = 'google' and refresh_token_enc is not null) as google_connected,
               (select last_ok_at from oauth_connection where provider = 'google') as google_ok_at,
               (select last_error from oauth_connection where provider = 'google') as google_error,
-              (select count(*)::int from email_log where status = 'failed' and attempts >= $5) as abandoned_emails`,
-      [now, SIGNIN_FAILED_KEY, MEDIA_MAX_ATTEMPTS, OUTBOX_MAX_ATTEMPTS, EMAIL_MAX_ATTEMPTS],
+              (select count(*)::int from email_log where status = 'failed' and attempts >= $5) as abandoned_emails,
+              exists (select 1 from invite where token_secret = any($6::text[])) as seed_invites`,
+      [now, SIGNIN_FAILED_KEY, MEDIA_MAX_ATTEMPTS, OUTBOX_MAX_ATTEMPTS, EMAIL_MAX_ATTEMPTS, seedSecrets],
     )) as [Row];
   } catch (e) {
     report(e, { area: 'health' }); // pr61 F4: a SQL bug must not pass for a Supabase outage (the class name only)
@@ -110,6 +119,7 @@ export async function healthReport(now = new Date()): Promise<HealthReport> {
         google: 'unknown',
         media: 'unknown',
         signin_email: 'unknown',
+        seed_invites: 'unknown',
       },
       failing: ['database'],
       warnings: [],
@@ -127,7 +137,10 @@ export async function healthReport(now = new Date()): Promise<HealthReport> {
     media: heartbeat(row.media_at, now, HEALTH_LIMITS.mediaMs),
     // The reason code only (smtp, quota or capped: signin.ts), never the address.
     signin_email: signinFresh ? (row.signin_reason ?? 'failed') : 'ok',
+    seed_invites: mode === 'prototype' ? 'skipped' : row.seed_invites ? 'present' : 'ok',
   };
+  if (checks.seed_invites === 'present')
+    report(new SeedInvitePresent(), { area: 'health', check: 'seed_invites' });
   const failing = (Object.keys(checks) as CheckName[]).filter((k) => !['ok', 'skipped'].includes(checks[k]));
 
   const warnings: string[] = [];
