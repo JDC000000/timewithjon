@@ -18,7 +18,7 @@ import { DISHES, ERRORS } from '../../../src/content';
 import { AFTER_SEND } from '../../../src/content/site';
 import { isBookable } from '../../../src/content/menu-helpers';
 import { ROUTES } from '../../../src/ui/routes';
-import { expect, test } from '../support/fixtures';
+import { expect, test, WEBKIT_RSC_ABORT } from '../support/fixtures';
 import { clickLikeAPerson, typeLikeAPerson } from '../support/input';
 import { inScope } from '../support/scope';
 import { TARGET } from '../support/screens';
@@ -43,9 +43,17 @@ test.beforeEach(() => {
 /** A side browser context (a second guest, or a fresh visitor) with its own page-error watch. */
 async function sidePage(browser: Browser, errors: string[], expected?: RegExp): Promise<Page> {
   const side = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  side.on('pageerror', (e) => errors.push(e.message));
+  // WebKit reports a Next.js RSC prefetch aborted by a navigation as an error (same noise as support/fixtures).
+  const noise = (msg: string) => browser.browserType().name() === 'webkit' && WEBKIT_RSC_ABORT.test(msg);
+  side.on('pageerror', (e) => {
+    if (!noise(e.message)) errors.push(e.message);
+  });
   side.on('console', (m) => {
-    if (m.type() === 'error' && !(expected && expected.test(`${m.text()} ${m.location().url}`)))
+    if (
+      m.type() === 'error' &&
+      !noise(m.text()) &&
+      !(expected && expected.test(`${m.text()} ${m.location().url}`))
+    )
       errors.push(m.text());
   });
   return side;
