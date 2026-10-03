@@ -48,7 +48,7 @@ describe('A1b Send a new code', () => {
   it('a double tap sends one /start; the line is said only after it answers ok', async () => {
     const user = userEvent.setup();
     stubStart(200);
-    render(<SignInFlow linkSpent={false} />);
+    render(<SignInFlow notice={null} />);
     const again = await screen.findByRole('button', { name: SIGN_IN.sendNew });
     await user.click(again);
     await user.click(again);
@@ -61,7 +61,7 @@ describe('A1b Send a new code', () => {
   it('a refused resend announces nothing and lands in Things to fix', async () => {
     const user = userEvent.setup();
     stubStart(400);
-    render(<SignInFlow linkSpent={false} />);
+    render(<SignInFlow notice={null} />);
     await user.click(await screen.findByRole('button', { name: SIGN_IN.sendNew }));
     release!();
     expect(await screen.findByRole('heading', { name: 'One thing to fix' })).toBeTruthy();

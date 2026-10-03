@@ -64,6 +64,10 @@ describe('requestCode (POST /api/admin/auth/start)', () => {
     const offline = await requestCode('a@b.co', undefined, answering({ status: 0 }).post);
     expect(offline).toEqual({ ok: false, message: ERRORS.generic });
   });
+  it('a 503 (sign-in limiter down, fail closed) says sign-in is paused', async () => {
+    const down = await requestCode('a@b.co', undefined, answering({ status: 503, code: 'unavailable' }).post);
+    expect(down).toEqual({ ok: false, message: SIGN_IN.unavailable });
+  });
 });
 
 describe('verifyCode (POST /api/admin/auth/verify)', () => {
@@ -80,6 +84,13 @@ describe('verifyCode (POST /api/admin/auth/verify)', () => {
     };
     await expect(verifyCode('a@b.co', '123456', answering({ status: 400 }).post)).resolves.toEqual(wrong);
     await expect(verifyCode('a@b.co', '123456', answering({ status: 401 }).post)).resolves.toEqual(wrong);
+  });
+  it('a 503 (sign-in limiter down, fail closed) says sign-in is paused', async () => {
+    await expect(verifyCode('a@b.co', '123456', answering({ status: 503 }).post)).resolves.toEqual({
+      ok: false,
+      where: 'notice',
+      message: SIGN_IN.unavailable,
+    });
   });
   it('too many tries points to the link; anything else is the generic notice', async () => {
     await expect(verifyCode('a@b.co', '123456', answering({ status: 429 }).post)).resolves.toEqual({

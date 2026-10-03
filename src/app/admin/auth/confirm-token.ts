@@ -13,6 +13,8 @@ export const CONFIRM_TTL_SEC = 900;
 export const ADMIN_HOME = '/admin';
 /** "The link didn't work, use the code" (no token echoed). */
 export const SIGN_IN_FAILED = '/admin/sign-in?error=link';
+/** The sign-in limiter is down (fail closed): the link was NOT spent, so it still works a few minutes later. */
+export const SIGN_IN_UNAVAILABLE = '/admin/sign-in?error=unavailable';
 
 function key(): Buffer {
   return Buffer.from(hkdfSync('sha256', getEnv().SESSION_SIGNING_SECRET, '', 'twj-a1c-csrf-v1', 32));

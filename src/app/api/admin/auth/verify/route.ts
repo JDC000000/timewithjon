@@ -7,7 +7,8 @@ import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { completeSignIn } from '@/features/admin/verify';
 import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
-import { hit } from '@/lib/ratelimit';
+import { check, type LimitVerdict } from '@/lib/ratelimit';
+import { SIGN_IN } from '@/content/ui/admin-requests';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,12 +34,11 @@ async function verifyCode(req: NextRequest): Promise<NextResponse> {
   const parsed = VerifyBody.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return jsonError(400, 'invalid', ERRORS.generic);
   // Per IP, then per address (review F1): a pool of IPs still gets only 10 guesses at one address's code.
-  if (
-    !(await hit('adminSignInVerify', clientIp(req))) ||
-    !(await hit('adminSignInVerifyEmail', emailKey(parsed.data.email)))
-  ) {
-    return jsonError(429, 'rate_limited', ERRORS.rateLimited);
-  }
+  let verdict: LimitVerdict = await check('adminSignInVerify', clientIp(req));
+  if (verdict === 'allowed') verdict = await check('adminSignInVerifyEmail', emailKey(parsed.data.email));
+  // Fail closed (security review 2026-09-30): if the limiter can't count, no code is checked at all.
+  if (verdict === 'unavailable') return jsonError(503, 'unavailable', SIGN_IN.unavailable);
+  if (verdict === 'limited') return jsonError(429, 'rate_limited', ERRORS.rateLimited);
   const result = await completeSignIn(parsed.data);
   if (!result.ok) {
     // Review guarantee 5: a verified user who is off the allowlist gets 401 (their session is already dropped).

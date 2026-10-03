@@ -17,7 +17,7 @@ vi.mock('@/lib/db', () => ({
 const report = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/report', () => ({ report, reportMessage: vi.fn() }));
 
-const { hit, limitByIp, overLimitByIp, LIMITS } = await import('@/lib/ratelimit');
+const { check, hit, limitByIp, overLimitByIp, FAIL_CLOSED, LIMITS } = await import('@/lib/ratelimit');
 const post = () => new NextRequest(`${SITE}/api/requests`, { method: 'POST', headers: { origin: SITE } });
 
 beforeEach(() => {
@@ -59,6 +59,38 @@ describe('hit fails open (AC4)', () => {
   it('allows exactly the limit, not one more', async () => {
     for (let i = 0; i < LIMITS.photoSign.limit; i++) expect(await hit('photoSign', 'k')).toBe(true);
     expect(await hit('photoSign', 'k')).toBe(false);
+  });
+});
+
+describe('auth scopes fail CLOSED (security review 2026-09-30, C1)', () => {
+  const AUTH = ['adminSignInStart', 'adminSignInVerify', 'adminSignInVerifyEmail', 'devLogin'] as const;
+
+  it('covers every sign-in and guessing scope', () => {
+    expect([...FAIL_CLOSED].sort()).toEqual([...AUTH].sort());
+  });
+
+  it('a limiter error refuses the call, says "unavailable" and reports it', async () => {
+    db.fail = true;
+    for (const scope of AUTH) {
+      expect(await hit(scope, '1.2.3.4'), scope).toBe(false);
+      expect(await check(scope, '1.2.3.4'), scope).toBe('unavailable');
+      expect(report).toHaveBeenCalledWith(expect.any(Error), {
+        area: 'ratelimit',
+        scope,
+        mode: 'fail_closed',
+      });
+    }
+  });
+
+  it('with a healthy limiter they count like any other scope', async () => {
+    const { limit } = LIMITS.adminSignInVerify;
+    for (let i = 0; i < limit; i++) expect(await check('adminSignInVerify', 'ip')).toBe('allowed');
+    expect(await check('adminSignInVerify', 'ip')).toBe('limited');
+  });
+
+  it('guest scopes still fail open', async () => {
+    db.fail = true;
+    expect(await check('requestSend', '1.2.3.4')).toBe('allowed');
   });
 });
 
