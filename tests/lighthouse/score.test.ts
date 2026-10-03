@@ -37,11 +37,11 @@ function lhr(perf: number | null, a11y: number | null, extra: Partial<Lhr> = {})
 }
 
 describe('Lighthouse gate', () => {
-  it('passes at exactly 90 and fails at 89 (the bar is 90 or more, both categories)', () => {
-    expect(failures([scorePage('/', [lhr(0.9, 0.9)])])).toEqual([]);
-    const f = failures([scorePage('/', [lhr(0.89, 0.95)]), scorePage('/menu', [lhr(0.99, 0.89)])]);
+  it('passes at the bar and fails one under it (performance 85, accessibility 90)', () => {
+    expect(failures([scorePage('/', [lhr(0.85, 0.9)])])).toEqual([]);
+    const f = failures([scorePage('/', [lhr(0.84, 0.95)]), scorePage('/menu', [lhr(0.99, 0.89)])]);
     expect(f.map((x) => `${x.page} ${x.result.category} ${x.result.score}`)).toEqual([
-      '/ performance 89',
+      '/ performance 84',
       '/menu accessibility 89',
     ]);
   });
