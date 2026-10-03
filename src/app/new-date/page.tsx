@@ -7,9 +7,12 @@ import { notFound } from 'next/navigation';
 import { MANAGE_UI } from '@/content/manage';
 import { dishBySlug } from '@/content/menu-helpers';
 import { loadNewDateModel } from '@/features/invites/manage-model';
+import { loadSettings } from '@/lib/settings';
+import { vancouverDate } from '@/lib/time';
 import { dishView } from '../book/[dish]/_lib/flow-view';
 import { S18Current, S18Expired, S18Page, S18Shell } from '../offer/frame';
 import { NewDateForm } from './form';
+import { newDateSpan } from './span';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
@@ -36,10 +39,20 @@ export default async function NewDatePage({ searchParams }: { searchParams: Sear
     );
   const dish = dishBySlug(model.dish.slug);
   if (!dish) notFound();
+  const settings = await loadSettings();
+  const span = newDateSpan(
+    { start: settings.season_start, end: settings.season_end },
+    vancouverDate(new Date()),
+  );
   return (
     <S18Shell>
       <S18Page page="new-date" view={model} state="new_date">
-        <NewDateForm token={token!} dish={dishView(dish)} form={dish.flow === 'pitch' ? 'pitch' : 'dates'} />
+        <NewDateForm
+          token={token!}
+          dish={dishView(dish)}
+          form={dish.flow === 'pitch' ? 'pitch' : 'dates'}
+          span={span}
+        />
       </S18Page>
     </S18Shell>
   );

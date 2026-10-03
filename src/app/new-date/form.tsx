@@ -2,7 +2,8 @@
 // src/app/new-date/form.tsx — T2.4.U2 S18 new-date form: the S7 date grid (or the pitch's rough window) and ONE
 // POST, Send → /api/offer/propose with the single-use token in the BODY (ProposeBody: token, clientKey, hp and the
 // choices), never the URL; strict-origin referrer. The pick_new_date token opens no availability feed, so the grid
-// shows the season and the server validates the dates (its line is shown as is). After Send the page re-reads.
+// shows the season (QA H2: from the page's span, so it opens on the season's first month and other days are off)
+// and the server validates the dates (its line is shown as is). After Send the page re-reads.
 import { useRouter } from 'next/navigation';
 import { flushSync } from 'react-dom';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
@@ -15,19 +16,20 @@ import { DateGrid } from '../book/[dish]/DateGrid';
 import { calMonths, initialCalMonth, toggleDate, type CalDay } from '../book/[dish]/_lib/date-grid';
 import type { DishView } from '../book/[dish]/_lib/flow-view';
 import { postJson } from '../offer/take';
+import type { Span } from './span';
 
-function span(): { start: string; end: string } {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-  const d = new Date(`${today}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 120);
-  return { start: today, end: d.toISOString().slice(0, 10) };
-}
-
-export function NewDateForm(p: { token: string; dish: DishView; form: 'dates' | 'pitch' }) {
+export function NewDateForm(p: {
+  token: string;
+  dish: DishView;
+  form: 'dates' | 'pitch';
+  /** newDateSpan(): the season from today; null when it is over (the rough window only). */
+  span: Span | null;
+}) {
   const router = useRouter();
+  const { start, end } = p.span ?? {};
   const cal = useMemo(
-    () => (p.form === 'dates' ? calMonths(span(), [], p.dish.dateRule) : []),
-    [p.form, p.dish.dateRule],
+    () => (p.form === 'dates' && start && end ? calMonths({ start, end }, [], p.dish.dateRule) : []),
+    [p.form, start, end, p.dish.dateRule],
   );
   const [order, setOrder] = useState<string[]>([]);
   const [shown, setShown] = useState(() => (cal.length ? initialCalMonth(cal, []) : ''));
@@ -96,7 +98,7 @@ export function NewDateForm(p: { token: string; dish: DishView; form: 'dates' | 
           {need}
         </p>
       )}
-      {p.form === 'dates' ? (
+      {p.form === 'dates' && cal.length > 0 ? (
         <DateGrid
           months={cal}
           order={order}

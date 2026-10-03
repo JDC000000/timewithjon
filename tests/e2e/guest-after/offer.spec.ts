@@ -173,6 +173,12 @@ test('N2: GET, HEAD and a link scanner prefetch of /offer and /new-date change n
   await page.goto(newDateUrl(n.token));
   await expect(page.locator('[data-s18-form]')).toBeVisible();
   await expect(page.locator('main button[type=submit]')).toHaveCount(1);
+  // QA H2: the grid is the season's months only (it opened on today's month before).
+  const months = await page
+    .locator('.cal-month')
+    .evaluateAll((ms) => ms.map((m) => m.getAttribute('data-name')));
+  expect(months.length).toBeGreaterThan(0);
+  for (const m of months) expect(m).toMatch(/^(April|May|June) 2027$/);
   await shot(page, 'new-date');
   // Send with nothing picked: the inline line, no POST.
   await page.getByRole('button', { name: FLOW.send }).click();
