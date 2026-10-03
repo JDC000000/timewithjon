@@ -1,10 +1,14 @@
 // T4.6.04 (+T1.11.U3): the pure part of the Lighthouse gate. Reads Lighthouse JSON reports (LHR), picks the median
 // run per page and says which pages score under the bar, with the audits that pull each failing score down most.
 
-/** T1.11 AC1 / T4.6.04: performance and accessibility are both 90 or more (mobile). Never lowered. */
-export const MIN_SCORE = 90;
 export const CATEGORIES = ['performance', 'accessibility'] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+/**
+ * T1.11 AC1 / T4.6.04 (mobile). Accessibility stays at 90. Performance is 85 for now (Jon, 2026-10-03: the gate blocks
+ * from today so nothing regresses); it goes back to 90 when the below-the-fold photo quality change lands.
+ */
+export const MIN_SCORE: Record<Category, number> = { performance: 85, accessibility: 90 };
 
 /** The slice of a Lighthouse report this gate reads. */
 export type Lhr = {
@@ -73,21 +77,21 @@ export function scorePage(page: string, runs: Lhr[]): PageResult {
 /** Every page/category under the bar. */
 export function failures(pages: PageResult[]): { page: string; result: CategoryResult }[] {
   return pages.flatMap((p) =>
-    p.results.filter((r) => r.score < MIN_SCORE).map((result) => ({ page: p.page, result })),
+    p.results.filter((r) => r.score < MIN_SCORE[r.category]).map((result) => ({ page: p.page, result })),
   );
 }
 
 /** The Markdown table (+ follow-ups for anything under the bar) for the job summary and the PR body. */
 export function summary(pages: PageResult[]): string {
   const lines = [
-    `### Lighthouse mobile (bar: ${MIN_SCORE} or more; median of each page's runs)`,
+    `### Lighthouse mobile (bar: performance ${MIN_SCORE.performance}, accessibility ${MIN_SCORE.accessibility}, or more; median of each page's runs)`,
     '',
     '| Page | Performance | Accessibility |',
     '| --- | --- | --- |',
     ...pages.map((p) => {
       const cell = (c: Category) => {
         const s = p.results.find((r) => r.category === c)!.score;
-        return `${s}${s < MIN_SCORE ? ' ❌' : ''}`;
+        return `${s}${s < MIN_SCORE[c] ? ' ❌' : ''}`;
       };
       return `| ${p.page} | ${cell('performance')} | ${cell('accessibility')} |`;
     }),

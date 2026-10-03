@@ -1,4 +1,4 @@
-// T4.6.04 (+T1.11.U3): read the Lighthouse JSON reports and fail under 90 on performance or accessibility.
+// T4.6.04 (+T1.11.U3): read the Lighthouse JSON reports and fail under the bar (performance 85, accessibility 90).
 // Usage: pnpm exec tsx tests/lighthouse/check.ts <reports-dir>
 // <reports-dir>/targets.tsv lists the pages (prepare.ts); page i's runs are <reports-dir>/page-<i>-run-<n>.json.
 // Writes the table (and the top 3 audits of anything under the bar) to stdout and $GITHUB_STEP_SUMMARY.
@@ -26,7 +26,7 @@ if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMM
 const under = failures(results);
 if (under.length > 0) {
   for (const { page, result } of under) {
-    console.log(`::error::${page} ${result.category} ${result.score} (bar ${MIN_SCORE})`);
+    console.log(`::error::${page} ${result.category} ${result.score} (bar ${MIN_SCORE[result.category]})`);
   }
   process.exit(1);
 }
