@@ -69,8 +69,8 @@ describe('E1 "Got it" html', () => {
 });
 
 describe('renderEmail', () => {
-  it('E1 and E2 carry html; every other template is text-only until T3.2.U2', async () => {
-    expect(HTML_TEMPLATES).toEqual(['E1', 'E2']);
+  it('every template carries html (T3.2.U2)', async () => {
+    expect([...HTML_TEMPLATES].sort()).toEqual(Object.keys(EMAIL_COPY).sort());
     for (const id of Object.keys(EMAIL_COPY) as TemplateId[]) {
       const vars = Object.fromEntries(
         [...`${EMAIL_COPY[id].subject}${EMAIL_COPY[id].body}`.matchAll(/\{(\w+)\}/g)].map((m) => [
@@ -79,7 +79,7 @@ describe('renderEmail', () => {
         ]),
       );
       const r = await renderEmail(id, vars, { siteUrl: SITE });
-      expect(Boolean(r.html), id).toBe(HTML_TEMPLATES.includes(id));
+      expect(Boolean(r.html), id).toBe(true);
     }
   });
   it('fails closed on an unfilled placeholder before drawing any html', async () => {
