@@ -128,7 +128,7 @@ export function AddStory() {
           </Button>
         }
       >
-        <form id={FORM_ID} noValidate onSubmit={submit}>
+        <form method="post" id={FORM_ID} noValidate onSubmit={submit}>
           <ErrorSummary problems={problems} attempt={attempt} />
           <Field
             id={ids.name}

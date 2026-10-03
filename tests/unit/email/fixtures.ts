@@ -1,4 +1,5 @@
-// T3.2.U2: one realistic var set per template (the shapes the senders build), shared by the HTML tests.
+// T3.2.U2: one realistic var set per template (the shapes the senders build), shared by the HTML tests. The guest
+// emails' times read as the site writes them (QA C: "Thu Oct 1 · noon–2 pm"); Jon's E2 and E12 keep their own.
 import { E4C_LEAD, E5B_PARTS, fill, type TemplateId } from '@/content/emails';
 
 export const SITE = 'https://timewithjon.com';
@@ -6,33 +7,33 @@ const TOKEN_URL = (kind: string) => `${SITE}/r/${kind}/tok_3f9a2b7c`;
 const REQ = `${SITE}/admin/requests/0f6c1f4e-1111-4222-8333-444455556666`;
 
 export const VARS: Record<TemplateId, Record<string, string | number>> = {
-  E1: { dish: 'The Long Lunch', times: 'Thu Oct 1, 12:00 pm\nSat Oct 3, 6:00 pm' },
+  E1: { dish: 'The Long Lunch', times: 'Thu Oct 1 · noon–2 pm\nSat Oct 3 · 7 pm' },
   E2: { name: 'Sam', dish: 'The Long Lunch', summary: 'Crew 2. Thu Oct 1, 12:00 pm.', adminLink: REQ },
   E3: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
   E4: {
     dish: 'The Long Lunch',
     day: 'Thu Oct 1',
-    when: 'Thu Oct 1, 12:00 pm',
+    when: 'Thu Oct 1 · noon–2 pm',
     manageLink: TOKEN_URL('manage'),
   },
   E4c: {
     dish: 'The Long Lunch',
-    lead: fill(E4C_LEAD.REQUEST, { dish: 'The Long Lunch', when: 'Thu Oct 1, 12:00 pm' }),
+    lead: fill(E4C_LEAD.REQUEST, { dish: 'The Long Lunch', when: 'Thu Oct 1 · noon–2 pm' }),
   },
   E5: {
     dish: 'The Long Lunch',
     lead: 'That one went. ',
-    times: 'Fri Oct 2, 12:00 pm\nSun Oct 4, 11:00 am',
+    times: 'Fri Oct 2 · noon–2 pm\nSun Oct 4 · 11 am–1 pm',
     takeLink: TOKEN_URL('take'),
   },
   E5b: {
     dish: 'The Long Lunch',
-    openTimes: E5B_PARTS.withTimes('Fri Oct 2, 12:00 pm\nSun Oct 4, 11:00 am'),
+    openTimes: E5B_PARTS.withTimes('Fri Oct 2 · noon–2 pm\nSun Oct 4 · 11 am–1 pm'),
     takeLink: TOKEN_URL('take'),
   },
   E5j: { dish: 'The Long Lunch' },
   E6: { week: 'Oct 5' },
-  E7: { weekday: 'Friday', when: 'Fri Oct 2, 12:00 pm', takeLink: TOKEN_URL('take') },
+  E7: { weekday: 'Friday', when: 'Fri Oct 2 · noon–2 pm', takeLink: TOKEN_URL('take') },
   E8: { length: 'three nights', manageLink: TOKEN_URL('manage') },
   E9: { menuLink: TOKEN_URL('menu') },
   E10: { pickLink: TOKEN_URL('pick') },

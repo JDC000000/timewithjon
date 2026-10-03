@@ -2,6 +2,7 @@
 // id in the URL. No capability (or it expired after 2 hours) → the friendly stale line (T1.8 AC3). SELECTs only.
 import 'server-only';
 import { dishBySlug } from '@/content/menu-helpers';
+import { AFTER_SEND_STANDBY } from '@/content/ui/guest-after';
 import { getEnv } from '@/config/env';
 import { q } from '@/lib/db';
 import { loadSettings } from '@/lib/settings';
@@ -42,6 +43,35 @@ export function standbyDays(weekStart: string): string {
   return thu[1] === fri[1] ? `${thu[1]} ${thu[2]}–${fri[2]}` : `${thu[1]} ${thu[2]}–${fri[1]} ${fri[2]}`;
 }
 
+/** The picked times, then the dates and the rough window, one receipt line each (S11). */
+async function choiceLines(requestId: string, prefs: Row['date_prefs']): Promise<string[]> {
+  const slots = await q<{ starts_at: Date; ends_at: Date; window_kind: 'lunch' | 'evening' }>(
+    `select s.starts_at, s.ends_at, s.window_kind from request_slot_choice c join slot s on s.id = c.slot_id
+      where c.request_id = $1 order by s.starts_at`,
+    [requestId],
+  );
+  return [
+    ...slots.map((s) => slotLabel(s.starts_at, s.ends_at, s.window_kind)),
+    ...(prefs?.dates ?? []).map(dateLabel),
+    ...(prefs?.window_text ? [prefs.window_text] : []),
+  ];
+}
+
+/**
+ * QA L7: what a request asked for, as /sent's receipt writes it (its stand-by line for a stand-by), so S17 shows the
+ * times sent while nothing is locked ("Ask for another time" used to end on "Sent: The Flat White" alone).
+ */
+export async function loadRequestLines(requestId: string): Promise<string[]> {
+  const [r] = await q<Pick<Row, 'status' | 'date_prefs' | 'standby_week'>>(
+    `select status, date_prefs, standby_week::text from request where id = $1`,
+    [requestId],
+  );
+  if (!r) return [];
+  if (r.status === 'standby' && r.standby_week)
+    return [AFTER_SEND_STANDBY.receiptLine(standbyDays(r.standby_week))];
+  return choiceLines(requestId, r.date_prefs);
+}
+
 export async function loadSentModel(requestId: string | null): Promise<SentModel> {
   if (!requestId) return { kind: 'stale' };
   const [r] = await q<Row>(
@@ -49,17 +79,7 @@ export async function loadSentModel(requestId: string | null): Promise<SentModel
     [requestId],
   );
   if (!r) return { kind: 'stale' };
-  const slots = await q<{ starts_at: Date; ends_at: Date; window_kind: 'lunch' | 'evening' }>(
-    `select s.starts_at, s.ends_at, s.window_kind from request_slot_choice c join slot s on s.id = c.slot_id
-      where c.request_id = $1 order by s.starts_at`,
-    [requestId],
-  );
-  const prefs = r.date_prefs ?? {};
-  const lines = [
-    ...slots.map((s) => slotLabel(s.starts_at, s.ends_at, s.window_kind)),
-    ...(prefs.dates ?? []).map(dateLabel),
-    ...(prefs.window_text ? [prefs.window_text] : []),
-  ];
+  const lines = await choiceLines(requestId, r.date_prefs);
   const standby =
     r.status === 'standby' && r.standby_week
       ? { week: dateLabel(r.standby_week).split(' ').slice(1).join(' '), days: standbyDays(r.standby_week) }

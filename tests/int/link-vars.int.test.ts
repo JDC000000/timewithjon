@@ -76,7 +76,7 @@ const queueE4 = async (link: unknown) => {
     vars: {
       dish: 'The Long Lunch',
       day: 'Thu May 13',
-      when: 'Thu May 13, 12:00 Vancouver time',
+      when: 'Thu May 13 · noon–2 pm',
       manageLink: link as never,
     },
   });

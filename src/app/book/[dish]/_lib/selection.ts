@@ -13,7 +13,9 @@ export const EMPTY_SELECTION: Selection = { picks: [], standbyWeek: null };
 export type SelectionAction =
   | { type: 'toggle'; slotId: string }
   | { type: 'standby'; weekStart: string; on: boolean }
-  | { type: 'remove'; slotId: string };
+  | { type: 'remove'; slotId: string }
+  /** QA M3: a kept draft, already checked against what is offered (never both picks and a week). */
+  | { type: 'restore'; picks: readonly string[]; standbyWeek: string | null };
 
 export function selectionReducer(s: Selection, a: SelectionAction): Selection {
   switch (a.type) {
@@ -23,6 +25,10 @@ export function selectionReducer(s: Selection, a: SelectionAction): Selection {
         : { picks: [...s.picks, a.slotId], standbyWeek: null };
     case 'remove':
       return s.picks.includes(a.slotId) ? { ...s, picks: s.picks.filter((id) => id !== a.slotId) } : s;
+    case 'restore':
+      return a.picks.length
+        ? { picks: [...a.picks], standbyWeek: null }
+        : { picks: [], standbyWeek: a.standbyWeek };
     case 'standby':
       if (a.on) return { picks: [], standbyWeek: a.weekStart };
       return s.standbyWeek === a.weekStart ? { ...s, standbyWeek: null } : s;

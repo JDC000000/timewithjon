@@ -38,7 +38,8 @@ import {
 } from '@/features/requests/side-effects';
 import {
   audit as auditRequest,
-  offeredStarts,
+  offeredTimes,
+  type OfferedTime,
   requestForOffer,
   timeLabel,
   type SuggestOptions,
@@ -101,7 +102,7 @@ export async function moveBooking(
   c: PoolClient,
   requestId: string,
   options: SuggestOptions | null,
-  starts: Date[],
+  times: OfferedTime[],
   now: Date,
   after: AfterCommit,
 ): Promise<void> {
@@ -153,7 +154,7 @@ export async function moveBooking(
         vars: {
           dish,
           openTimes: offerId
-            ? E5B_PARTS.withTimes(starts.map((s) => timeLabel(s, r.guest_time_zone)).join('\n'))
+            ? E5B_PARTS.withTimes(times.map((t) => timeLabel(t, r.guest_time_zone)).join('\n'))
             : E5B_PARTS.noTimes,
           takeLink: offerId ? takeLink(offerId) : '',
         },
@@ -239,21 +240,20 @@ async function confirmTx(
     return { result: { ok: false, status: 409, reason: 'locked_bookings', affected, underWay }, after: none };
   }
   // Every choice is checked before anything is written: one bad time refuses the whole confirm.
-  const plans: { id: string; options: SuggestOptions | null; starts: Date[] }[] = [];
+  const plans: { id: string; options: SuggestOptions | null; times: OfferedTime[] }[] = [];
   for (const a of affected) {
     const options = optionsOf(chosen.get(a.id)!);
     if (options === undefined) return { result: { ok: false, status: 400, reason: 'invalid' }, after: none };
-    const starts = options ? await offeredStarts(c, options, now) : [];
-    if (starts === 'slot_not_found')
-      return { result: { ok: false, status: 404, reason: starts }, after: none };
-    if (starts === 'in_the_past') return { result: { ok: false, status: 409, reason: starts }, after: none };
+    const times = options ? await offeredTimes(c, options, now) : [];
+    if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
+    if (times === 'in_the_past') return { result: { ok: false, status: 409, reason: times }, after: none };
     if (options && (await inABlock(c, input.block, options)))
       return { result: { ok: false, status: 409, reason: 'in_block' }, after: none };
-    plans.push({ id: a.id, options, starts });
+    plans.push({ id: a.id, options, times });
   }
   const id = await insertBlock(c, input.block);
   const after = noSideEffects();
-  for (const p of plans) await moveBooking(c, p.id, p.options, p.starts, now, after);
+  for (const p of plans) await moveBooking(c, p.id, p.options, p.times, now, after);
   return { result: { ok: true, id, moved: plans.map((p) => p.id), underWay }, after };
 }
 

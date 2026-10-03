@@ -2,7 +2,7 @@
 // and body from src/content/emails.ts, filled with what Jon picked. The link lines ({takeLink}, {manageLink}, …)
 // are minted at send time and aren't shown; the sign-off is. Times read as the email writes them.
 import { EMAIL_COPY, fill, SIGN_OFF, type TemplateId } from '@/content';
-import { dayLabel, formatGuestTime } from '@/lib/time';
+import { guestWhen } from '@/lib/when';
 
 /** A line that is only a link placeholder, e.g. "{takeLink}". */
 const LINK_LINE = /^\{[a-zA-Z]+Link\}$/;
@@ -19,7 +19,7 @@ export function emailPreview(
   return { subject: fill(copy.subject, vars), lines, signOff: SIGN_OFF };
 }
 
-/** "Fri May 21, 12:00 Vancouver time": how E5 writes an offered time (T2.4 suggest.ts timeLabel, no guest zone). */
-export function emailTime(startsAt: Date): string {
-  return `${dayLabel(startsAt)}, ${formatGuestTime(startsAt, null)}`;
+/** "Fri May 21 · noon–2 pm": how E5 writes an offered time (suggest.ts timeLabel, QA C; no guest zone here). */
+export function emailTime(startsAt: Date, endsAt: Date): string {
+  return guestWhen(startsAt, endsAt, null);
 }

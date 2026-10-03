@@ -191,10 +191,21 @@ test('AC4: a tampered token is a 404', async ({ request }) => {
   expect((await request.get('/manage')).status()).toBe(404);
 });
 
-test('AC5: Cancel frees the locked window at once', async ({ page }) => {
+test('AC5: Cancel asks first (QA B), then frees the locked window at once', async ({ page }) => {
   const s = await seed({ status: 'locked' });
   await page.goto(url(s.token));
-  await page.getByRole('button', { name: MANAGE_UI.cancel }).click();
+  const cancel = page.getByRole('button', { name: MANAGE_UI.cancel });
+  // One tap asks in place; Keep it puts the row back with focus on it, and nothing changed.
+  await cancel.click();
+  const ask = page.getByRole('group', { name: MANAGE_UI.cancelAsk });
+  await expect(ask).toBeVisible();
+  await expect(ask.getByRole('button', { name: MANAGE_UI.cancelKeep })).toBeFocused();
+  await shot(page, 'cancel-ask');
+  await page.keyboard.press('Enter');
+  await expect(cancel).toBeFocused();
+  expect(await statusOf(s.requestId)).toBe('locked');
+  await cancel.click();
+  await page.getByRole('button', { name: MANAGE_UI.cancelYes }).click();
   await expect(page.locator('.status-pill')).toHaveText(GUEST_LABEL.cancelled);
   expect(await statusOf(s.requestId)).toBe('cancelled');
   // The same window can be locked by someone else straight away (request_no_overlap no longer holds it).
@@ -254,6 +265,8 @@ test('AC6: after the general link is rotated, Ask for another time still works e
     )
     .toBe('sometime in June');
   await expect(page.locator('.status-pill')).toHaveText(GUEST_LABEL.requested);
+  // QA L7: the page shows what was sent, not just "Sent: <dish>".
+  await expect(page.locator('[data-manage-sent]')).toContainText('sometime in June');
   // The token rode only in the header: no API call carried it in its URL.
   expect(seen).toContain('GET /api/availability?dish=the-encore');
   expect(seen.some((x) => x.includes(s.token))).toBe(false);

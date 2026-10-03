@@ -2,7 +2,8 @@
 // The booking flow (pack gen.py flow_page(); Surprise Me = s08()): the form (dish header, picker, Send) and the
 // rail, sharing one selection. Send checks the picks first (T1.5.U5), then Surprise Me's need-to-know (T1.6.U4):
 // the error summary takes focus, the inline lines sit under their controls, and fixing one clears it.
-// The Old Haunt's Thu/Fri mode adds the weekend switch link (T1.6.U6).
+// The Old Haunt's Thu/Fri mode adds the weekend switch link (T1.6.U6). The picks, Surprise Me's notes and the details
+// are kept for this tab (useDraft, QA M3): a reload or Back restores the ones still offered.
 import Link from 'next/link';
 import { useMemo, useReducer, useRef, useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
@@ -35,12 +36,14 @@ import {
 } from './_lib/flow-view';
 import {
   initialMonth,
+  monthStandbyWeeks,
   monthTileIds,
   tilesInOrder,
   type PickerMonth,
   type TileView,
 } from './_lib/picker-model';
 import { EMPTY_SELECTION, isPicked, selectionReducer } from './_lib/selection';
+import { useDraft } from './_lib/useDraft';
 
 export interface BookingFlowProps {
   dish: DishView;
@@ -73,6 +76,29 @@ export function BookingFlow({
   const [need, setNeed] = useState('');
   const [plan, setPlan] = useState('');
   const s = useSend(dish.slug, guest);
+  useDraft(
+    dish.slug,
+    {
+      picks: [...selection.picks],
+      standbyWeek: selection.standbyWeek,
+      ...(surprise ? { need, plan } : {}),
+      name: s.name,
+      email: s.email,
+    },
+    (d) => {
+      const offered = new Set(allTiles.map((t) => t.slotId));
+      const picks = (d.picks ?? []).filter((id) => offered.has(id));
+      const weeks = new Set(months.flatMap(monthStandbyWeeks));
+      const week = d.standbyWeek && weeks.has(d.standbyWeek) ? d.standbyWeek : null;
+      dispatch({ type: 'restore', picks, standbyWeek: week });
+      setShownMonth(initialMonth(months, picks, picks.length ? null : week));
+      if (surprise) {
+        setNeed(d.need ?? '');
+        setPlan(d.plan ?? '');
+      }
+      s.restoreDetails(d);
+    },
+  );
 
   function onTile(tile: TileView, el: HTMLButtonElement) {
     const on = !isPicked(selection, tile.slotId);
@@ -119,7 +145,7 @@ export function BookingFlow({
 
   return (
     <div className="wrap flow">
-      <form className="flow-main" noValidate onSubmit={onSubmit}>
+      <form method="post" className="flow-main" noValidate onSubmit={onSubmit}>
         <div className="flow-top">
           {!surprise && <PhotoSlot slot={dishPhotoSlot(dish.slug)} kind="thumb" priority="hero" />}
           <p className="cap">{`${dish.course} · ${dish.name}`}</p>

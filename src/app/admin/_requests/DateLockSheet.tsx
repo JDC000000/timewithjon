@@ -10,7 +10,7 @@ import type { CountsToward } from '@/features/availability/types';
 import { dayLabel, vancouverInstant } from '@/lib/time';
 import { clockLabel } from './format';
 import {
-  commitLabel,
+  commitParts,
   defaultCountsToward,
   defaultsFor,
   lengthWords,
@@ -48,6 +48,18 @@ function Seg<T extends string | number>(props: {
         </label>
       ))}
     </div>
+  );
+}
+
+/** The commit button's two flex items (.btn--dt, QA L4): the verb, then the day and time kept whole. */
+export function CommitLabel({ verb, when }: { verb: string; when: string }) {
+  return (
+    <>
+      <span>{verb}</span>{' '}
+      <span>
+        <KeepWhole text={when} />
+      </span>
+    </>
   );
 }
 
@@ -95,11 +107,12 @@ export function DateLockSheet(props: {
       closeLabel={SHEETS.close(LOCK_SHEET.title(props.who, props.dishName.replace(/^The /, '')))}
       footer={
         <Button variant="commit" dt block type="submit" form={`${id}-form`} disabled={!date}>
-          <KeepWhole text={date && startAt ? commitLabel(date, startAt) : LOCK_SHEET.lockOpen} />
+          {date && startAt ? <CommitLabel {...commitParts(date, startAt)} /> : LOCK_SHEET.lockOpen}
         </Button>
       }
     >
       <form
+        method="post"
         id={`${id}-form`}
         noValidate
         onSubmit={(e) => {

@@ -288,7 +288,7 @@ describe('token pages: read-only loaders (T2.7.03, AC1–AC4)', () => {
       requestId: id,
       status: 'locked',
       label: 'Locked in',
-      when: expect.stringMatching(/^Thu Jun 3, \d\d:\d\d Vancouver time$/),
+      when: 'Thu Jun 3 · noon–2 pm', // QA C: as the site writes it
       ownPlan: null,
       canCancel: true,
       canAskAnother: true,

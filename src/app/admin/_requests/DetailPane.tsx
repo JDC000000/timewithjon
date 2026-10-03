@@ -191,6 +191,7 @@ export function DetailPane(p: DetailPaneProps) {
         </a>
       </p>
       <form
+        method="post"
         className="pane-pad a3-form"
         style={{ paddingTop: 'var(--s4)' }}
         onSubmit={(e) => e.preventDefault()}

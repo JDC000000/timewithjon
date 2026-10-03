@@ -157,7 +157,7 @@ async function offerTx(
         eventKey: offerId,
         vars: {
           weekday: weekdayName(range.startsAt),
-          when: timeLabel(range.startsAt, r.guest_time_zone),
+          when: timeLabel(range, r.guest_time_zone),
           takeLink: takeLink(offerId),
         },
       }),

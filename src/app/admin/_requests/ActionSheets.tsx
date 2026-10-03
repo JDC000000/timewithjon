@@ -50,6 +50,7 @@ function ActionSheet(props: {
       }
     >
       <form
+        method="post"
         id={formId}
         noValidate
         onSubmit={(e: FormEvent) => {
@@ -169,7 +170,7 @@ export function SuggestSheet({ times, ...b }: Base & { times: OpenTime[] }) {
           vars={{
             dish: b.dish,
             lead: '',
-            times: chosen.map((t) => emailTime(new Date(t.startsAt))).join('\n'),
+            times: chosen.map((t) => emailTime(new Date(t.startsAt), new Date(t.endsAt))).join('\n'),
           }}
         />
       ) : null}

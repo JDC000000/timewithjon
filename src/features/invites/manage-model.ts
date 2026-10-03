@@ -11,7 +11,7 @@ import { ALREADY, CLOSED_IN_PERSON_LABEL, ERRORS, GUEST_LABEL } from '@/content'
 import { dishBySlug } from '@/content/menu-helpers';
 import type { RequestStatus } from '@/features/availability/types';
 import { q } from '@/lib/db';
-import { dayLabel, formatGuestTime } from '@/lib/time';
+import { guestWhen } from '@/lib/when';
 import { findToken, tokenState, type ActionToken, type TokenPurpose } from './action-tokens';
 
 export type Missing = { kind: 'not_found' } | { kind: 'expired'; message: string };
@@ -21,7 +21,7 @@ export interface RequestView {
   dish: { slug: string; name: string };
   status: RequestStatus; // lazily 'done' once the (host's) end has passed
   label: string; // the guest label (§6 "Guest labels")
-  when: string | null; // "Thu May 13, 12:00 Vancouver time" when it has a time
+  when: string | null; // "Thu May 13 · noon–2 pm" when it has a time (QA C: as the site writes it)
   where: string | null;
 }
 
@@ -85,7 +85,7 @@ async function loadView(
     dish: { slug: r.dish, name: dish?.name ?? r.dish },
     status,
     label: status === 'cancelled' && r.closed_in_person ? CLOSED_IN_PERSON_LABEL : GUEST_LABEL[status],
-    when: timed ? `${dayLabel(r.starts_at!)}, ${formatGuestTime(r.starts_at!, r.guest_time_zone)}` : null,
+    when: timed && r.ends_at ? guestWhen(r.starts_at!, r.ends_at, r.guest_time_zone) : null,
     where: timed ? r.where_text : null,
   };
   return { view, ownPlan: dish?.flow === 'surprise' ? r.own_plan : null, tz: r.guest_time_zone };
@@ -159,17 +159,18 @@ async function offerWindows(o: OfferRow, guestTimeZone: string | null): Promise<
         [o.slot_ids],
       )
     : [];
-  const label = (d: Date) => `${dayLabel(d)}, ${formatGuestTime(d, guestTimeZone)}`;
+  const label = (s: Date, e: Date) => guestWhen(s, e, guestTimeZone);
   return [
     ...slots.map((s) => ({
       slotId: s.id,
       startsAt: s.starts_at,
       endsAt: s.ends_at,
-      label: label(s.starts_at),
+      label: label(s.starts_at, s.ends_at),
     })),
     ...o.ranges.map((r) => {
       const startsAt = new Date(r.starts_at);
-      return { slotId: null, startsAt, endsAt: new Date(r.ends_at), label: label(startsAt) };
+      const endsAt = new Date(r.ends_at);
+      return { slotId: null, startsAt, endsAt, label: label(startsAt, endsAt) };
     }),
   ];
 }

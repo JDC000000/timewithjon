@@ -48,7 +48,6 @@ export function datesTouched(start: Date, end: Date): string[] {
   return out;
 }
 
-/** "Thu Apr 8, 12:00" in Vancouver time. */
 /** Vancouver day label for emails and events, e.g. "Thu May 13". */
 export function dayLabel(instant: Date): string {
   return formatInTimeZone(instant, TZ, 'EEE MMM d');
@@ -56,18 +55,6 @@ export function dayLabel(instant: Date): string {
 
 export function windowLabel(instant: Date): string {
   return formatInTimeZone(instant, TZ, 'EEE MMM d, HH:mm');
-}
-
-/**
- * Guest-facing time (M2): "12:00 Vancouver time", plus "(3:00 pm your time)" when the
- * guest's IANA zone shows a different wall-clock time.
- */
-export function formatGuestTime(instant: Date, guestTimeZone?: string | null): string {
-  const van = `${formatInTimeZone(instant, TZ, 'HH:mm')} Vancouver time`;
-  if (!guestTimeZone || guestTimeZone === TZ) return van;
-  const theirs = formatInTimeZone(instant, guestTimeZone, 'h:mm aaa');
-  const ours = formatInTimeZone(instant, TZ, 'h:mm aaa');
-  return theirs === ours ? van : `${van} (${theirs} your time)`;
 }
 
 /** Vancouver wall-clock time of an instant, e.g. '5:05 PM' (the email-limit banner, T3.2.07). */

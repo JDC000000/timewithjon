@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   commitLabel,
+  commitParts,
   defaultCountsToward,
   defaultsFor,
   lengthWords,
@@ -52,5 +53,10 @@ describe('defaults and counts', () => {
     expect(commitLabel('2027-05-08', '09:00')).toBe('Lock in Sat May 8, 9 am');
     expect(commitLabel('2027-05-08', '10:30')).toBe('Lock in Sat May 8, 10:30 am');
     expect(commitLabel('2027-06-12', '12:00')).toBe('Lock in Sat Jun 12, noon');
+  });
+  it('the commit as the button’s two parts (QA L4: the verb, then the day and time, never split at the comma)', () => {
+    expect(commitParts('2027-04-03', '09:00')).toEqual({ verb: 'Lock in', when: 'Sat Apr 3, 9 am' });
+    const p = commitParts('2027-06-12', '12:00');
+    expect(`${p.verb} ${p.when}`).toBe(commitLabel('2027-06-12', '12:00'));
   });
 });

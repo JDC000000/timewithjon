@@ -7,6 +7,7 @@
 // and the manage APIs' Origin check refuses it (see SIGN_IN_LINK_PAGE there). strict-origin keeps the token out of
 // every Referer (origin only) and lets the Origin header through.
 import type { Metadata } from 'next';
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MANAGE_UI } from '@/content/manage';
@@ -18,6 +19,7 @@ import { MAX_PHOTOS } from '@/features/photos/limits';
 import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { dishPhotoSlot, dishView } from '../book/[dish]/_lib/flow-view';
+import { loadRequestLines } from '../sent/model';
 import { ManageActions } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +44,7 @@ export default async function ManagePage({ searchParams }: { searchParams: Searc
       {model.kind === 'expired' ? (
         <Expired message={model.message} />
       ) : (
-        <Manage model={model} token={token!} />
+        <Manage model={model} token={token!} sent={await sentLines(model)} />
       )}
       <SiteFooter photos={[]} />
     </>
@@ -73,7 +75,15 @@ function Expired({ message }: { message: string }) {
   );
 }
 
-function Manage({ model, token }: { model: Extract<ManageModel, { kind: 'manage' }>; token: string }) {
+type Open = Extract<ManageModel, { kind: 'manage' }>;
+
+/** QA L7: while nothing is locked, the times (or dates, window, stand-by days) the guest sent, as /sent lists them. */
+async function sentLines(model: Open): Promise<string[]> {
+  const waiting = ['requested', 'needs_new_time', 'standby'].includes(model.status);
+  return !model.when && waiting ? loadRequestLines(model.requestId) : [];
+}
+
+function Manage({ model, token, sent }: { model: Open; token: string; sent: string[] }) {
   const dish = dishBySlug(model.dish.slug);
   const locked = model.status === 'locked';
   return (
@@ -107,6 +117,21 @@ function Manage({ model, token }: { model: Extract<ManageModel, { kind: 'manage'
                 {MANAGE_UI.calendarInvite}
               </p>
             )}
+          </div>
+        )}
+        {!model.when && sent.length > 0 && (
+          <div className="receipt" data-manage-sent="">
+            <dl className="facts" style={{ marginTop: 0, border: 0, padding: 0 }}>
+              <dt>{MANAGE_UI.when}</dt>
+              <dd>
+                {sent.map((line, i) => (
+                  <Fragment key={line}>
+                    {i > 0 && <br />}
+                    <KeepWhole text={line} />
+                  </Fragment>
+                ))}
+              </dd>
+            </dl>
           </div>
         )}
         {model.ownPlan && (

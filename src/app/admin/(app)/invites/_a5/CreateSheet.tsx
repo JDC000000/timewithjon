@@ -119,7 +119,7 @@ export function CreateSheet({ dishes, onMade }: { dishes: DishOption[]; onMade: 
           </Button>
         }
       >
-        <form id={FORM_ID} noValidate onSubmit={submit}>
+        <form method="post" id={FORM_ID} noValidate onSubmit={submit}>
           <ErrorSummary problems={problems} attempt={attempt} />
           <div className="a5-preview" data-testid="a5-preview">
             <p className="cap muted">{A5.willSee(name.trim())}</p>

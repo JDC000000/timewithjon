@@ -19,7 +19,8 @@ import { manageLink, type EmailVar } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { extendManageTokens } from '@/features/invites/action-tokens';
 import { withTx } from '@/lib/db';
-import { dayLabel, formatGuestTime, vancouverDate, weekStartOf } from '@/lib/time';
+import { dayLabel, vancouverDate, weekStartOf } from '@/lib/time';
+import { guestWhen } from '@/lib/when';
 import { dishName } from './joined-cascade';
 import { releaseLiveOffers } from './offers';
 import { enqueueCalendar, noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
@@ -109,17 +110,19 @@ export async function lockRequestRow(c: PoolClient, requestId: string): Promise<
   return rows[0];
 }
 
-/** E4 vars: the time in the guest's own zone and a manage link minted when the email is sent (T2.3.05). */
+/** E4 vars: the time as the site writes it (QA C, with the guest's own zone) and a manage link minted when the
+ * email is sent (T2.3.05). */
 export function lockedEmailVars(
   dishSlug: string,
   startsAt: Date,
+  endsAt: Date,
   timeZone: string | null,
   requestId: string,
 ): Record<string, EmailVar> {
   return {
     dish: dishName(dishSlug),
     day: dayLabel(startsAt),
-    when: `${dayLabel(startsAt)}, ${formatGuestTime(startsAt, timeZone)}`,
+    when: guestWhen(startsAt, endsAt, timeZone),
     manageLink: manageLink(requestId),
   };
 }
@@ -257,7 +260,7 @@ export async function applyLock(
         to: r.contact_email,
         requestId: i.requestId,
         eventKey: audit!.id,
-        vars: lockedEmailVars(r.dish, range.startsAt, r.guest_time_zone, i.requestId),
+        vars: lockedEmailVars(r.dish, range.startsAt, range.endsAt, r.guest_time_zone, i.requestId),
       }),
     ),
   );

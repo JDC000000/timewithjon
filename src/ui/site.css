@@ -152,6 +152,17 @@ select {
   white-space: nowrap;
   border: 0;
 }
+/* QA L2: the AD-9 honeypot (src/app/_guest/honeypot.tsx) is for bots only: off-screen and visibility: hidden, so
+   its label is neither seen nor read nor copied (.vh text still is), and browsers don't autofill it */
+.hp {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  visibility: hidden;
+}
 [hidden] {
   display: none !important;
 }
@@ -1031,9 +1042,8 @@ a.dish-row:hover .dish-name {
   min-height: var(--tap);
   border-bottom: var(--bw) solid var(--c-rule);
   font-size: var(--fs-ui);
-  font-variant-numeric: tabular-nums;
   color: var(--c-ink);
-}
+} /* QA L4: proportional figures; tabular ones widen "." and "," in this face (tests/unit/ui/tabular-nums.test.ts) */
 .picks li .rm {
   white-space: nowrap;
   min-width: var(--row-h);
@@ -1855,10 +1865,9 @@ dialog.sheet[open] {
   margin-top: var(--s3);
   display: grid;
   gap: var(--s1);
-  font-variant-numeric: tabular-nums;
   color: var(--c-ink);
   font-size: var(--fs-ui);
-}
+} /* QA L4: guest text (a rough window) can hold punctuation: proportional figures */
 .receipt .sentto {
   margin-top: var(--s4);
   padding-top: var(--s3);
@@ -1969,6 +1978,17 @@ dialog.sheet[open] {
 .actions button.row:has(+ .note) {
   min-height: calc(var(--row-h) - var(--s2));
   padding-top: var(--s2);
+}
+/* QA B: S17's Cancel asks in place: the question, then "Yes, cancel" (.btn, 52 px) and "Keep it" (.textbtn, 44 px) */
+.actions .manage-confirm {
+  padding: var(--s3) 0;
+}
+.manage-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s4);
+  margin-top: var(--s2);
 }
 .states {
   display: grid;
@@ -2480,8 +2500,7 @@ dialog.sheet .actions {
   display: block;
   color: var(--c-ink-3);
   font-size: var(--fs-ui-s);
-  font-variant-numeric: tabular-nums;
-}
+} /* QA L4: "Invite goes out in 10 s." in proportional figures (a tabular "." reads as " .") */
 .wk {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

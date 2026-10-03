@@ -188,7 +188,7 @@ describe('Join to booking (T2.10.01, rule 1)', () => {
       kind: 'manage',
       requestId: joined,
       status: 'locked',
-      when: 'Thu May 27, 12:00 Vancouver time',
+      when: 'Thu May 27 · noon–2 pm', // QA C: as the site writes it
     });
     expect((await findToken(token))!.expires_at.getTime()).toBe(
       hostRow.locked_ends_at!.getTime() + 7 * 86400_000,

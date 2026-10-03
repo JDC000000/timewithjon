@@ -328,7 +328,7 @@ describe('T2.4.06 Weather call → delete the event + E10', () => {
       ['ics:0', 'REQUEST', '0'],
       ['ics:1', 'CANCEL', '1'], // bumped: a CANCEL at the REQUEST's own SEQUENCE would be ignored
     ]);
-    expect(e4c[1]!.lead).toMatch(/^The Long Lunch, Fri Apr 30, .* is off\./);
+    expect(e4c[1]!.lead).toMatch(/^The Long Lunch, Fri Apr 30 · noon–2 pm, is off\./);
     expect(await q(`select ics_sequence from request where id = $1`, [id])).toEqual([{ ics_sequence: 1 }]);
     expect((await row(id)).locked_starts_at).toBeNull();
   });

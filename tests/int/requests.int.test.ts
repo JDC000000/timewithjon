@@ -187,7 +187,7 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
     expect(await deliverRequestEmails(requestId)).toEqual([]);
     const out = await outboxFor(email);
     expect(out.map((o) => o.template)).toEqual(['E1']);
-    expect(out[0]!.text_body).toMatch(/^Got your times:\nThu May 13, \d{1,2}:\d{2} [ap]m\nI’ll lock one in/); // option A
+    expect(out[0]!.text_body).toMatch(/^Got your times:\nThu May 13 · noon–2 pm\nI’ll lock one in/); // option A, QA C
   });
   it('an idempotent replay sends what a crashed first attempt left pending', async () => {
     const email = `replay+${randomUUID().slice(0, 6)}@example.com`;

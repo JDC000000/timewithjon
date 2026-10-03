@@ -3,6 +3,7 @@
 // event_key per §6: E1/E2 = the request id; E6 = the triggering audit id.
 import { formatInTimeZone } from 'date-fns-tz';
 import { TZ, vancouverInstant } from '@/lib/time';
+import { guestWhen } from '@/lib/when';
 import type { EmailArgs } from '@/features/email/send';
 
 export interface IntakeEmailInput {
@@ -27,19 +28,18 @@ export function standbyWeekLabel(weekStart: string): string {
 }
 
 /**
- * E1's list (Jon option A): each chosen slot as "Thu Oct 1, 12:00 pm" in the guest's zone (Vancouver when unset
- * or unknown), and in dates mode each date as "Thu Oct 1" with no time.
+ * E1's list (Jon option A): each chosen slot as the site writes it, "Thu Oct 1 · noon–2 pm" (QA C: guestWhen, with
+ * the guest's own zone when it differs), and in dates mode each date as "Thu Oct 1" with no time.
  */
-export function requestedTimeLines(starts: Date[], dates: string[], guestTimeZone: string | null): string[] {
-  const fmt = (d: Date) => {
-    try {
-      return formatInTimeZone(d, guestTimeZone || TZ, 'EEE MMM d, h:mm aaa');
-    } catch {
-      return formatInTimeZone(d, TZ, 'EEE MMM d, h:mm aaa');
-    }
-  };
+export function requestedTimeLines(
+  slots: { startsAt: Date; endsAt: Date }[],
+  dates: string[],
+  guestTimeZone: string | null,
+): string[] {
   return [
-    ...[...starts].sort((a, b) => a.getTime() - b.getTime()).map(fmt),
+    ...[...slots]
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      .map((s) => guestWhen(s.startsAt, s.endsAt, guestTimeZone)),
     ...[...dates].sort().map((d) => formatInTimeZone(vancouverInstant(d, '12:00'), TZ, 'EEE MMM d')),
   ];
 }

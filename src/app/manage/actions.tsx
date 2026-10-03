@@ -1,13 +1,23 @@
 'use client';
 // src/app/manage/actions.tsx — T2.7.U1 S17's three actions (pack v2.2 s17 .actions rows). Nothing happens until a
-// tap: Cancel POSTs /api/manage/cancel; "Ask for another time" opens the dish's own picker or date form (fed by
+// tap: Cancel asks first, in place (QA B: the row becomes "Cancel this one?" with "Yes, cancel" and "Keep it"), then
+// POSTs /api/manage/cancel; "Ask for another time" opens the dish's own picker or date form (fed by
 // GET /api/availability?dish=<slug>) and POSTs /api/manage/another-time on Send; "Add a story or photo" opens the
 // S11 StoryForm posting to /api/stories and /api/photos/sign. Every call carries the raw manage token in the
 // x-twj-manage header (MANAGE_HEADER), never the body or the URL, and a strict-origin referrer (origin only).
 // After a change the page re-reads its server model (router.refresh), so the status shown is the DB's.
 import { useRouter } from 'next/navigation';
 import { flushSync } from 'react-dom';
-import { useEffect, useMemo, useReducer, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { ERRORS, FLOW } from '@/content';
 import { MANAGE_UI } from '@/content/manage';
 import { DATES, PICKER } from '@/content/ui/booking';
@@ -49,6 +59,10 @@ export function ManageActions(p: ManageActionsProps) {
   const router = useRouter();
   const [open, setOpen] = useState<Open>(null);
   const [cancelling, setCancelling] = useState(false);
+  /** QA B: the Cancel row is showing its question */
+  const [asking, setAsking] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const auth = useMemo(() => ({ [p.header]: p.token }), [p.header, p.token]);
@@ -61,9 +75,19 @@ export function ManageActions(p: ManageActionsProps) {
     const json = await post('/api/manage/cancel', auth, {});
     setCancelling(false);
     if (!json.ok) return setFailed(json.message ?? ERRORS.generic);
+    setAsking(false);
     setOpen(null);
     if (json.already) setSaid(json.message ?? null);
     router.refresh();
+  }
+
+  function ask() {
+    flushSync(() => setAsking(true));
+    moveFocus(keepRef.current, 'script');
+  }
+  function keep() {
+    flushSync(() => setAsking(false));
+    moveFocus(cancelRef.current, 'script');
   }
 
   return (
@@ -87,11 +111,37 @@ export function ManageActions(p: ManageActionsProps) {
             {p.frees && <p className="note">{p.frees}</p>}
           </div>
         )}
-        {p.canCancel && (
-          <Row onClick={onCancel} busy={cancelling}>
-            {MANAGE_UI.cancel}
-          </Row>
-        )}
+        {p.canCancel &&
+          (asking ? (
+            <div
+              className="manage-confirm"
+              role="group"
+              aria-labelledby="m-cancel-q"
+              data-manage-confirm=""
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && !cancelling) {
+                  e.preventDefault();
+                  keep();
+                }
+              }}
+            >
+              <p className="ui" id="m-cancel-q">
+                {MANAGE_UI.cancelAsk}
+              </p>
+              <div className="manage-confirm-actions">
+                <Button busy={cancelling ? MANAGE_UI.cancelYes : undefined} onClick={onCancel}>
+                  {MANAGE_UI.cancelYes}
+                </Button>
+                <button type="button" className="textbtn" ref={keepRef} onClick={keep} disabled={cancelling}>
+                  {MANAGE_UI.cancelKeep}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Row onClick={ask} ref={cancelRef}>
+              {MANAGE_UI.cancel}
+            </Row>
+          ))}
         {p.canAddStory && (
           <Row expanded={open === 'story'} onClick={() => setOpen(open === 'story' ? null : 'story')}>
             {MANAGE_UI.addStory}
@@ -125,9 +175,19 @@ export function ManageActions(p: ManageActionsProps) {
 }
 
 /** One pack .actions row as a button (site.css `.actions button.row`): label, then the chevron. */
-function Row(p: { children: ReactNode; onClick: () => void; expanded?: boolean; busy?: boolean }) {
+function Row({
+  ref,
+  ...p
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  expanded?: boolean;
+  busy?: boolean;
+  ref?: Ref<HTMLButtonElement>;
+}) {
   return (
     <button
+      ref={ref}
       type="button"
       className="row"
       aria-expanded={p.expanded}
@@ -277,6 +337,7 @@ function AnotherForm(p: {
     setFailed(json.message ?? ERRORS.generic);
   }
 
+  // QA L9: always on show here (S7 hides it behind a toggle), so no example inside the box: the hint gives one.
   const roughField = (
     <div className="field">
       <label htmlFor="m-rough">
@@ -287,7 +348,6 @@ function AnotherForm(p: {
         id="m-rough"
         name="windowText"
         maxLength={200}
-        placeholder={DATES.roughPlaceholder}
         value={rough}
         onChange={(e) => {
           setRough(e.currentTarget.value);
@@ -298,7 +358,7 @@ function AnotherForm(p: {
   );
 
   return (
-    <form className="flow-main" noValidate onSubmit={onSubmit} data-manage-another={p.form}>
+    <form method="post" className="flow-main" noValidate onSubmit={onSubmit} data-manage-another={p.form}>
       {need && (
         <p className="ui" role="alert" tabIndex={-1} ref={errRef} style={{ color: 'var(--c-ink)' }}>
           {need}

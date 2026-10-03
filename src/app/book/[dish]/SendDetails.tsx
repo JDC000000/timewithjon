@@ -4,14 +4,16 @@
 // they stay editable), the Turnstile box for a general invite only (T1.7.U3, AD-9: height reserved, reset after
 // any refusal (L11); no site key = no widget), the honeypot, then ONE POST /api/requests. Send shows
 // "Sending…" and refuses a second tap; a refusal from the server is shown as it came, under Send, and takes focus;
-// a saved request goes to /sent (its twj_req capability cookie came with the answer).
+// a saved request goes to /sent (its twj_req capability cookie came with the answer) and the tab's draft is cleared
+// (QA M3, draft.ts).
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Field, ROUTES } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
-import { STORY_FORM } from '@/content/ui/guest-after';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
+import { HoneypotField } from '../../_guest/honeypot';
+import { clearDraft, draftStore } from './_lib/draft';
 import { errorFor, FIELD_IDS, type FormError } from './_lib/form-errors';
 import type { GuestView } from './_lib/flow-view';
 import { prefill, SEND_AS } from './_lib/prefill';
@@ -45,7 +47,10 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     const token = guest.general ? await turnstile.takeToken() : undefined;
     const res = await send(requestPayload(clientKey.current, dish, { name, email, hp }, picks, token));
     if (res === null) return;
-    if (res.ok) return go(ROUTES.sent); // stays "Sending…" while the page changes
+    if (res.ok) {
+      clearDraft(draftStore(), dish);
+      return go(ROUTES.sent); // stays "Sending…" while the page changes
+    }
     if (res.code !== 'network') clientKey.current = null;
     turnstile.reset(); // L11: the token went with the refused (or unanswered) request
     busy.current = false;
@@ -54,6 +59,15 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
       setFailed(res.message);
     });
     moveFocus(document.getElementById(SEND_ERROR_ID), 'script');
+  }
+
+  /** QA M3: a kept draft's details; edited ones open the fields, as Change would. */
+  function restoreDetails(d: { name?: string; email?: string }) {
+    const n = d.name ?? start.name;
+    const e = d.email ?? start.email;
+    setName(n);
+    setEmail(e);
+    if (n !== start.name || e !== start.email) setChanging(true);
   }
 
   return {
@@ -68,6 +82,7 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     submit,
     summary: changing ? null : start.summary,
     change: () => setChanging(true),
+    restoreDetails,
     turnstileBox: turnstile.box,
   };
 }
@@ -143,17 +158,7 @@ export function DetailsFields({
         </>
       )}
       {turnstileBox && <TurnstileSlot box={turnstileBox} />}
-      <div className="vh" aria-hidden="true">
-        <label htmlFor="f-hp">{STORY_FORM.honeypot}</label>
-        <input
-          id="f-hp"
-          name="website"
-          tabIndex={-1}
-          autoComplete="off"
-          value={hp}
-          onChange={(e) => setHp(e.currentTarget.value)}
-        />
-      </div>
+      <HoneypotField id="f-hp" value={hp} onChange={setHp} />
     </div>
   );
 }
