@@ -20,10 +20,10 @@ const ALLOWED: Readonly<Record<string, string>> = {
   'img/catch-release-1200.webp': '8604af1cf8a377684de187f22e57a5e06de53a0fdcb4d19514bf64bbc36dba70',
   'img/catch-release-480.webp': '02041f93f4d87b6251f813ddf55020e563e6dbb6bfa57c02705f6ebc9545733d',
   'img/catch-release-800.webp': 'aec98cf182f9eac0c1aa8eca3f3451eb860fe438dbc1848099917ab452393e4b',
-  'img/close-1200.webp': '39aec6fe8aee39aa592390717546d59e6359cae88c007abecea9a808b5b8abe2',
-  'img/close-1600.webp': 'a2c65624d6179e7ebdb93934935ef109f16d8044126ea2374fe62aa8b1476e78',
-  'img/close-480.webp': '9971f77b0de725b2a8304e5ff1be5ca71a9aac91cf7fc45b63daaaa4241e782c',
-  'img/close-800.webp': 'f85dc9ba24afe4dea50e6f0f5b1ae7b814c84624c8a53c2b6f2beeb6520731a3',
+  'img/close-1200.webp': '213f792fbe51d09f965aba4f35d9da4dac4ded057187e181efa76df5447c0548',
+  'img/close-1600.webp': '01b5e5c907a07139658f34b876b7cfa7b9eccf7f422bf4a3fae8a30cfa3d91b3',
+  'img/close-480.webp': '59a16da6109698a02e4f96412144c3cc8fb3d9977f22019f8a8d436c6d6658db',
+  'img/close-800.webp': '96144a5aff557f80025f21cb0d2643d0919e32cabf32030a90ef75b3d8d126d3',
   'img/day-trip-1200.webp': 'dbaf7163afa1f3667e70cf3a96f21647528b3aa190c85004c1a3a5cf26991187',
   'img/day-trip-480.webp': 'ea540f23eca19ad4f0c4ac56b5df574633d5dc77897db932e7101f3fe46dfcb1',
   'img/day-trip-800.webp': 'e204632220915053540b1a411dfee7800810fd00d016ad805879596c4e294708',
@@ -70,10 +70,10 @@ const ALLOWED: Readonly<Record<string, string>> = {
   'img/surprise-me-1200.webp': '82df1b45e79e5254a7e438c1fcd5abc0ebfbb8f2a47e20ac812506c29f8114a1',
   'img/surprise-me-480.webp': 'be020b53973fd949a5b3bdf7bb8a398b53cc788484a93689ab89d6344a126d42',
   'img/surprise-me-800.webp': 'da53b7219d514c593fc482ab4d818a868c268170ced97b5b547b1a28ac6712db',
-  'img/why-1200.webp': '0dc349142c2cf334827380b3578d9d5189e3c1580d732fba379a93b42641a25f',
+  'img/why-1200.webp': 'd3f7ff3d97e68c8d69cf020160ccf986d2eb6cf818db497be6d022eb4c24e373',
   'img/why-1600.webp': '0d3e22f6a1bfc902bb03e518c5f0d7b0cf78f9f3659ed1e36bb96a51c9e7c8bb',
-  'img/why-480.webp': '6b33f4d229239cf9ed9f335048e418c0fc83f84ed817f0d982194bdf39d7b947',
-  'img/why-800.webp': 'c9ac023d80f8512a13da53e84385669077b990f554aff1ba350f836b0c5967ba',
+  'img/why-480.webp': '233fa99c0d87e0efed652278578ad147111db88b2d639ddb8bbdb235f3b2ba04',
+  'img/why-800.webp': 'e98efa04ad4b8061f1f88b8851f5610414de8ad00c389d1ee844e1636c02279b',
 };
 
 /** the slots Jon's own photos fill in a private build (decisions 48, 52, 53; build-real-photos.mjs SLOTS): no `credit`. */
