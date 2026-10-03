@@ -1,0 +1,93 @@
+name: Lighthouse
+
+# T4.6.04 (+T1.11.U3, T1.11 AC1, G2): Lighthouse mobile on / (landing), /menu, /book/<dish> (picker) and /sent (After
+# Send). Performance and accessibility must both be 90 or more on every page (median of 3 runs); under 90 fails the
+# job and the step summary names the top 3 audits to fix. The bar is never lowered to make a run pass.
+# Setup is the E2E job's in ci.yml (same install, test DB and build cache); tests/lighthouse/run.sh builds and starts
+# the prototype the way tests/e2e/run.sh does. Lighthouse itself is pinned in run.sh (pnpm dlx).
+# Minutes: runs only when something it measures changed (the paths below) and never on draft PRs; a newer push to
+# the same PR cancels the older run, main runs are never cancelled.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'next.config.ts'
+      - 'supabase/**'
+      - 'scripts/test-db.sh'
+      - 'scripts/ci-placeholder-env.sh'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - 'tests/lighthouse/**'
+      - '.github/workflows/lighthouse.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'next.config.ts'
+      - 'supabase/**'
+      - 'scripts/test-db.sh'
+      - 'scripts/ci-placeholder-env.sh'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - 'tests/lighthouse/**'
+      - '.github/workflows/lighthouse.yml'
+
+concurrency:
+  group: lighthouse-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Lighthouse mobile (perf + a11y >= 90)
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Non-blocking until the PERF lane lands (mobile perf is 80-84 today, target 90): a miss shows the scores
+    # without turning the run red. Remove this line to make the gate blocking.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The gate's own logic first (fails under 90, picks the median, names the audits).
+      - name: Gate unit tests
+        run: pnpm exec vitest run --config tests/lighthouse/vitest.config.ts
+
+      # Disposable Postgres 15 on loopback with every migration + the seed (scripts/test-db.sh).
+      - name: Test database
+        run: pnpm db:test
+
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-lighthouse-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'next.config.ts', 'tsconfig.json') }}
+          restore-keys: |
+            next-lighthouse-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      # Builds the prototype (placeholder env), starts it on loopback, audits each page and checks the scores.
+      - name: Lighthouse
+        run: tests/lighthouse/run.sh
+
+      - name: Lighthouse reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: test-results/lighthouse/
+          retention-days: 7
