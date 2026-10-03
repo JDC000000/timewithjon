@@ -71,5 +71,11 @@ The swap rewrites files in `public/img`. The unit tests pin the committed stand-
 | pitch-me      | Ayla Meinberg         | https://unsplash.com/photos/xqV9QdGOSas |
 | something-new | Vitaly Gariev         | https://unsplash.com/photos/BFBikYWtA9c |
 
+The `why` and `close` stand-ins (below the fold on `/`, but close enough that a phone downloads them while the hero
+paints) were re-encoded from the previous files at WebP quality 60, same pixel size and crop, no metadata (T4.6.04,
+Jon 2026-10-03), so they stop slowing the hero; `why-1600.webp` is unchanged (re-encoding saved under 10%).
+`scripts/build-real-photos.mjs` renders Jon's own photos for those two slots at q60 too (its `QUALITY` map); every
+other slot stays at q80. Never lower the hero or a page's first photo: they are the Largest Contentful Paint.
+
 The stand-ins' embedded ICC profile chunk was removed losslessly (pixels unchanged) so every committed image
 meets the "no metadata" rule in `tests/unit/ui/public-img-metadata.test.ts`.

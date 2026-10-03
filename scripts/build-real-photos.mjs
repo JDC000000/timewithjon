@@ -32,6 +32,10 @@ const SLOTS = {
   'something-new': [[480, 800, 1200], 4, 3],
 };
 const MAX_BYTES = 190 * 1024; // photo-slots.test.ts IMGSLOT budget is 200 KB
+/** the WebP quality each slot starts at (default 80, stepping down by 5 only to fit MAX_BYTES). T4.6.04 (Jon,
+ *  2026-10-03): why and close sit below the fold on /, but within Chrome's lazy-load distance on a phone, so they
+ *  download while the hero paints; at q60 they stop slowing the hero. Never lower the hero or a page's first photo. */
+const QUALITY = { why: 60, close: 60 };
 
 const manifestPath = process.argv[2] ?? process.env.TWJ_PHOTO_MANIFEST;
 if (!manifestPath) throw new Error('usage: build-real-photos.mjs <manifest.json>');
@@ -64,7 +68,7 @@ for (const [slot, [widths, aw, ah]] of Object.entries(SLOTS)) {
   const top = Math.round(pct(slot, entry.pos, 1) * (h0 - ch));
   for (const w of widths) {
     const h = Math.round((w * ah) / aw);
-    let q = 85,
+    let q = (QUALITY[slot] ?? 80) + 5,
       buf;
     do {
       q -= 5;
