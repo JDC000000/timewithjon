@@ -11,6 +11,8 @@ export PORT="${E2E_PORT:-3300}"
 source scripts/ci-placeholder-env.sh
 # Admin screens sign in to the stand-in Supabase Auth that the suite starts (tests/e2e/support/sessions.ts).
 export FEATURE_ADMIN_AUTH=1
+# The e2e server runs parallel workers against one loopback DB: a larger pool than production's 3 (src/lib/db-config.ts).
+export DB_POOL_MAX="${DB_POOL_MAX:-10}"
 export SUPABASE_URL="http://127.0.0.1:${E2E_FAKE_AUTH_PORT:-54999}"
 if [[ -n "${E2E_DATABASE_URL:-}" ]]; then
   # The suite writes to its database (global-setup opens booking): loopback test DBs only.
