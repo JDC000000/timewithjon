@@ -134,5 +134,8 @@ describe('S6 picker (T1.5.U2-U5)', () => {
     expect(
       [...slots].map((s) => [s.getAttribute('data-slot'), s.querySelector('img')?.getAttribute('src')]),
     ).toEqual([['long-lunch', '/img/long-lunch-480.webp']]);
+    // T4.6.04: the header photo is the screen's largest paint on a phone: fetched first, never lazy
+    const img = slots[0]!.querySelector('img')!;
+    expect([img.getAttribute('loading'), img.getAttribute('fetchpriority')]).toEqual(['eager', 'high']);
   });
 });
