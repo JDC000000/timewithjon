@@ -2,7 +2,9 @@
 // The "our things" rules are the server's own (ourThingError / OurThings, TSD v1.8), so the sheet refuses exactly
 // what POST /api/admin/invites refuses; the preview model is landingModel() itself, so it is the S2 hero verbatim.
 import type { Dish } from '@/content';
+import { INBOX } from '@/content/ui/admin-requests';
 import type { InviteListItem } from '@/features/admin/invites';
+import type { RequestStatus } from '@/features/availability/types';
 import { landingModel } from '@/features/invites/landing-model';
 import { ourThingError, OUR_THINGS_MAX } from '@/features/invites/our-things';
 import type { PersonalModel } from '@/app/_landing/PersonalHero';
@@ -132,16 +134,23 @@ export function previewModel(f: CreateForm, dishes: readonly DishOption[], now =
   return m;
 }
 
-/** The row's meta pieces: opens, request status, flags. */
+/** QA L3: a request status as the inbox filter that holds it (the admin's own words, never the raw value). */
+const STATUS_LABEL: Record<RequestStatus, string> = {
+  requested: INBOX.filters.needs,
+  needs_new_time: INBOX.filters.waiting,
+  standby: INBOX.filters.standby,
+  locked: INBOX.filters.locked,
+  done: INBOX.filters.done,
+  cancelled: INBOX.filters.cancelled,
+};
+
+/** The row's meta pieces: opens, the request count and the latest request's status, flags. */
 export function inviteMeta(i: InviteListItem): string[] {
   const out = [i.openCount > 0 ? A5.opens(i.openCount) : A5.notOpened];
   if (i.kind === 'personal') {
-    out.push(
-      i.requests.latest
-        ? `${A5.requests(i.requests.count)}, latest ${i.requests.latest.status}`
-        : A5.noRequest,
-    );
-    if (i.hopedFor) out.push(A5.hoped);
+    const latest = i.requests.latest;
+    out.push(...(latest ? [A5.requests(i.requests.count), STATUS_LABEL[latest.status]] : [A5.noRequest]));
+    if (i.hopedFor) out.push(A5.hopedFor);
     if (i.dishNotBookable) out.push(A5.dishGone);
   }
   if (i.isTest) out.push(A5.test);
