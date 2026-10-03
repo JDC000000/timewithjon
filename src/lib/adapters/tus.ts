@@ -47,7 +47,10 @@ export async function tusUpload(u: TusUpload): Promise<void> {
   });
   const location = created.headers.get('location');
   if (created.status !== 201 || !location) throw new StorageError('tus_create', created.status);
-  const url = new URL(location, u.endpoint).toString();
+  const target = new URL(location, u.endpoint);
+  // The key goes with every later request: only ever to the endpoint's own origin.
+  if (target.origin !== new URL(u.endpoint).origin) throw new StorageError('tus_location', created.status);
+  const url = target.toString();
 
   const fh = await open(u.file, 'r');
   try {

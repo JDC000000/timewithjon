@@ -19,7 +19,13 @@ function fileOf(bytes: number) {
 
 /** A fake TUS server; `failAt` = PATCH calls (1-based) that answer 500 after storing half the chunk. */
 function server(
-  opts: { failAt?: number[]; shortAt?: number[]; stallAt?: number[]; createStatus?: number } = {},
+  opts: {
+    failAt?: number[];
+    shortAt?: number[];
+    stallAt?: number[];
+    createStatus?: number;
+    location?: string;
+  } = {},
 ) {
   const received: Buffer[] = [];
   let stored = Buffer.alloc(0);
@@ -32,7 +38,7 @@ function server(
     if (init?.method === 'POST')
       return new Response(null, {
         status: opts.createStatus ?? 201,
-        headers: { location: '/storage/v1/upload/resumable/abc' },
+        headers: { location: opts.location ?? '/storage/v1/upload/resumable/abc' },
       });
     if (init?.method === 'HEAD')
       return new Response(null, { status: 200, headers: { 'upload-offset': String(stored.length) } });
@@ -170,5 +176,39 @@ describe('pr50 F5: every TUS request has a timeout', () => {
     expect(srv.stored().equals(b)).toBe(true);
     expect(srv.calls.map((c) => c.method)).toEqual(['POST', 'PATCH', 'HEAD', 'PATCH', 'PATCH']);
     expect(srv.calls.every((c) => c.signal)).toBe(true);
+  });
+
+  it.each([
+    'https://other.example/storage/v1/upload/resumable/abc',
+    '//other.example/upload/abc',
+    'http://x.supabase.co/storage/v1/upload/resumable/abc',
+    'https://x.supabase.co:8443/storage/v1/upload/resumable/abc',
+  ])('refuses a Location on another origin (%s) and sends nothing there', async (location) => {
+    const { f, b } = fileOf(10);
+    const s = server({ location });
+    const err = await tusUpload({
+      ...base,
+      objectName: 'zips/j.zip',
+      contentType: 'application/zip',
+      file: f,
+      bytes: b.length,
+      fetchImpl: s.fetchImpl,
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(StorageError);
+    expect(s.calls.map((c) => c.method)).toEqual(['POST']);
+  });
+
+  it('accepts an absolute Location on the same origin', async () => {
+    const { f, b } = fileOf(10);
+    const s = server({ location: 'https://x.supabase.co/storage/v1/upload/resumable/abc' });
+    await tusUpload({
+      ...base,
+      objectName: 'zips/j.zip',
+      contentType: 'application/zip',
+      file: f,
+      bytes: b.length,
+      fetchImpl: s.fetchImpl,
+    });
+    expect(s.stored()).toEqual(b);
   });
 });

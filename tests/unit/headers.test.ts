@@ -14,6 +14,11 @@ it('every path gets noindex and same-origin referrers, and no static CSP (the pr
   expect(m['Content-Security-Policy']).toBeUndefined();
 });
 
+it('every path refuses framing, including the paths the proxy (and so its CSP) skips', async () => {
+  const h = await baseConfig.headers!();
+  expect(h[0]!.headers).toContainEqual({ key: 'X-Frame-Options', value: 'DENY' });
+});
+
 it('the photos in /img cache for a day (stale for a week), never immutable, and keep the security headers', async () => {
   const h = await baseConfig.headers!();
   const img = h.find((r) => r.source === IMAGE_FILES)!;

@@ -12,9 +12,13 @@ export const PHOTO_SLOTS_FILE = 'src/ui/photo-slots.ts';
 /** A CSS object-position in whole percent, x then y: "50% 20%". */
 export const POS_PATTERN = /^\d{1,3}% \d{1,3}%$/;
 
-/** The copy sits inside single-quoted TS strings and the pack sets quotes typographically (’ “ ”): a replacement
- *  may not hold markup, a template or string delimiter, an escape or a line break. */
-const UNSAFE_REPLACEMENT = /[<`'"\\\r\n\u2028\u2029]/;
+/**
+ * Plain copy only, for both find and replace: letters (with the common accented Latin ones), digits, spaces and the
+ * copy's punctuation (. , ! ? ’ ‘ “ ” – — … : ; ( ) -). The pack sets quotes typographically, so a straight quote,
+ * markup, a template, `$`, braces, a slash, an escape or a line break is refused.
+ */
+export const PLAIN_TEXT =
+  /^[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u017F .,!?\u2019\u2018\u201C\u201D\u2013\u2014\u2026:;()-]+$/;
 
 function fail(msg) {
   throw new Error(`private-overrides: ${msg}`);
@@ -41,7 +45,8 @@ export function parseTextOverrides(text) {
       fail(`text #${i + 1}: find must be a non-empty string`);
     if (typeof replace !== 'string' || replace.length === 0)
       fail(`text #${i + 1}: replace must be a non-empty string`);
-    if (UNSAFE_REPLACEMENT.test(replace)) fail(`text #${i + 1}: replace holds a forbidden character`);
+    if (!PLAIN_TEXT.test(find)) fail(`text #${i + 1}: find holds a forbidden character`);
+    if (!PLAIN_TEXT.test(replace)) fail(`text #${i + 1}: replace holds a forbidden character`);
     return { file, find, replace };
   });
 }
@@ -53,8 +58,49 @@ function countOf(haystack, needle) {
 }
 
 /**
+ * The [start, end) spans of the single-quoted string contents on one line of TS source. Null when the line can't be
+ * read with certainty (a template literal, a block comment, a slash that is not a line comment, an unclosed string),
+ * so the caller fails closed. A line comment ends the scan.
+ */
+export function singleQuotedSpans(line) {
+  const spans = [];
+  let quote = null;
+  let start = 0;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) {
+        if (quote === "'") spans.push([start, i]);
+        quote = null;
+      }
+    } else if (c === "'" || c === '"') {
+      quote = c;
+      start = i + 1;
+    } else if (c === '`') return null;
+    else if (c === '/') {
+      if (line[i + 1] === '/') break;
+      return null;
+    }
+  }
+  return quote ? null : spans;
+}
+
+/** True when [at, at + length) lies inside one single-quoted string on its line of `src`. */
+function insideOneString(src, at, length) {
+  const lineStart = src.lastIndexOf('\n', at - 1) + 1;
+  const nl = src.indexOf('\n', at);
+  const lineEnd = nl === -1 ? src.length : nl;
+  if (at + length > lineEnd) return false;
+  const spans = singleQuotedSpans(src.slice(lineStart, lineEnd));
+  const from = at - lineStart;
+  return spans !== null && spans.some(([s, e]) => from >= s && from + length <= e);
+}
+
+/**
  * Applies the overrides in order to `sources` ({ [file]: contents }), returning the changed files only. Each find
- * string must occur exactly once in its file (as the file stands after the earlier overrides).
+ * string must occur exactly once in its file (as the file stands after the earlier overrides), inside one
+ * single-quoted string on one line, so the replacement only ever changes the words of a string, never code.
  */
 export function applyTextOverrides(sources, overrides) {
   const out = {};
@@ -64,6 +110,8 @@ export function applyTextOverrides(sources, overrides) {
     const n = countOf(src, find);
     if (n !== 1) fail(`text #${i + 1}: find string occurs ${n} times in ${file} (expected exactly 1)`);
     const at = src.indexOf(find);
+    if (!insideOneString(src, at, find.length))
+      fail(`text #${i + 1}: find string is not inside one quoted string in ${file}`);
     out[file] = src.slice(0, at) + replace + src.slice(at + find.length);
   });
   return out;

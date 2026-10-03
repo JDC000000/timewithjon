@@ -4,6 +4,8 @@ export const TEXT_FILES: readonly string[];
 export const DEFAULT_TEXT_FILE: string;
 export const PHOTO_SLOTS_FILE: string;
 export const POS_PATTERN: RegExp;
+export const PLAIN_TEXT: RegExp;
+export function singleQuotedSpans(line: string): [start: number, end: number][] | null;
 export function parseTextOverrides(text: unknown): TextOverride[];
 export function applyTextOverrides(
   sources: Readonly<Record<string, string>>,
