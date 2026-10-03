@@ -7,6 +7,7 @@
 import 'server-only';
 import { getEnv } from '@/config/env';
 import { dishBySlug } from '@/content/menu-helpers';
+import { STORY_HAS_CONTENT } from '@/features/photos/story-content';
 import { pool, q } from '@/lib/db';
 import { addDays, vancouverDate, vancouverInstant } from '@/lib/time';
 import { deliverEmail, jonEmail, queueEmail, type SendResult } from './send';
@@ -39,7 +40,7 @@ export async function sendDailyDigest(now: Date): Promise<SendResult | 'not_yet'
     `select coalesce(s.from_name, r.contact_name) as name, r.dish, s.body,
             (select count(*)::int from photo p where p.story_id = s.id) as photos
        from story s left join request r on r.id = s.request_id
-      where s.created_at >= $1 and s.created_at < $2 and not s.spam_suspect
+      where s.created_at >= $1 and s.created_at < $2 and not s.spam_suspect and ${STORY_HAS_CONTENT}
       order by s.created_at`,
     [since, until],
   );

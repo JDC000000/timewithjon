@@ -1,5 +1,5 @@
-// T3.12.U1 GAP: a story-page photo picked before the first save creates the story on sign and issues twj_story;
-// finalise never creates one, and a twj_story naming another invite's story is never replaced.
+// T3.12.U1: the story-page photo calls never create a story (the page's first save does); a twj_story naming
+// another invite's story is never replaced.
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -42,12 +42,13 @@ beforeEach(() => {
 });
 
 describe('story_page photo capability', () => {
-  it('sign on a first visit (no twj_story) creates the story and issues twj_story for it', async () => {
+  it('sign on a first visit (no twj_story) is capability_expired and creates no story', async () => {
     m.readStoryPageCapability.mockResolvedValue(null);
-    m.saveStoryPageStory.mockResolvedValue('story-new');
-    expect(await callerStoryForSign(req())).toEqual({ storyId: 'story-new' });
-    expect(m.saveStoryPageStory).toHaveBeenCalledWith(null, INVITE, { consent: false });
-    expect(m.setStoryCapability).toHaveBeenCalledWith({ cookies: m.cookieStore }, 'story-new');
+    const out = await callerStoryForSign(req());
+    expect('response' in out && out.response.status).toBe(403);
+    expect(m.saveStoryPageStory).not.toHaveBeenCalled();
+    expect(m.setStoryCapability).not.toHaveBeenCalled();
+    expect(m.cookieStore.set).not.toHaveBeenCalled();
   });
 
   it('sign with twj_story uses that story and creates nothing', async () => {

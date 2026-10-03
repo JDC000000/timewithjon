@@ -14,6 +14,8 @@ export const LIMITS = {
   // T3.8.02: the capability/token-gated public POSTs. Generous for a real guest (retries, edits), tight for a script.
   storySave: { limit: 30, windowSec: 3600 },
   photoSign: { limit: 30, windowSec: 3600 },
+  // New story-page stories per INVITE per day (keyed by invite id, not IP): the general link is shared and forwardable.
+  storyPageNew: { limit: 20, windowSec: 86400 },
   offerTake: { limit: 10, windowSec: 3600 }, // T2.4 guest takes/proposes an offered time
   manageAction: { limit: 20, windowSec: 3600 }, // T2.7 /api/manage/* (cancel, ask another time, add a story)
   eventBeacon: { limit: 60, windowSec: 3600 }, // T3.11: POST /api/events (sheet/picker opened)

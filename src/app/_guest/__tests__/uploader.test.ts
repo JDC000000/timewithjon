@@ -116,3 +116,23 @@ describe('signGate', () => {
     expect(started).toBe(2);
   });
 });
+
+describe('photoUploader with openStory (S19: the first save creates the story)', () => {
+  it('opens the story before the first sign, once; a refused open stops the upload without a sign', async () => {
+    const calls = manualFetch();
+    const open = vi.fn(async () => new Response(null, { status: 400 }));
+    const upload = photoUploader({ query: '?for=story_page' }, open);
+    const signal = new AbortController().signal;
+    await expect(upload(file(), signal)).rejects.toBeInstanceOf(UploadRefused);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(calls).toHaveLength(0);
+
+    open.mockResolvedValue(new Response(null));
+    const next = upload(file(), signal);
+    await tick();
+    expect(open).toHaveBeenCalledTimes(2);
+    expect(calls.map((c) => c.url)).toEqual(['/api/photos/sign?for=story_page']);
+    calls[0]!.resolve(ok());
+    await next;
+  });
+});

@@ -21,10 +21,10 @@ export class UploadRefused extends Error {
 export type SignGate = (sign: () => Promise<Response>) => Promise<Response>;
 
 /**
- * Runs sign calls one at a time until one answers 2xx, then lets every later call straight through. On S19 a sign
- * with the invite but no twj_story yet creates the story and issues twj_story (caller-story.ts); two first-visit signs
- * in flight at once (2 photos picked in one go) would each create one, leaving an empty orphan story. Waiting for the
- * first answer means the later signs carry its twj_story. A failed or aborted sign hands the turn to the next one.
+ * Runs sign calls one at a time until one answers 2xx, then lets every later call straight through. On S19 the first
+ * sign is preceded by the page's first save, which creates the story and issues twj_story; two first-visit photos in
+ * flight at once (2 picked in one go) would each open one, leaving an empty orphan story. Waiting for the first
+ * answer means the later signs carry its twj_story. A failed or aborted sign hands the turn to the next one.
  * Never deduped on the server by invite: a general invite is shared by many guests. Every uploader calls this.
  */
 export function signGate(): SignGate {
@@ -53,7 +53,13 @@ export function signGate(): SignGate {
 /** A step that failed in a way worth another try (network, 5xx). Anything else is an UploadRefused: no retry. */
 class Flaky extends Error {}
 
-export function photoUploader(target: PhotoTarget): Uploader {
+/**
+ * S19 only: makes sure the story exists before its first sign (the page's first save creates it, never a sign).
+ * Answers that save's response (a stand-in 200 once the story is open); anything but 2xx stops the upload.
+ */
+export type OpenStory = (signal: AbortSignal) => Promise<Response>;
+
+export function photoUploader(target: PhotoTarget, openStory?: OpenStory): Uploader {
   const post = (route: 'sign' | 'finalise', body: unknown, signal: AbortSignal) =>
     fetch(`/api/photos/${route}${target.query ?? ''}`, {
       method: 'POST',
@@ -65,7 +71,10 @@ export function photoUploader(target: PhotoTarget): Uploader {
   const gate = signGate();
 
   return async (file, signal) => {
-    const res = await gate(() => post('sign', {}, signal));
+    const res = await gate(async () => {
+      const opened = openStory ? await openStory(signal) : null;
+      return opened && !opened.ok ? opened : post('sign', {}, signal);
+    });
     const json = (await res.json().catch(() => null)) as {
       mock?: boolean;
       ok?: boolean;

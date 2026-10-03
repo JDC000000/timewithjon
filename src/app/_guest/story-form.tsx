@@ -4,15 +4,18 @@
 // when the server says it is on, so with it off it is absent from the DOM (T1.8 AC4). Every field is optional,
 // but an empty Send is held (R7-01); a photo still uploading makes Send wait, then it sends by itself.
 // POST only on submit; the capability rides in a header or cookie, never in the body (T1.8 AC2).
+// S19 (`storyPage`): the first save creates the story, so a photo picked before Send first saves the story as it
+// stands (nothing typed yet), and only that first save carries the general invite's Turnstile token (AD-9).
 import Link from 'next/link';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { AFTER_SEND, ERRORS } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
+import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
 import { Button, Field } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { HoneypotField } from './honeypot';
 import { PhotoPicker, usePhotos } from './photo-picker';
-import { decideSubmit, storyBody } from './story-submit';
+import { decideSubmit, storyBody, storySaver } from './story-submit';
 import { photoUploader, type PhotoTarget } from './uploader';
 
 export interface StoryFormProps {
@@ -24,6 +27,8 @@ export interface StoryFormProps {
   before60: boolean;
   /** Where "Skip for now" goes. */
   skipHref: string;
+  /** S19 only: the story is created by its first save; `siteKey` is set for the general invite (Turnstile). */
+  storyPage?: { siteKey?: string };
 }
 
 type Phase = 'idle' | 'waiting' | 'sending' | 'sent';
@@ -37,7 +42,24 @@ const QUESTION_STYLE = {
 
 export function StoryForm(p: StoryFormProps) {
   const ids = { story: useId(), storyErr: useId(), b60: useId(), thanks: useId(), hp: useId() };
-  const uploader = useMemo(() => photoUploader(p.target), [p.target]);
+  const turnstile = useGuestTurnstile(p.storyPage?.siteKey);
+  const { takeToken, reset } = turnstile;
+  const isStoryPage = Boolean(p.storyPage);
+  const saver = useMemo(
+    () =>
+      storySaver({
+        endpoint: p.endpoint,
+        headers: p.target.headers,
+        opened: !isStoryPage,
+        takeToken,
+        reset,
+      }),
+    [p.endpoint, p.target.headers, isStoryPage, takeToken, reset],
+  );
+  const uploader = useMemo(
+    () => photoUploader(p.target, isStoryPage ? saver.open : undefined),
+    [p.target, isStoryPage, saver],
+  );
   const photos = usePhotos(p.maxPhotos, uploader);
   const [text, setText] = useState('');
   const [consent, setConsent] = useState(false);
@@ -73,16 +95,12 @@ export function StoryForm(p: StoryFormProps) {
   }
 
   // The one POST, on submit only. A re-run effect (React dev) aborts the first call.
-  const body = JSON.stringify(storyBody({ body: text, consent, before60Answer: before60, hp }));
+  const body = storyBody({ body: text, consent, before60Answer: before60, hp });
   useEffect(() => {
     if (phase !== 'sending') return;
     const ac = new AbortController();
-    fetch(p.endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...p.target.headers },
-      body,
-      signal: ac.signal,
-    })
+    saver
+      .save(body, ac.signal)
       .then(async (res) => {
         const json = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
         if (res.ok && json?.ok) return setPhase('sent');
@@ -171,6 +189,7 @@ export function StoryForm(p: StoryFormProps) {
         />
       )}
       <HoneypotField id={ids.hp} value={hp} onChange={setHp} />
+      {turnstile.box && <TurnstileSlot box={turnstile.box} />}
       {failed && (
         <p className="err" ref={errRef} tabIndex={-1} role="alert">
           {failed}

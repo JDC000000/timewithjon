@@ -14,3 +14,11 @@ export const MAX_INPUT_PIXELS = 50_000_000;
 export const THUMB_URL_TTL_SECONDS = 600;
 /** Raw uploads (with GPS) never outlive this (T3.6 AC7: gone within 1 h 15 min with the 15-min tick). */
 export const INCOMING_MAX_AGE_MS = 60 * 60 * 1000;
+/**
+ * How many story-page stories one invite may start in all (S19). A personal invite is one guest; the general invite
+ * is shared by many, so it has no total here, only Turnstile and its daily limit (LIMITS.storyPageNew).
+ */
+export const STORY_PAGE_MAX_PER_INVITE: Record<'personal' | 'general', number | null> = {
+  personal: 3,
+  general: null,
+};
