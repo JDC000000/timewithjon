@@ -3395,3 +3395,12 @@ html:has(.menu-head + nav) {
   text-underline-offset: 0.18em;
   white-space: nowrap;
 }
+
+/* ---- T1.7 (lane T1.7.U3): the guest form's Turnstile box. `interaction-only` keeps the widget invisible until
+   Cloudflare needs a click; the box holds the widget's full height from first paint so Send never shifts. ---- */
+.ts-slot {
+  margin-top: var(--s5);
+  width: var(--turnstile-w);
+  max-width: 100%;
+  min-height: var(--turnstile-h);
+}
