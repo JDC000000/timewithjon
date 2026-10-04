@@ -16,6 +16,16 @@ export const EXPORT_LINK_TTL_SECONDS = 600;
 export const EXPORT_STALE_MINUTES = 10;
 export const EXPORTS_PREFIX = 'zips';
 
+/** The zip's download name, by its Vancouver date: "time-with-jon-stories-2027-07-01.zip". */
+export function exportFileName(now: Date): string {
+  return `time-with-jon-stories-${vancouverDate(now)}.zip`;
+}
+
+/** Where a job's zip sits in the `exports` bucket. */
+export function exportObjectPath(jobId: string): string {
+  return `${EXPORTS_PREFIX}/${jobId}.zip`;
+}
+
 export type ExportResult =
   | { ok: true; jobId: string; url: string; stories: number; photos: number; bytes: number }
   | { ok: false; code: 'busy' };
@@ -43,7 +53,7 @@ export async function runExport(
   if (!jobId) return { ok: false, code: 'busy' };
 
   const file = path.join(tmpdir(), `twj-export-${jobId}.zip`);
-  const objectPath = `${EXPORTS_PREFIX}/${jobId}.zip`;
+  const objectPath = exportObjectPath(jobId);
   try {
     await removeStaleZips(); // pr50-verify N2: inside the try, so an rm error fails this job, never leaves it 'running'
     const stories = await exportStories(opts);
@@ -56,7 +66,7 @@ export async function runExport(
     const url = await ports.exports.signedDownloadUrl(
       objectPath,
       EXPORT_LINK_TTL_SECONDS,
-      `time-with-jon-stories-${vancouverDate(now)}.zip`,
+      exportFileName(now),
     );
     return { ok: true, jobId, url, stories: stories.length, photos: zip.photos, bytes: zip.bytes };
   } catch (e) {
