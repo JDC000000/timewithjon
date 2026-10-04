@@ -1,5 +1,41 @@
 [
   {
+    "id": "tick-hard-stop",
+    "date": "2026-10-04",
+    "task": "T3.9.01",
+    "area": "jobs",
+    "summary": "A hung Google or mailer call inside a tick job ran past the route's maxDuration: the heartbeat was not written and the jobs after it never ran while the provider was slow.",
+    "fix": "Every Google and mailer call in a tick stops at the start budget + 1 s; jobs the budget skipped run first on the next tick.",
+    "test": "tests/unit/tick-hard-stop.test.ts"
+  },
+  {
+    "id": "gmail-send-timeout",
+    "date": "2026-10-04",
+    "task": "T3.17.01",
+    "area": "email",
+    "summary": "The Gmail mailer's send had no timeout, so a hung socket held the request until the function was killed.",
+    "fix": "A 10 s timeout on every Gmail send, shortened by the tick's hard stop.",
+    "test": "src/lib/adapters/__tests__/gmail-mime.test.ts"
+  },
+  {
+    "id": "tick-jobs-failing",
+    "date": "2026-10-04",
+    "task": "T3.14.01",
+    "area": "health",
+    "summary": "/api/health reported the tick ok while every job threw on every tick.",
+    "fix": "The heartbeat records the failed count; a tick where every job failed fails the tick check, a partial failure is a warning.",
+    "test": "tests/int/health.int.test.ts"
+  },
+  {
+    "id": "health-public-detail",
+    "date": "2026-10-04",
+    "task": "T3.14.01",
+    "area": "health",
+    "summary": "The public /api/health body named each check's internal state.",
+    "fix": "The public body says only ok/fail per check; reason codes and warnings need the cron secret.",
+    "test": "tests/int/health.int.test.ts"
+  },
+  {
     "id": "BUG-001",
     "date": "2026-10-04",
     "task": "T3.4",

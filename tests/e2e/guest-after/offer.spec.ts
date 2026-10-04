@@ -306,3 +306,25 @@ test('an expired link shows the "text me" page; a tampered one is a 404; a spent
   await page.goto(newDateUrl(n.token));
   await expect(page.locator('[data-s18-state=current] .s18-line')).toHaveText(ALREADY.cancelled);
 });
+
+test('QA r2 M1: after a good Send, /new-date shows "Sent" with what was sent, then and on every visit', async ({
+  page,
+}) => {
+  const n = await seed({ dish: 'the-grind', mode: 'dates', purpose: 'pick_new_date' });
+  await page.goto(newDateUrl(n.token));
+  await page.waitForLoadState('networkidle'); // hydrated before typing
+  const rough = page.getByRole('textbox', { name: FLOW.pitchWhenLabel });
+  await rough.fill('any Saturday in June');
+  await expect(rough).toHaveValue('any Saturday in June');
+  await page.getByRole('button', { name: FLOW.send }).click();
+  const sent = MANAGE_UI.heading(GUEST_LABEL.requested, 'The Grind');
+  for (const visit of ['after Send', 'reload']) {
+    if (visit === 'reload') await page.reload();
+    await expect(page.getByRole('heading', { level: 1 }), visit).toHaveText(sent);
+    await expect(page.locator('[data-s18-state=current] [data-manage-sent]'), visit).toContainText(
+      'any Saturday in June',
+    );
+    await expect(page.getByText(ERRORS.offerGone), visit).toHaveCount(0);
+  }
+  expect((await row(n.requestId)).status).toBe('requested');
+});

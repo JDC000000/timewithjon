@@ -129,7 +129,8 @@ export function SuggestSheet({ times, ...b }: Base & { times: OpenTime[] }) {
       busy={act.busy}
       disabled={chosen.length === 0}
       problem={act.problem}
-      commit={SHEETS.suggest.send(Math.max(chosen.length, 1))}
+      // QA r2 L7: the count is what is ticked ("Send 0 times", disabled, when nothing is)
+      commit={SHEETS.suggest.send(chosen.length)}
       onSubmit={() =>
         void act.run(
           'POST',
@@ -186,7 +187,9 @@ export function StandbySheet({ weeks, ...b }: Base & { weeks: WeekOption[] }) {
   const range = (w: WeekOption) => {
     const a = shortDate(vancouverInstant(w.firstDate, '12:00'));
     const z = shortDate(vancouverInstant(w.lastDate, '12:00'));
-    return a === z ? a : `${a}–${z.split(' ')[1]}`;
+    if (a === z) return a;
+    // A date dish's Thu–Sun week can cross a month (QA r2 M3): "Apr 29–May 2", else "May 13–14".
+    return a.split(' ')[0] === z.split(' ')[0] ? `${a}–${z.split(' ')[1]}` : `${a}–${z}`;
   };
   return (
     <ActionSheet

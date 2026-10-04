@@ -1,6 +1,7 @@
 // T2.9.03 (TSD T2.9 AC3, §6 "Any non-final → cancelled", "Joined requests" rules 2 and 4): Jon's Cancel for the
 // guest through POST /api/admin/requests/[id]/cancel against the test DB. Only the Supabase session is faked;
 // the calendar and mailer are the prototype mocks. The guest's own cancel (E11 + E12) is in manage.int.test.ts.
+// QA r2 M5: Jon's cancel sends the guest E17 (his own words), never the self-cancel E11.
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -119,7 +120,7 @@ const guestEmail = async (id: string) =>
   (await q<{ e: string }>(`select contact_email::text as e from request where id = $1`, [id]))[0]!.e;
 
 describe('Cancel for the guest (T2.9.03, AC3)', () => {
-  it('AC3: frees the window, deletes the event, releases offers, sends E11 once and no E12', async () => {
+  it('AC3: frees the window, deletes the event, releases offers, sends E17 once (never E11) and no E12', async () => {
     const remove = vi.spyOn(mockCalendar, 'remove');
     const { id, slot } = await lockedRequest('2027-04-29');
     const eventId = (
@@ -141,7 +142,7 @@ describe('Cancel for the guest (T2.9.03, AC3)', () => {
     expect(remove).toHaveBeenCalledWith(eventId);
     expect(await isOpen(slot)).toBe(true);
     expect(await q(`select 1 from offer where request_id = $1 and released_at is null`, [id])).toEqual([]);
-    expect(await emails(id)).toEqual([{ template: 'E11', to_email: await guestEmail(id), status: 'sent' }]);
+    expect(await emails(id)).toEqual([{ template: 'E17', to_email: await guestEmail(id), status: 'sent' }]);
     expect(
       await q(`select actor::text from audit_log where request_id = $1 and action = 'request_cancelled'`, [
         id,
@@ -150,14 +151,14 @@ describe('Cancel for the guest (T2.9.03, AC3)', () => {
 
     // Idempotent: a second tap sends nothing more.
     expect(await (await cancel(id)).json()).toEqual({ ok: true, already: true });
-    expect((await emails(id)).map((e) => e.template)).toEqual(['E11']);
+    expect((await emails(id)).map((e) => e.template)).toEqual(['E17']);
   });
 
-  it('a request with no time yet: cancelled with E11 only, no calendar row', async () => {
+  it('a request with no time yet: cancelled with E17 only, no calendar row', async () => {
     const id = await newRequest([await slotId('2027-04-30', 'lunch')]);
     expect((await cancel(id)).status).toBe(200);
     expect((await row(id)).status).toBe('cancelled');
-    expect((await emails(id)).map((e) => e.template)).toEqual(['E11']);
+    expect((await emails(id)).map((e) => e.template)).toEqual(['E17']);
     expect(await q(`select 1 from outbox where request_id = $1`, [id])).toEqual([]);
   });
 
@@ -173,7 +174,7 @@ describe('Cancel for the guest (T2.9.03, AC3)', () => {
     expect(patch).toHaveBeenCalledTimes(1);
     expect(patch.mock.calls[0]![1].attendees).toEqual([await guestEmail(host)]);
     expect(patch.mock.calls[0]![2]).toEqual({ attendees: true }); // so Google drops the joined guest too
-    expect((await emails(joined)).map((e) => e.template)).toEqual(['E11']);
+    expect((await emails(joined)).map((e) => e.template)).toEqual(['E17']);
     await cancel(host); // frees the day for the next test
   });
 
@@ -181,7 +182,7 @@ describe('Cancel for the guest (T2.9.03, AC3)', () => {
     const { id: host } = await lockedRequest('2027-04-30', 'evening');
     const joined = await joinTo(host);
     expect((await cancel(host)).status).toBe(200);
-    expect((await emails(host)).map((e) => e.template)).toEqual(['E11']);
+    expect((await emails(host)).map((e) => e.template)).toEqual(['E17']);
     expect(await row(joined)).toMatchObject({ status: 'needs_new_time', awaiting: true, cancelled_by: null });
     expect((await emails(joined)).map((e) => e.template)).toEqual(['E5j']);
   });

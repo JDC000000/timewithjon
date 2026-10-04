@@ -2,8 +2,12 @@
 // Gmail; production can fall back to Jon's Gmail (AD-5 rule 7) by flipping system_status.mailer_mode.
 // Gmail has no idempotency key, so this mailer never retries on its own: the email_log claim is the guard, and
 // the tick's +5/+15/+30 min retry is the only retry. Gmail rewrites From to the sending account (or a send-as alias).
+// T3.9.01: every send has a 10 s timeout (less under the tick's hard stop), so a hung socket can't hold the request
+// past its function limit. A send Gmail accepted whose answer was lost is retried and may arrive twice: an accepted
+// risk on this fallback (AGENTS.md, Stack).
 import 'server-only';
 import { MailerHttpError, MailerNotConfiguredError, MailerQuotaError } from '../errors';
+import { MailDeadlineError, mailCallTimeoutMs } from '../mail-deadline';
 import type { Mailer } from '../types';
 import { base64url, buildMime } from './mime';
 
@@ -14,6 +18,7 @@ const AUTH_REASONS = new Set(['insufficientPermissions', 'authError']);
 /** pr36 F2: Gmail's sending-limit lockout ("… (Mail sending)") is a quota, as is a retry more than 1 h away. */
 const SENDING_LIMIT = /\(Mail sending\)|sending limit/i;
 const QUOTA_RETRY_MS = 60 * 60_000;
+export const GMAIL_TIMEOUT_MS = 10_000;
 
 export interface GmailOptions {
   /** An OAuth access token for the connected account with the gmail.send scope. */
@@ -73,10 +78,13 @@ export function createGmailApiMailer(opts: GmailOptions): Mailer {
     async send(e) {
       const token = await opts.getAccessToken(); // first: no token, nothing built or sent
       const raw = base64url(buildMime({ ...e, date: now() }));
+      const timeoutMs = mailCallTimeoutMs(GMAIL_TIMEOUT_MS);
+      if (timeoutMs <= 0) throw new MailDeadlineError('gmail send not started: past the hard stop');
       const res = await doFetch(GMAIL_SEND_URL, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw }),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.ok) {
         const { id } = (await res.json()) as { id?: unknown };

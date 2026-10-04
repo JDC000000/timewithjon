@@ -8,6 +8,7 @@ import { NextRequest } from 'next/server';
 import { ERRORS } from '@/content';
 import { POST as proposeRoute } from '@/app/api/offer/propose/route';
 import { findToken, issueToken } from '@/features/invites/action-tokens';
+import { loadNewDateModel, loadOfferModel } from '@/features/invites/manage-model';
 import { createRequestTx } from '@/features/requests/create';
 import { lockRequest } from '@/features/requests/lock';
 import { VALIDATION_MESSAGE } from '@/features/requests/messages';
@@ -197,6 +198,34 @@ describe('T2.4.08 the guest proposes new times → the same row, E16', () => {
     const later = await proposeRoute(post({ token, slotIds: [next!], clientKey: randomUUID() }));
     expect(later.status).toBe(200);
     expect(await e16(id)).toHaveLength(1);
+    // QA r2 M1: that state is "Sent" (the page lists what was sent), never "Looks like that one went".
+    expect(await later.json()).toEqual({ ok: true, status: 'requested', message: null });
+    expect(await loadNewDateModel(token)).toMatchObject({
+      kind: 'current',
+      status: 'requested',
+      message: null,
+    });
+  });
+
+  it('QA r2 M1: an offer link after its own propose shows "Sent" too; a gone offer still says so', async () => {
+    const [offer, next] = await freeLunches(2);
+    const { id } = await newRequest();
+    const { token } = await offered(id, [offer!]);
+    expect((await proposeRoute(post({ token, slotIds: [next!], clientKey: randomUUID() }))).status).toBe(200);
+    expect(await loadOfferModel(token)).toMatchObject({
+      kind: 'current',
+      status: 'requested',
+      message: null,
+    });
+
+    const other = await newRequest();
+    const gone = await offered(other.id, [offer!]);
+    await q(`update offer set released_at = now() where id = $1`, [gone.offerId]);
+    expect(await loadOfferModel(gone.token)).toMatchObject({
+      kind: 'current',
+      status: 'needs_new_time',
+      message: ERRORS.offerGone,
+    });
   });
 
   it('a refused choice changes nothing and leaves the link usable', async () => {

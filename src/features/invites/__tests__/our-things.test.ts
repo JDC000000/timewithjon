@@ -43,4 +43,13 @@ describe('our things', () => {
     expect(PERSONAL.ourThingsLine(null)).toBe(OPEN_LINE);
     expect(PERSONAL.ourThingsLine([])).toBe(OPEN_LINE);
   });
+  it('QA r2 L5: a thing that is the line’s own "that epic trip", or a repeat, is said once', () => {
+    expect(PERSONAL.ourThingsLine(['river days', 'that epic trip'])).toBe(
+      'We keep saying we should do river days or that epic trip.',
+    );
+    expect(PERSONAL.ourThingsLine(['That Epic Trip', 'river days', 'River days'])).toBe(
+      'We keep saying we should do river days or that epic trip.',
+    );
+    expect(PERSONAL.ourThingsLine(['that epic trip'])).toBe('We keep saying we should do that epic trip.');
+  });
 });

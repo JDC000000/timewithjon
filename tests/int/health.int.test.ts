@@ -23,9 +23,10 @@ vi.mock('@/lib/report', async (orig) => {
   return { ...real, report: vi.fn() };
 });
 
+import { NextRequest } from 'next/server';
 import { q } from '@/lib/db';
 import { report } from '@/lib/report';
-import { GET } from '@/app/api/health/route';
+import { GET as getHealth } from '@/app/api/health/route';
 import {
   cachedHealthReport,
   givenUpLine,
@@ -33,8 +34,10 @@ import {
   HEALTH_LIMITS,
   healthReport,
   notDeliveredLine,
+  publicHealthBody,
   resetHealthCacheForTests,
 } from '@/features/jobs/health';
+import { TICK_FAILED_KEY } from '@/features/jobs/registry';
 import { SIGNIN_FAILED_KEY } from '@/features/admin/signin';
 import { SEED_INVITE_SECRETS } from '@/features/invites/seed-invites';
 import { cancelMade, newRequest } from '../fixtures/requests-db';
@@ -42,7 +45,10 @@ import { cancelMade, newRequest } from '../fixtures/requests-db';
 const NOW = new Date('2031-03-12T20:00:00Z');
 const MIN = 60_000;
 const ago = (ms: number, from = NOW) => new Date(from.getTime() - ms);
-const KEYS = ['last_tick_at', 'last_media_run_at', SIGNIN_FAILED_KEY];
+const KEYS = ['last_tick_at', 'last_media_run_at', SIGNIN_FAILED_KEY, TICK_FAILED_KEY];
+const GET = (headers: Record<string, string> = {}) =>
+  getHealth(new NextRequest('http://localhost:3000/api/health', { headers }));
+const WITH_SECRET = { 'x-cron-secret': 'c'.repeat(32) }; // tests/setup-int.ts
 let parked: { id: string; next_attempt_at: Date }[] = [];
 let savedStatus: { key: string; value: string | null; updated_at: Date }[] = [];
 let savedOauth: Record<string, unknown>[] = [];
@@ -160,6 +166,25 @@ describe('healthReport (T3.14.01)', () => {
       // other files' abandoned emails and given-up media rows
       warnings: r.warnings.filter((w) => w.startsWith('failed_emails: ') || w.startsWith('outbox: ')),
     });
+  });
+
+  it('a tick where every job failed fails tick as jobs_failing; some failed is a warning', async () => {
+    await healthy();
+    await beat(TICK_FAILED_KEY, ago(1 * MIN), '13/13');
+    const all = await healthReport(NOW);
+    expect(all.checks.tick).toBe('jobs_failing');
+    expect(all.failing).toContain('tick');
+    resetHealthCacheForTests();
+    await beat(TICK_FAILED_KEY, ago(1 * MIN), '2/13');
+    const some = await healthReport(NOW);
+    expect(some.checks.tick).toBe('ok');
+    expect(some.warnings).toContain('tick: 2 of 13 jobs failed');
+    await beat(TICK_FAILED_KEY, ago(1 * MIN), '0/13');
+    const none = await healthReport(NOW);
+    expect(none.checks.tick).toBe('ok');
+    expect(none.warnings.some((w) => w.startsWith('tick: '))).toBe(false);
+    await beat(TICK_FAILED_KEY, ago(1 * MIN), '0/0'); // every job skipped: not a failure
+    expect((await healthReport(NOW)).checks.tick).toBe('ok');
   });
 
   it('the tick heartbeat: missing or 35 min old fails, 34 min passes', async () => {
@@ -375,6 +400,43 @@ describe('GET /api/health', () => {
     const text = await bad.text();
     expect(JSON.parse(text)).toMatchObject({ ok: false, failing: ['tick', 'signin_email'] });
     expect(text).not.toMatch(/@|example\.com|jon/i);
+  });
+
+  it('the public body says only ok/fail per check; the reason codes and warnings need the cron secret', async () => {
+    const now = new Date();
+    await healthy(now);
+    await google(now, 'invalid_grant');
+    await failedEmail(4);
+    resetHealthCacheForTests();
+    const pub = await GET();
+    expect(pub.status).toBe(503);
+    const body = (await pub.json()) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(['checks', 'failing', 'ok']);
+    expect(body).toMatchObject({ ok: false, failing: ['google'], checks: { google: 'fail', tick: 'ok' } });
+    expect(Object.values(body.checks as object).every((v) => v === 'ok' || v === 'fail')).toBe(true);
+    expect(JSON.stringify(body)).not.toMatch(/broken|disconnected|present|skipped|not delivered/);
+    const wrong: Record<string, string>[] = [
+      { 'x-cron-secret': 'wrong' },
+      { authorization: `Bearer ${'c'.repeat(32)}` },
+    ];
+    for (const headers of wrong) expect(await (await GET(headers)).json()).toEqual(body);
+    const full = await GET(WITH_SECRET);
+    expect(full.status).toBe(503);
+    const detail = (await full.json()) as { checks: Record<string, string>; warnings: string[] };
+    expect(detail.checks.google).toBe('broken');
+    expect(detail.warnings.some((w) => w.startsWith('failed_emails: '))).toBe(true);
+    expect(
+      publicHealthBody({
+        ok: true,
+        checks: { ...detail.checks, google: 'skipped' } as never,
+        failing: [],
+        warnings: ['x'],
+      }),
+    ).toEqual({
+      ok: true,
+      checks: expect.objectContaining({ google: 'ok' }),
+      failing: [],
+    });
   });
 
   it('503 database when the DB is down', async () => {
