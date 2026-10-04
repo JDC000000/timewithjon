@@ -122,6 +122,20 @@ export async function extendManageTokens(c: Db, requestId: string, bookingEnd: D
   );
 }
 
+/**
+ * A booking went back to waiting on Jon (Ask for another time, or its host left): its LIVE manage links last at
+ * least the "never locked" lifetime from now (§6, 120 days), so the link doesn't run out at the old end + 7 days
+ * while the request is still open. Never shortens a link, never brings an expired one back.
+ */
+export async function reopenManageTokens(c: Db, requestIds: string[], now: Date): Promise<void> {
+  if (!requestIds.length) return;
+  await c.query(
+    `update action_token set expires_at = greatest(expires_at, $2::timestamptz)
+      where purpose = 'manage' and expires_at > now() and request_id = any($1::uuid[])`,
+    [requestIds, manageExpiry(null, now)],
+  );
+}
+
 /** Read-only lookup. null = malformed or unknown (the caller answers 404: tampered, T2.7 AC4). */
 export async function findToken(
   raw: string | null | undefined,
