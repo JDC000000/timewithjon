@@ -3,17 +3,14 @@ import { dishBySlug } from '@/content/menu-helpers';
 import { datesTouched, vancouverDate, weekStartOf } from '@/lib/time';
 import {
   bigDayDates,
-  blockCovering,
+  blockedBy,
   dishWeekCount,
   heldByOffer,
-  householdHoldOver,
   inSeason,
   isThuFri,
   isWeekFull,
   overlaps,
   rangedBookings,
-  windowBlock,
-  windowBlockOverlapping,
 } from './rules';
 import type {
   Block,
@@ -86,16 +83,9 @@ export function canLock(i: CanLockInput): CanLockResult {
   if (others.some((b) => overlaps(b, range))) return { ok: false, reason: 'time_taken' };
 
   if (!i.bookAnyway) {
-    // A whole-day block on any date touched, or a single-window block (T2.5.06): this window, or its times.
-    const windowBlocked =
-      ('slot' in i.target && windowBlock(i.target.slot, i.blocks)) || windowBlockOverlapping(range, i.blocks);
-    // QA r2 L6: the household hold (rule 2(c)) reads as a block for a lock too, a date dish's range included.
-    if (
-      dates.some((d) => blockCovering(d, i.blocks)) ||
-      windowBlocked ||
-      householdHoldOver(range, i.settings)
-    )
-      return { ok: false, reason: 'blocked' };
+    // The one block rule (rules.ts blockedBy): a whole-day block on any date touched, a single-window block
+    // (T2.5.06) on this window or its times, or the household hold (QA r2 L6), a date dish's range included.
+    if (blockedBy(i.target, i.blocks, i.settings)) return { ok: false, reason: 'blocked' };
     // Rule 2(e), both directions (rule 8).
     if (i.request.countsToward === 'big_day') {
       const busyThuFri = new Set(others.flatMap((b) => datesTouched(b.startsAt, b.endsAt)).filter(isThuFri));

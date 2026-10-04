@@ -46,7 +46,9 @@ import {
   type SuggestOptions,
 } from '@/features/requests/suggest';
 import { withTx } from '@/lib/db';
-import { datesTouched } from '@/lib/time';
+import { loadEngineData } from '@/features/availability/load';
+import { blockedBy } from '@/features/availability/rules';
+import type { Block } from '@/features/availability/types';
 import {
   type AffectedBooking,
   BlockBody,
@@ -191,16 +193,19 @@ async function lockCandidates(c: PoolClient, input: ConfirmBlockInput, now: Date
 }
 
 /**
- * pr59 M1 + verify N1: an offered window touching a date the new block, or any block already there, covers. Every
- * date the window touches (datesTouched, as canLock checks it), so one running past midnight into a block counts.
- * A single-window block (T2.5.06) covers only its slot's times: an offered time overlapping them (canLock's rule).
+ * An offered window the new block, or any block already there (or the household hold), keeps shut: the engine's
+ * one block rule (blockedBy, as canLock and Suggest use it), so a window running past midnight into a blocked day
+ * counts, and a single-window block (T2.5.06) covers only its slot's times.
  */
 async function inABlock(
   c: PoolClient,
   block: ConfirmBlockInput['block'],
   options: SuggestOptions,
+  now: Date,
 ): Promise<boolean> {
-  const windows =
+  const loaded = await loadEngineData(now, c);
+  const blocks = [...loaded.blocks, await engineBlock(c, block)];
+  const windows: { startsAt: Date; endsAt: Date }[] =
     'ranges' in options
       ? options.ranges
       : (
@@ -209,26 +214,28 @@ async function inABlock(
             [options.slotIds],
           )
         ).rows;
-  const dates = [...new Set(windows.flatMap((w) => datesTouched(w.startsAt, w.endsAt)))];
-  if (block.window == null && dates.some((d) => d >= block.startDate && d <= block.endDate)) return true;
-  const { rowCount } = await c.query(
-    `select 1 from availability_block b, unnest($1::date[]) d
-      where b.window_kind is null and d between b.start_date and b.end_date
-     union all
-     select 1 from slot s, unnest($2::timestamptz[], $3::timestamptz[]) w(starts_at, ends_at)
-      where tstzrange(s.starts_at, s.ends_at) && tstzrange(w.starts_at, w.ends_at)
-        and ((s.date = $4::date and s.window_kind = $5::slot_window)
-             or exists (select 1 from availability_block b
-                         where b.start_date = s.date and b.window_kind = s.window_kind))`,
-    [
-      dates,
-      windows.map((w) => w.startsAt),
-      windows.map((w) => w.endsAt),
-      block.startDate,
-      block.window ?? null,
-    ],
-  );
-  return (rowCount ?? 0) > 0;
+  return windows.some((w) => blockedBy({ range: w }, blocks, loaded.settings) !== null);
+}
+
+/** The block being added, as the engine sees one: a single-window block carries its slot's times. */
+async function engineBlock(c: PoolClient, block: ConfirmBlockInput['block']): Promise<Block> {
+  const window = block.window ?? null;
+  const slot = window
+    ? (
+        await c.query<{ startsAt: Date; endsAt: Date }>(
+          `select starts_at as "startsAt", ends_at as "endsAt" from slot where date = $1 and window_kind = $2`,
+          [block.startDate, window],
+        )
+      ).rows[0]
+    : undefined;
+  return {
+    startDate: block.startDate,
+    endDate: block.endDate,
+    kind: block.kind,
+    confirmBy: block.confirmBy,
+    window,
+    windowRange: slot ?? null,
+  };
 }
 
 async function confirmTx(
@@ -255,7 +262,7 @@ async function confirmTx(
     const times = options ? await offeredTimes(c, options, now) : [];
     if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
     if (times === 'in_the_past') return { result: { ok: false, status: 409, reason: times }, after: none };
-    if (options && (await inABlock(c, input.block, options)))
+    if (options && (await inABlock(c, input.block, options, now)))
       return { result: { ok: false, status: 409, reason: 'in_block' }, after: none };
     plans.push({ id: a.id, options, times });
   }
