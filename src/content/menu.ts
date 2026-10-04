@@ -28,7 +28,7 @@ export const DISHES: Dish[] = [
     section: 'starters',
     name: 'The Flat White',
     line: 'Half an hour and a coffee. Good for anyone with a job, a toddler, or both.',
-    detail: '30 min · Thu/Fri, 12–2 · serves 1–3',
+    detail: '30 min · Thu/Fri, noon–2 pm · serves 1–3', // approved: Jon (2026-10-04)
     mode: 'slots',
     flow: 'picker',
     windows: ['lunch'],
@@ -74,7 +74,7 @@ export const DISHES: Dish[] = [
     section: 'mains',
     name: 'The Long Lunch',
     line: 'You pick the place. I pick up the bill. Order the halibut.',
-    detail: '2 hr · Thu/Fri, 12–2 · serves 1–15 (my wallet prefers 1–6)',
+    detail: '2 hr · Thu/Fri, noon–2 pm · serves 1–15 (my wallet prefers 1–6)', // approved: Jon (2026-10-04)
     mode: 'slots',
     flow: 'picker',
     windows: ['lunch'],
@@ -297,8 +297,8 @@ export const DISHES: Dish[] = [
 ];
 
 // S04 /menu + S05 dish sheets (pack v2.2 s04, gen.py menu_block/sheets): what the page shows that DISHES lacks.
-// Every line is the FROZEN pack's, word for word (decision 14a house style: "noon–2 pm"; DISHES.detail keeps the
-// older one-line form the booking screens use).
+// Every line is the FROZEN pack's, word for word (decision 14a house style: "noon–2 pm"; DISHES.detail is the
+// one-line form the booking screens use, in the same style since QA r2 L2).
 /** The caption over the page's h1. */
 export const MENU_CAP = 'April to June 2027'; // PACK v2.2 s04 .menu-head .cap
 /** Landmark and control labels on /menu. */

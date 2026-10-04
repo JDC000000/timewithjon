@@ -1,18 +1,21 @@
 // src/lib/engine/openWindows.ts — C3 rules 1–2, 10, 11. Pure.
-import { addDays, vancouverDate, weekStartOf, windowLabel } from '@/lib/time';
+import type { DateRule } from '@/content/types';
+import { addDays, datesTouched, vancouverDate, weekStartOf, windowLabel } from '@/lib/time';
 import {
   bigDayDates,
   blockCovering,
   busyClash,
+  dateRuleAllows,
   heldByOffer,
   HOUSEHOLD_HOLD,
   inSeason,
+  isThuFri,
   isWeekFull,
   overlaps,
   rangedBookings,
   windowBlock,
 } from './rules';
-import type { EngineInput, EngineOutput, Slot, WeekOut, WeekState } from './types';
+import type { CountsToward, EngineInput, EngineOutput, Slot, WeekOut, WeekState } from './types';
 
 export function opensAtFor(input: Pick<EngineInput, 'inviteKind' | 'settings'>): Date {
   return input.inviteKind === 'personal' ? input.settings.personalOpenAt : input.settings.generalOpenAt;
@@ -68,16 +71,60 @@ export function weekStatus(
   return { weekStart, state, windows };
 }
 
-/** Rule 11: dates-mode grid greys out blocks, away, pre-release and past dates. Never bookings. */
+/**
+ * Rule 11: dates-mode grid greys out blocks, away, pre-release and past dates, and the household hold's date while
+ * it stands (rule 2(c), QA r2 L6). Never bookings.
+ */
 export function unavailableDates(input: EngineInput): string[] {
   const { settings: s } = input;
   const today = vancouverDate(input.now);
   const closed = input.now < opensAtFor(input);
+  const held = s.householdHoldReleased ? null : HOUSEHOLD_HOLD.date;
   const out: string[] = [];
   for (let d = s.seasonStart; d <= s.seasonEnd; d = addDays(d, 1)) {
-    if (closed || d < today || blockCovering(d, input.blocks)) out.push(d);
+    if (closed || d < today || d === held || blockCovering(d, input.blocks)) out.push(d);
   }
   return out;
+}
+
+/** What a dates-mode dish needs from the content module for its week state. */
+export interface DateDish {
+  countsToward: CountsToward;
+  dateRule?: DateRule | null;
+}
+
+/**
+ * Rule 10 for a dates-mode dish (QA r2 M3: the stand-by sheet): its week state comes from the week's dates, not
+ * from Thu/Fri time slots it never uses. 'closed' before release and 'away' as weekStatus; otherwise 'open' while
+ * one date the dish allows is still free to pick (rule 11) and could still be locked: not a locked Big Day's date
+ * (2(e)), for a Big Day not a Thu/Fri another booking uses (rule 8), for a weekly-cap dish not a full week (2(h)).
+ */
+export function dateWeekStatus(
+  weekStart: string,
+  input: EngineInput,
+  dish: DateDish,
+  bigDays = bigDayDates(input.bookings),
+): WeekState {
+  if (input.now < opensAtFor(input)) return 'closed';
+  const dates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).filter((d) =>
+    inSeason(d, input.settings),
+  );
+  if (dates.length > 0 && dates.every((d) => blockCovering(d, input.blocks, 'away'))) return 'away';
+  const off = new Set(unavailableDates(input));
+  const booked = new Set(
+    rangedBookings(input.bookings, input.viewerRequestId).flatMap((b) => datesTouched(b.startsAt, b.endsAt)),
+  );
+  const full =
+    dish.countsToward === 'weekly_cap' && isWeekFull(weekStart, input.bookings, input.weeks, input.settings);
+  const free = dates.filter(
+    (d) =>
+      !off.has(d) &&
+      dateRuleAllows(dish.dateRule, d) &&
+      !bigDays.has(d) &&
+      !(dish.countsToward === 'big_day' && isThuFri(d) && booked.has(d)) &&
+      !full,
+  );
+  return free.length > 0 ? 'open' : 'spoken_for';
 }
 
 /**

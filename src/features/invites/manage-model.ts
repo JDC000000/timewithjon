@@ -43,11 +43,11 @@ export interface OfferWindow {
 }
 export type OfferModel =
   | Missing
-  | (RequestView & { kind: 'current'; message: string })
+  | (RequestView & { kind: 'current'; message: string | null })
   | (RequestView & { kind: 'offer'; offerId: string; offerKind: string; windows: OfferWindow[] });
 export type NewDateModel =
   | Missing
-  | (RequestView & { kind: 'current'; message: string })
+  | (RequestView & { kind: 'current'; message: string | null })
   | (RequestView & { kind: 'new_date'; offerId: string | null });
 
 interface Row {
@@ -124,11 +124,16 @@ export async function loadManageModel(
   };
 }
 
-/** A spent token, or an offer that has gone: what the guest sees instead (§14.4 S18 lines). */
-function currentMessage(v: RequestView): string {
+/**
+ * A spent token, or an offer that has gone: what the guest sees instead (§14.4 S18 lines). null = the guest's own
+ * new times are with Jon (`requested`, e.g. right after their Send on this page): the page shows the "Sent" state
+ * with what they sent, as /manage does after "Ask for another time" (QA r2 M1), not "Looks like that one went".
+ */
+function currentMessage(v: RequestView): string | null {
   if (v.status === 'locked' && v.when) return ALREADY.lockedIn(v.when);
   if (v.status === 'cancelled') return v.label === CLOSED_IN_PERSON_LABEL ? v.label : ALREADY.cancelled;
   if (v.status === 'done') return v.label;
+  if (v.status === 'requested') return null;
   return ERRORS.offerGone;
 }
 

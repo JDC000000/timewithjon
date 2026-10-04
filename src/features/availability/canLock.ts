@@ -6,6 +6,7 @@ import {
   blockCovering,
   dishWeekCount,
   heldByOffer,
+  householdHoldOver,
   inSeason,
   isThuFri,
   isWeekFull,
@@ -88,7 +89,12 @@ export function canLock(i: CanLockInput): CanLockResult {
     // A whole-day block on any date touched, or a single-window block (T2.5.06): this window, or its times.
     const windowBlocked =
       ('slot' in i.target && windowBlock(i.target.slot, i.blocks)) || windowBlockOverlapping(range, i.blocks);
-    if (dates.some((d) => blockCovering(d, i.blocks)) || windowBlocked)
+    // QA r2 L6: the household hold (rule 2(c)) reads as a block for a lock too, a date dish's range included.
+    if (
+      dates.some((d) => blockCovering(d, i.blocks)) ||
+      windowBlocked ||
+      householdHoldOver(range, i.settings)
+    )
       return { ok: false, reason: 'blocked' };
     // Rule 2(e), both directions (rule 8).
     if (i.request.countsToward === 'big_day') {

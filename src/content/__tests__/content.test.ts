@@ -140,3 +140,12 @@ describe('T0.3 content', () => {
     });
   });
 });
+
+describe('QA r2 L2: the booking screens write lunch as the menu does', () => {
+  it('no dish detail says "12–2"; the lunch dishes say "noon–2 pm"', async () => {
+    const { DISHES } = await import('../menu');
+    for (const d of DISHES) expect(d.detail, d.slug).not.toMatch(/\b12–2\b/);
+    const lunch = DISHES.filter((d) => ['the-flat-white', 'the-long-lunch'].includes(d.slug));
+    expect(lunch.map((d) => d.detail.includes('Thu/Fri, noon–2 pm'))).toEqual([true, true]);
+  });
+});

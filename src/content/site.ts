@@ -9,13 +9,21 @@ export const HERO_DATE_LINE = 'I turn 50 on April 1. No joke.';
 /** Jon's own words (creative v1.4 §2.2): "epic" is allowed ONLY in the hero lines. */
 export const HERO_BODY =
   'We see each other at plenty of parties, which is great. This time I’d rather do something epic with you, or you and a small group, even if epic is a long lunch. Pick something off the menu and I’ll lock in a time.';
+const EPIC_TRIP = 'that epic trip';
 export const SEE_THE_MENU = 'See the activity menu'; // v2.1 COPY (decision 37b)
 export const PERSONAL = {
-  /** Decisions item 9.2 / TSD v1.8: "{Name}." then this line. Blank -> the open-link line. */
-  ourThingsLine: (things: readonly string[] | null) =>
-    things && things.length
-      ? `We keep saying we should do ${things.join(', ')} or that epic trip.`
-      : OPEN_LINE,
+  /**
+   * Decisions item 9.2 / TSD v1.8: "{Name}." then this line. Blank -> the open-link line. QA r2 L5: each thing is
+   * said once, and a thing that is the line's own "that epic trip" isn't said twice.
+   */
+  ourThingsLine: (things: readonly string[] | null) => {
+    if (!things || things.length === 0) return OPEN_LINE;
+    const seen = new Set([EPIC_TRIP]);
+    const own = things.filter((t) => !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+    return own.length
+      ? `We keep saying we should do ${own.join(', ')} or ${EPIC_TRIP}.`
+      : `We keep saying we should do ${EPIC_TRIP}.`;
+  },
   pickedLine: (dish: string) => `I was thinking ${dish}, but anything on the menu is yours.`,
   book: (dish: string) => `Book ${dish}`,
   seeWholeMenu: 'See the whole activity menu', // v2.1 COPY (decision 37d)

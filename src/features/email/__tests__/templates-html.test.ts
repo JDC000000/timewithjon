@@ -147,7 +147,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E2": {
           "fromLocal": "admin",
           "subject": "New request: The Long Lunch from Sam",
-          "text": "Sam wants The Long Lunch. Crew 2. 2 time(s).
+          "text": "Sam wants The Long Lunch. Crew 2. 2 times.
       https://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666
       ",
         },

@@ -29,7 +29,7 @@ export default async function OfferPage({ searchParams }: { searchParams: Search
     return (
       <S18Shell>
         <S18Page page="offer" view={model} state="current">
-          <S18Current message={model.message} />
+          <S18Current message={model.message} requestId={model.requestId} />
         </S18Page>
       </S18Shell>
     );
