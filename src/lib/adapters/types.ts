@@ -42,7 +42,8 @@ export interface EventRsvps {
 export type CalendarHealth = 'ok' | 'not_connected' | 'revoked';
 export interface CalendarGateway {
   insert(e: CalendarEvent): Promise<{ eventId: string }>;
-  patch(eventId: string, e: CalendarEvent): Promise<void>;
+  /** Time and text only; {attendees: true} also syncs the attendee list (a joined guest came or went). */
+  patch(eventId: string, e: CalendarEvent, opts?: { attendees?: boolean }): Promise<void>;
   /** Must treat an event that is already gone (404/410) as success: a retried delete converges (pr32-review L5). */
   remove(eventId: string): Promise<void>;
   /** Every live event on the app calendar ending after `from`, in ONE list call (the RSVP watch, T3.15.01). */

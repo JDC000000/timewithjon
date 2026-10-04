@@ -173,6 +173,7 @@ describe('Cancel for the guest (T2.9.03, AC3)', () => {
     expect(remove).not.toHaveBeenCalled();
     expect(patch).toHaveBeenCalledTimes(1);
     expect(patch.mock.calls[0]![1].attendees).toEqual([await guestEmail(host)]);
+    expect(patch.mock.calls[0]![2]).toEqual({ attendees: true }); // so Google drops the joined guest too
     expect((await emails(joined)).map((e) => e.template)).toEqual(['E17']);
     await cancel(host); // frees the day for the next test
   });
