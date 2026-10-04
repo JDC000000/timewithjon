@@ -150,7 +150,7 @@ describe('POST /api/admin/auth/verify (the 6-digit code, AC3)', () => {
 describe('POST /api/admin/auth/verify: limits, caching and Sentry (review F1, L2)', () => {
   const clearIpBucket = () => q(`delete from rate_limit where scope = 'adminSignInVerify'`);
 
-  it('an 11th try at one address within the hour is refused even from a fresh IP; other addresses are not', async () => {
+  it('an 11th WRONG code at one address within the hour is a 429 even from a fresh IP; other addresses are not', async () => {
     auth.verifyOtp.mockResolvedValue(refused());
     for (let i = 0; i < 10; i++) {
       await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '000000' });
@@ -162,13 +162,32 @@ describe('POST /api/admin/auth/verify: limits, caching and Sentry (review F1, L2
       code: '000000',
     });
     expect(res.status).toBe(429);
-    expect(auth.verifyOtp).toHaveBeenCalledTimes(10);
     const other = await post(verify, '/api/admin/auth/verify', {
       email: 'other@example.com',
       code: '000000',
     });
     expect(other.status).toBe(400);
-    expect(auth.verifyOtp).toHaveBeenCalledTimes(11);
+  });
+
+  it("10 wrong codes for the admin's address from other IPs never refuse the admin's correct code (B007)", async () => {
+    auth.verifyOtp.mockResolvedValue(refused());
+    for (let i = 0; i < 10; i++) {
+      await clearIpBucket(); // a different IP each time
+      expect((await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '000000' })).status).toBe(
+        400,
+      );
+    }
+    await clearIpBucket(); // the admin, from a new IP
+    auth.verifyOtp.mockResolvedValueOnce(session(ADMIN));
+    const res = await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '123456' });
+    expect(res.status).toBe(200);
+  });
+
+  it('a correct code does not count toward the per-address bucket', async () => {
+    auth.verifyOtp.mockResolvedValue(session(ADMIN));
+    for (let i = 0; i < 3; i++)
+      await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '123456' });
+    expect(await q(`select 1 from rate_limit where scope = 'adminSignInVerifyEmail'`)).toHaveLength(0);
   });
 
   it('the rate_limit table holds no email address', async () => {

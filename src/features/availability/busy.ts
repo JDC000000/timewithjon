@@ -1,10 +1,12 @@
 // src/lib/engine/busy.ts — C3 rule 7 wiring: 10-minute cache in freebusy_cache, fail open. A failed fetch starts
 // a 5-minute cooldown (pr41 F3) so a Google outage or a dead grant isn't retried on every guest page render.
+// Single flight: one render refetches (a transaction advisory lock held over the Google call); every render that
+// arrives meanwhile serves the stale cache, as during a cooldown, instead of calling Google too.
 import 'server-only';
 import { errorName, report, reportMessage } from '@/lib/report';
 import { addDays, vancouverInstant } from '@/lib/time';
 import { adapters } from '@/lib/adapters';
-import { q } from '@/lib/db';
+import { q, withTx } from '@/lib/db';
 import { resolveBusy } from './freebusy';
 import type { BusyInterval } from './types';
 
@@ -62,6 +64,30 @@ export async function readBusy(season: { start: string; end: string }, now = new
     // Cooling down: the same fail-open answer as a failed fetch, with no Google call and no second warning.
     return fromCache(resolveBusy({ now, cache, fetchResult: { ok: false, error: 'cooldown' } }).busy);
   }
+  const flight = await withTx(async (c) => {
+    const got = await c.query<{ got: boolean }>(
+      `select pg_try_advisory_xact_lock(hashtext('twj_freebusy_refetch')) as got`,
+    );
+    if (!got.rows[0]!.got) return null;
+    return refetch(season, now, cache, failedAt);
+  });
+  // Another render is fetching: the same fail-open answer as a cooldown, with no Google call and no warning.
+  return (
+    flight ?? fromCache(resolveBusy({ now, cache, fetchResult: { ok: false, error: 'in_flight' } }).busy)
+  );
+}
+
+/** The Google call and the cache write, under the refetch lock. */
+async function refetch(
+  season: { start: string; end: string },
+  now: Date,
+  cache: { fetchedAt: Date; busy: BusyInterval[] } | null,
+  failedAt: number | undefined,
+): Promise<BusyRead> {
+  const fromCache = (busy: BusyInterval[] | null): BusyRead => ({
+    busy,
+    fetchedAt: busy ? (cache?.fetchedAt ?? null) : null,
+  });
   let fetchResult: { ok: true; busy: BusyInterval[] } | { ok: false; error: string };
   try {
     fetchResult = {

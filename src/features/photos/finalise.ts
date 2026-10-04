@@ -24,12 +24,14 @@ export async function finalisePhotoUpload(
   store: ObjectStore,
 ): Promise<FinaliseResult> {
   const row = (
-    await q<{ story_id: string; incoming_path: string; photo_id: string | null }>(
-      `select story_id, incoming_path, photo_id from photo_upload where id = $1`,
+    await q<{ story_id: string; incoming_path: string; photo_id: string | null; refused: boolean }>(
+      `select story_id, incoming_path, photo_id, finalised_at is not null and photo_id is null as refused
+         from photo_upload where id = $1`,
       [uploadId],
     )
   )[0];
-  if (!row || (callerStoryId !== null && row.story_id !== callerStoryId))
+  // A refused upload stays refused: a later finalise of it (even after bytes reach its path again) reads nothing.
+  if (!row || row.refused || (callerStoryId !== null && row.story_id !== callerStoryId))
     return { ok: false, code: 'not_found' };
   if (row.photo_id) return { ok: true, photoId: row.photo_id, replay: true };
 
@@ -104,10 +106,14 @@ async function madePhoto(uploadId: string): Promise<FinaliseResult | null> {
   return r?.photo_id ? { ok: true, photoId: r.photo_id, replay: true } : null;
 }
 
-/** pr38 F5: a refused upload frees its in-flight place at once (not after 15 min) and its raw bytes go. */
+/**
+ * pr38 F5: a refused upload frees its in-flight place at once (not after 15 min) and its raw bytes go. It is marked
+ * done without a photo (finalised_at set, photo_id null), so finalising it again answers not_found.
+ */
 async function refuse(uploadId: string, store: ObjectStore, path: string) {
   await q(
-    `update photo_upload set expires_at = least(expires_at, now()) where id = $1 and photo_id is null`,
+    `update photo_upload set expires_at = least(expires_at, now()), finalised_at = coalesce(finalised_at, now())
+      where id = $1 and photo_id is null`,
     [uploadId],
   );
   await dropIncoming(store, path);

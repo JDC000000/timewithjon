@@ -15,7 +15,7 @@ import { createRequest, ReplayConflictError } from '@/features/requests/create';
 import { report } from '@/lib/report';
 import { VALIDATION_MESSAGE } from '@/features/requests/messages';
 import { RequestBody } from '@/features/requests/schema';
-import { validateRequest } from '@/features/requests/validate';
+import { storableBody, validateRequest } from '@/features/requests/validate';
 import { isHoneypotFilled } from '@/lib/honeypot';
 import { loadSettings } from '@/lib/settings';
 import { verifyTurnstile } from '@/lib/turnstile';
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   let requestId: string;
   try {
     ({ requestId } = await createRequest({
-      body,
+      body: storableBody(body, dish),
       inviteId: invite.id,
       isTest: invite.is_test,
       spam,
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       countsToward: v.countsToward,
       bigCrew: v.bigCrew,
       dishName: dish.name,
+      capGuestEmails: invite.kind === 'general',
     }));
   } catch (e) {
     if (e instanceof ReplayConflictError) return jsonError(409, 'replay_conflict', ERRORS.generic);

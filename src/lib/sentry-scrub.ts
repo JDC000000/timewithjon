@@ -1,5 +1,7 @@
 // src/lib/sentry-scrub.ts — AD-11 scrubber used by beforeSend/beforeBreadcrumb. Pure.
-const SENSITIVE = /surprise_plan|note|phone|email|body|story|token|for/i;
+// Names and the guest's free text too (contact_name, pitch_idea, surprise_need_to_know, before60_answer, ...).
+const SENSITIVE =
+  /surprise_plan|note|phone|email|body|story|token|for|name|pitch|need_to_know|answer|plan|detail/i;
 
 export function scrubUrl(url: string | undefined): string | undefined {
   if (!url) return url;
@@ -19,9 +21,16 @@ export function scrubObject<T>(v: T): T {
 }
 const EMAIL = /[^\s@<>()"']+@[^\s@<>()"']+\.[^\s@<>()"']+/g;
 const PG_KEY_DETAIL = /(Key \([^)]*\)=)\([^)]*\)/g;
-/** Exception messages can quote row values (e.g. pg "Key (email)=(dave@...)"): redact emails and key values. */
+const PG_FAILING_ROW = /(Failing row contains )\(.*\)/g;
+/**
+ * Exception messages can quote row values (e.g. pg "Key (email)=(dave@...)" or a check violation's "Failing row
+ * contains (...)"): redact emails, key values and whole rows.
+ */
 export function scrubText(text: string): string {
-  return text.replace(PG_KEY_DETAIL, '$1([scrubbed])').replace(EMAIL, '[email]');
+  return text
+    .replace(PG_KEY_DETAIL, '$1([scrubbed])')
+    .replace(PG_FAILING_ROW, '$1([scrubbed])')
+    .replace(EMAIL, '[email]');
 }
 /** Only these request headers survive (no IPs, no cookies, no referers, no auth). */
 const HEADER_ALLOWLIST = new Set(['user-agent', 'content-type', 'accept', 'accept-language']);

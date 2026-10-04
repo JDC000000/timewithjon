@@ -5,16 +5,23 @@ import '../../../tests/fixtures/unit-env';
 const report = vi.hoisted(() => vi.fn());
 const reportMessage = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/report', () => ({ report, reportMessage }));
-const env = vi.hoisted(() => ({ secret: 'turnstile-secret' as string | undefined }));
+const env = vi.hoisted(() => ({
+  secret: 'turnstile-secret' as string | undefined,
+  mode: 'prototype' as 'prototype' | 'staging' | 'production',
+}));
 vi.mock('@/config/env', async (orig) => {
   const real = await orig<typeof import('@/config/env')>();
-  return { ...real, getEnv: () => ({ ...real.getEnv(), TURNSTILE_SECRET_KEY: env.secret }) };
+  return {
+    ...real,
+    getEnv: () => ({ ...real.getEnv(), TURNSTILE_SECRET_KEY: env.secret, APP_MODE: env.mode }),
+  };
 });
 const { verifyTurnstile } = await import('@/lib/turnstile');
 
 const fetchMock = vi.fn();
 beforeEach(() => {
   env.secret = 'turnstile-secret';
+  env.mode = 'prototype';
   report.mockClear();
   reportMessage.mockClear();
   fetchMock.mockReset();
@@ -40,6 +47,23 @@ describe('verifyTurnstile', () => {
     fetchMock.mockResolvedValue(answer({ success: false, 'error-codes': ['invalid-input-response'] }));
     expect(await verifyTurnstile('bad', '1.2.3.4')).toBe(false);
     expect(report).not.toHaveBeenCalled();
+  });
+
+  it('staging does not check the hostname (test keys answer another host)', async () => {
+    env.mode = 'staging';
+    fetchMock.mockResolvedValue(answer({ success: true, hostname: 'example.com' }));
+    expect(await verifyTurnstile('tok', '1.2.3.4')).toBe(true);
+  });
+
+  it('in production, refuses a solve from another hostname and accepts our own (B009)', async () => {
+    env.mode = 'production';
+    fetchMock.mockResolvedValue(answer({ success: true, hostname: 'evil.test' }));
+    expect(await verifyTurnstile('tok', '1.2.3.4')).toBe(false);
+    expect(reportMessage).toHaveBeenCalledOnce();
+    fetchMock.mockResolvedValue(answer({ success: true })); // no hostname at all
+    expect(await verifyTurnstile('tok', '1.2.3.4')).toBe(false);
+    fetchMock.mockResolvedValue(answer({ success: true, hostname: 'localhost' })); // NEXT_PUBLIC_SITE_URL's host
+    expect(await verifyTurnstile('tok', '1.2.3.4')).toBe(true);
   });
 
   it('refuses a missing token without calling siteverify', async () => {

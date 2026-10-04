@@ -4,7 +4,7 @@ import { dishBySlug } from '@/content/menu-helpers';
 import { openWindows } from '@/features/availability';
 import { baseInput, booking } from '@/features/availability/fixtures';
 import { RequestBody } from '@/features/requests/schema';
-import { validateRequest } from '@/features/requests/validate';
+import { storableBody, validateRequest } from '@/features/requests/validate';
 
 const season = { start: '2027-04-01', end: '2027-06-30' };
 const now = new Date('2027-03-10T18:00:00Z');
@@ -192,5 +192,14 @@ describe('validateRequest', () => {
       ).ok,
     ).toBe(true);
     expect(validateRequest(body({ ...base, overnight: true }), dish, engine, season, now).ok).toBe(true);
+  });
+});
+
+describe('storableBody (B012)', () => {
+  it('drops a Surprise plan sent with any other dish; keeps it on Surprise Me', () => {
+    const flat = body({ dish: 'the-flat-white', surprisePlan: 'a plan' });
+    expect(storableBody(flat, dishBySlug('the-flat-white')!).surprisePlan).toBeUndefined();
+    const surprise = body({ dish: 'surprise-me', surprisePlan: 'a plan', surpriseNeedToKnow: 'x' });
+    expect(storableBody(surprise, dishBySlug('surprise-me')!).surprisePlan).toBe('a plan');
   });
 });
