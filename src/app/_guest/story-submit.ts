@@ -46,7 +46,8 @@ export interface StorySaverOptions {
  * The story POST. On S19 the first save of this page view creates a story, so `open` (run before the first photo
  * sign) saves the story as it stands when a photo comes before Send; once a save lands, `open` does nothing and
  * every later save carries `edit: true`, so it updates that story. Without it the server starts a new story: a
- * fresh /story never overwrites the one an earlier visit saved (QA r2 H1).
+ * fresh /story never overwrites the one an earlier visit saved (QA r2 H1). Until a save lands, every save carries
+ * the page view's `clientKey`, so a first save retried after a lost answer gets the same story, not a second.
  */
 export function storySaver(o: StorySaverOptions): {
   save: (fields: Record<string, string | boolean>, signal: AbortSignal) => Promise<Response>;
@@ -54,9 +55,13 @@ export function storySaver(o: StorySaverOptions): {
 } {
   let opened = o.opened;
   const storyPage = !o.opened;
+  // S19: one key per page view, on its first save(s): a retry whose answer was lost gets the same story back.
+  const clientKey = storyPage ? crypto.randomUUID() : null;
   const save = async (fields: Record<string, string | boolean>, signal: AbortSignal) => {
     const token = opened ? undefined : await o.takeToken();
-    const extra = token ? { turnstileToken: token } : storyPage && opened ? { edit: true } : {};
+    const first =
+      storyPage && !opened ? { clientKey: clientKey!, ...(token ? { turnstileToken: token } : {}) } : {};
+    const extra = storyPage && opened ? { edit: true } : first;
     const res = await fetch(o.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...o.headers },
