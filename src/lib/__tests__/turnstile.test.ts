@@ -7,7 +7,7 @@ const reportMessage = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/report', () => ({ report, reportMessage }));
 const env = vi.hoisted(() => ({
   secret: 'turnstile-secret' as string | undefined,
-  mode: 'prototype' as 'prototype' | 'production',
+  mode: 'prototype' as 'prototype' | 'staging' | 'production',
 }));
 vi.mock('@/config/env', async (orig) => {
   const real = await orig<typeof import('@/config/env')>();
