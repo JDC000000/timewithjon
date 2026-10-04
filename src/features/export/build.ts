@@ -46,7 +46,11 @@ export async function exportStories(opts: ExportOptions): Promise<ExportStory[]>
     photo_paths: string[];
   }>(
     `select s.id, s.source::text as source, coalesce(r.contact_name, s.from_name) as name, r.dish,
-            to_char(coalesce(sl.date, (s.created_at at time zone 'America/Vancouver')::date), 'YYYY-MM-DD') as date,
+            -- the date of the time together: its slot, a joined guest's host's slot, the locked start, else
+            -- the day the story came in
+            to_char(coalesce(sl.date, hsl.date,
+                             (coalesce(r.locked_starts_at, h.locked_starts_at) at time zone 'America/Vancouver')::date,
+                             (s.created_at at time zone 'America/Vancouver')::date), 'YYYY-MM-DD') as date,
             s.body, s.consent, s.consent_source::text as consent_source,
             case when $2 then coalesce(s.from_email::text, r.contact_email::text) end as email,
             coalesce((select array_agg(p.storage_path order by p.created_at, p.id) from photo p where p.story_id = s.id),
@@ -54,6 +58,8 @@ export async function exportStories(opts: ExportOptions): Promise<ExportStory[]>
        from story s
        left join request r on r.id = s.request_id
        left join slot sl on sl.id = r.locked_slot_id
+       left join request h on h.id = r.joined_to_request_id
+       left join slot hsl on hsl.id = h.locked_slot_id
        left join invite i on i.id = s.invite_id
       where not s.spam_suspect and not coalesce(r.spam_suspect, false)
         and not coalesce(r.is_test, false) -- pr50 F1: dry-run and test-invite requests never reach the book

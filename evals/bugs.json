@@ -1,1 +1,83 @@
-[]
+[
+  {
+    "id": "webhook-bounce-before-send-recorded",
+    "date": "2026-10-04",
+    "task": "T3.13.01",
+    "area": "email",
+    "summary": "A bounce or complaint webhook for an email whose provider id wasn't stored yet was acknowledged and recorded, so it was never redelivered and the bounce was lost.",
+    "fix": "Such an event is answered 503 with nothing stored, so it is delivered again later.",
+    "test": "tests/int/email-outcomes.int.test.ts"
+  },
+  {
+    "id": "bounce-poll-gmail-rows",
+    "date": "2026-10-04",
+    "task": "T3.13.02",
+    "area": "email",
+    "summary": "Rows sent by the Gmail mailer were polled at Resend for 72 h, using up the per-tick call budget.",
+    "fix": "The poll claim skips gmail: ids.",
+    "test": "tests/int/email-outcomes.int.test.ts"
+  },
+  {
+    "id": "webhook-event-unpruned",
+    "date": "2026-10-04",
+    "task": "T3.13.01",
+    "area": "jobs",
+    "summary": "Nothing pruned webhook_event.",
+    "fix": "The pruning job (now prune-old-rows) drops rows older than 7 days.",
+    "test": "tests/int/prune-jobs.int.test.ts"
+  },
+  {
+    "id": "e1-cap-concurrent",
+    "date": "2026-10-04",
+    "task": "T3.2",
+    "area": "email",
+    "summary": "Concurrent E1 sends to one address could all pass the 3-a-day cap (count then insert).",
+    "fix": "A per-address transaction lock before the count.",
+    "test": "tests/int/requests.int.test.ts"
+  },
+  {
+    "id": "export-date-joined-guest",
+    "date": "2026-10-04",
+    "task": "T3.10.01",
+    "area": "export",
+    "summary": "A joined guest's story was dated by the day it came in, not the date of the time together.",
+    "fix": "The date falls back to the host's slot, then the locked start.",
+    "test": "tests/int/export.int.test.ts"
+  },
+  {
+    "id": "dev-outbox-unpruned",
+    "date": "2026-10-04",
+    "task": "T1.10.03",
+    "area": "jobs",
+    "summary": "dev_outbox kept every rendered prototype email, live links included, forever.",
+    "fix": "A prototype-only tick job drops rows older than 7 days.",
+    "test": "tests/int/prune-jobs.int.test.ts"
+  },
+  {
+    "id": "tick-route-secret-helper",
+    "date": "2026-10-04",
+    "task": "T3.9.01",
+    "area": "jobs",
+    "summary": "The tick route compared the cron secret with its own code instead of the shared helper.",
+    "fix": "Every cron and job route uses hasCronSecret.",
+    "test": "tests/unit/jobs-routes.test.ts"
+  },
+  {
+    "id": "dev-routes-check-coverage",
+    "date": "2026-10-04",
+    "task": "T0.4.05",
+    "area": "build",
+    "summary": "The no-dev-routes check named four routes and probed only /dev/outbox, so /dev/axe was not proven absent.",
+    "fix": "The check lists every route under src/app/dev and probes each one.",
+    "test": "scripts/check-no-dev-routes.sh"
+  },
+  {
+    "id": "dev-post-origin",
+    "date": "2026-10-04",
+    "task": "T1.10",
+    "area": "dev",
+    "summary": "/dev POSTs authenticated by cookie had no Origin check (AD-7).",
+    "fix": "devGuard refuses a cookie-authenticated non-GET from another origin.",
+    "test": "tests/int/dev-access.int.test.ts"
+  }
+]

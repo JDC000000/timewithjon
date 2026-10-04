@@ -65,7 +65,20 @@ describe('/dev access (T1.10.10)', () => {
     const req = (init: { url?: string; headers?: Record<string, string> }) =>
       new NextRequest(init.url ?? `${SITE}/dev/tick`, { method: 'POST', headers: init.headers });
     expect(await devGuard(req({ headers: { 'x-dev-pass': PASS } }))).toBeNull();
-    expect(await devGuard(req({ headers: { cookie: `${DEV_COOKIE}=${devCookieValue()}` } }))).toBeNull();
+    const cookie = `${DEV_COOKIE}=${devCookieValue()}`;
+    expect(await devGuard(req({ headers: { cookie, origin: SITE } }))).toBeNull();
+    // AD-7: a cookie-authenticated POST from another origin, or with no Origin, is refused.
+    expect((await devGuard(req({ headers: { cookie, origin: 'https://elsewhere.example' } })))?.status).toBe(
+      403,
+    );
+    expect((await devGuard(req({ headers: { cookie } })))?.status).toBe(403);
+    expect(
+      await devGuard(new NextRequest(`${SITE}/dev/tick`, { method: 'GET', headers: { cookie } })),
+    ).toBeNull();
+    // The header (scripts) needs no Origin.
+    expect(
+      await devGuard(req({ headers: { 'x-dev-pass': PASS, origin: 'https://elsewhere.example' } })),
+    ).toBeNull();
     expect((await devGuard(req({ url: `${SITE}/dev/tick?pass=${PASS}` })))?.status).toBe(404);
     const invite = signCookie('invite', passphraseTag(), 3600, process.env.SESSION_SIGNING_SECRET!);
     expect((await devGuard(req({ headers: { cookie: `${DEV_COOKIE}=${invite}` } })))?.status).toBe(404);
@@ -75,7 +88,10 @@ describe('/dev access (T1.10.10)', () => {
 describe('/dev cookie is bound to the passphrase (T4.2.01a L1)', () => {
   const guard = (value: string) =>
     devGuard(
-      new NextRequest(`${SITE}/dev/tick`, { method: 'POST', headers: { cookie: `${DEV_COOKIE}=${value}` } }),
+      new NextRequest(`${SITE}/dev/tick`, {
+        method: 'POST',
+        headers: { cookie: `${DEV_COOKIE}=${value}`, origin: SITE },
+      }),
     );
   it('a cookie minted under another passphrase (i.e. before a rotation) is refused', async () => {
     const key = process.env.SESSION_SIGNING_SECRET!;

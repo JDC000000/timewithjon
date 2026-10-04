@@ -1,6 +1,8 @@
 // src/app/api/webhooks/resend/route.ts — T3.13.01 (a): Resend's email.bounced / email.complained (and
 // email.delivered, which ends polling for that row). Exists only when RESEND_WEBHOOK_SECRET is set (the Free
 // plan check, T3.1.10). Svix-verified (5-minute tolerance), deduped on svix-id in the outcome's transaction.
+// A bounce or complaint for an email_id we haven't recorded yet (it can land before the send's own update, or
+// that update failed) is answered 503 with nothing stored, so Svix delivers it again later instead of losing it.
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getEnv } from '@/config/env';
@@ -52,12 +54,29 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return jsonError(400, 'bad_payload', ERRORS.generic);
 
   const emailId = parsed.data.data.email_id;
-  const outcome = await withTx(async (c) => {
-    const fresh = await c.query(`insert into webhook_event (id) values ($1) on conflict do nothing`, [
-      svix.id,
-    ]);
-    if (!fresh.rowCount) return 'duplicate' as const;
-    return applyOutcome(c, emailId, event);
-  });
+  let outcome;
+  try {
+    outcome = await withTx(async (c) => {
+      const fresh = await c.query(`insert into webhook_event (id) values ($1) on conflict do nothing`, [
+        svix.id,
+      ]);
+      if (!fresh.rowCount) return 'duplicate' as const;
+      const applied = await applyOutcome(c, emailId, event);
+      if (applied === 'ignored' && event !== 'delivered') {
+        const known = await c.query(`select 1 from email_log where resend_id = $1 limit 1`, [emailId]);
+        if (!known.rowCount) throw new NotRecordedYet(); // rolls the webhook_event row back
+      }
+      return applied;
+    });
+  } catch (e) {
+    if (!(e instanceof NotRecordedYet)) throw e;
+    const res = jsonError(503, 'retry_later', ERRORS.generic);
+    res.headers.set('Retry-After', '60');
+    return res;
+  }
   return NextResponse.json({ ok: true, outcome });
+}
+
+class NotRecordedYet extends Error {
+  override name = 'NotRecordedYet';
 }

@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getEnv } from '@/config/env';
 import { loadSettings } from '@/lib/settings';
 import { safeEqual, signCookie, verifyCookie } from '@/features/invites/tokens';
+import { sameOrigin } from '@/lib/http';
 
 export const DEV_COOKIE = 'twj_dev';
 export const DEV_TTL_SECONDS = 8 * 3600;
@@ -34,9 +35,14 @@ export async function settingsArePrototype(): Promise<boolean> {
   return (await loadSettings()).env === 'prototype';
 }
 
+/** AD-7: a browser's cookie-authenticated non-GET must come from our own origin. The x-dev-pass header (scripts)
+ * is never sent by a browser on its own, so it needs no Origin. */
 export async function devGuard(req: NextRequest): Promise<NextResponse | null> {
-  const ok = passphraseOk(req.headers.get('x-dev-pass')) || devCookieOk(req.cookies.get(DEV_COOKIE)?.value);
-  if (!ok) return new NextResponse('Not found', { status: 404 });
+  const byHeader = passphraseOk(req.headers.get('x-dev-pass'));
+  const byCookie = !byHeader && devCookieOk(req.cookies.get(DEV_COOKIE)?.value);
+  if (!byHeader && !byCookie) return new NextResponse('Not found', { status: 404 });
+  if (byCookie && req.method !== 'GET' && req.method !== 'HEAD' && !sameOrigin(req))
+    return new NextResponse('Forbidden', { status: 403 });
   if (!(await settingsArePrototype()))
     return new NextResponse('Refused: settings.env is not prototype', { status: 409 });
   return null;

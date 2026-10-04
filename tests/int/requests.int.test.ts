@@ -5,7 +5,7 @@ import { pool, q, withTx } from '@/lib/db';
 import { createRequestTx, ReplayConflictError } from '@/features/requests/create';
 import { RequestBody } from '@/features/requests/schema';
 import { saveAfterSendStory } from '@/features/photos/after-send';
-import { deliverRequestEmails, sendTemplate } from '@/features/email/send';
+import { deliverRequestEmails, queueEmail, sendTemplate } from '@/features/email/send';
 import { runTick } from '@/features/jobs';
 import { mockMailer } from '@/lib/adapters/mock/mailer';
 import { todayCount } from '../fixtures/event-count';
@@ -243,6 +243,32 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
   });
 });
 
+describe('E1 cap under concurrency (T3.2)', () => {
+  it('4 parallel E1s to one address in separate transactions: exactly 3 queued', async () => {
+    const to = `race+${randomUUID().slice(0, 6)}@example.com`;
+    const results = await Promise.all(
+      [0, 1, 2, 3].map((i) =>
+        withTx(async (c) => {
+          const r = await queueEmail(c, {
+            template: 'E1',
+            to,
+            requestId: null,
+            eventKey: `race-${i}-${randomUUID()}`,
+            vars: { dish: 'The Long Lunch' },
+          });
+          await new Promise((res) => setTimeout(res, 150)); // keep every transaction open at once
+          return r;
+        }),
+      ),
+    );
+    expect(results.filter((r) => typeof r === 'object')).toHaveLength(3);
+    expect(results.filter((r) => r === 'capped')).toHaveLength(1);
+    const [n] = await q<{ n: number }>(`select count(*)::int n from email_log where to_email = $1`, [to]);
+    expect(n!.n).toBe(3);
+    await q(`delete from email_log where to_email = $1`, [to]);
+  });
+});
+
 describe('tick', () => {
   it('writes last_tick_at, materialises done and audits the transition (M7)', async () => {
     const { requestId } = await create(args(mk()));
@@ -254,7 +280,7 @@ describe('tick', () => {
       `insert into rate_limit (scope, key, window_start, count) values ('inviteLookup', 'old', '2027-06-01T00:00:00Z', 5)`,
     );
     const out = await runTick(new Date('2027-07-01T00:00:00Z'));
-    expect(out.ran).toEqual(expect.arrayContaining(['materialise-done', 'email-retry', 'prune-rate-limit']));
+    expect(out.ran).toEqual(expect.arrayContaining(['materialise-done', 'email-retry', 'prune-old-rows']));
     const [rl] = await q<{ n: number }>(`select count(*)::int n from rate_limit where key = 'old'`);
     expect(rl!.n).toBe(0); // L13
     const [s] = await q<{ n: number }>(

@@ -236,6 +236,21 @@ describe('polling mode (no webhook secret)', () => {
     expect(await resendFailedEmail(fid)).toBe('not_found');
   });
 
+  it('a row sent by the Gmail mailer (gmail: id) is never claimed for a Resend status call', async () => {
+    const g = await sent('E1', 'via-gmail@example.com', null);
+    await q(`update email_log set resend_id = 'gmail:' || id where id = $1`, [g.id]);
+    const r = await sent('E1', 'via-resend@example.com', null);
+    const src = { status: vi.fn(async () => 'pending' as const) };
+    expect(await pollDeliveryOutcomes(src, FAR)).toBe(1);
+    expect(src.status).toHaveBeenCalledTimes(1);
+    expect(src.status).toHaveBeenCalledWith(r.resendId, 'via-resend@example.com', expect.any(Number));
+    const [row] = await q<{ c: Date | null }>(
+      'select delivery_checked_at as c from email_log where id = $1',
+      [g.id],
+    );
+    expect(row!.c).toBeNull();
+  });
+
   it('no polling when the webhook secret is set', async () => {
     envOverride.RESEND_WEBHOOK_SECRET = SECRET;
     expect(await pollingSource()).toBeNull();
@@ -562,6 +577,29 @@ describe('webhook mode', () => {
     expect((await requestRow(req)).contact_problem).toBe('bounced');
     expect(await (await call(body, { id: 'msg_1' })).json()).toEqual({ ok: true, outcome: 'duplicate' });
     expect(await (await call(body, { id: 'msg_2' })).json()).toEqual({ ok: true, outcome: 'ignored' });
+  });
+
+  it('a bounce for an email not recorded yet is 503 with nothing stored; the redelivery after the send applies', async () => {
+    envOverride.RESEND_WEBHOOK_SECRET = SECRET;
+    const addr = `early+${randomUUID().slice(0, 6)}@example.com`;
+    const req = await newRequest(addr);
+    const early = `re_${randomUUID()}`;
+    const body = event('email.bounced', early);
+    const res = await call(body, { id: 'msg_early' });
+    expect(res.status).toBe(503);
+    expect(res.headers.get('retry-after')).toBe('60');
+    expect(await q('select 1 from webhook_event')).toHaveLength(0);
+    const e = await sent('E4', addr, req);
+    await q(`update email_log set resend_id = $2 where id = $1`, [e.id, early]); // the send's update lands
+    expect(await (await call(body, { id: 'msg_early' })).json()).toEqual({ ok: true, outcome: 'applied' });
+    expect(await statusOf(e.id)).toBe('bounced');
+    expect((await requestRow(req)).contact_problem).toBe('bounced');
+    // A complaint is retried the same way; a delivered for an unknown id is acknowledged.
+    expect((await call(event('email.complained', `re_${randomUUID()}`))).status).toBe(503);
+    expect(await (await call(event('email.delivered', `re_${randomUUID()}`))).json()).toEqual({
+      ok: true,
+      outcome: 'ignored',
+    });
   });
 
   it('email.complained suppresses; email.delivered ends polling; other types are acknowledged', async () => {

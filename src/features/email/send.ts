@@ -23,7 +23,7 @@ import {
   MailerQuotaError,
 } from '@/lib/adapters/errors';
 import type { OutgoingEmail } from '@/lib/adapters/types';
-import { pool, q } from '@/lib/db';
+import { pool, q, withTx } from '@/lib/db';
 import { currentMailerMode } from '@/lib/adapters/mailer';
 import { errorName, report } from '@/lib/report';
 import { markLimitHit, releaseSlot, takeAppSlot } from './budget';
@@ -76,6 +76,11 @@ export async function queueEmail(db: Db, a: EmailArgs): Promise<QueueResult> {
   const suppressed = await db.query(`select 1 from email_suppression where email = $1`, [a.to]);
   if (suppressed.rowCount) return 'suppressed';
   if (a.template === 'E1') {
+    // T3.2: the cap is a count then an insert; one lock per address (held to the end of the transaction) makes
+    // concurrent sends to one address take turns, so they can't all pass the count. A pool has no transaction to
+    // hold it, so that caller gets one here.
+    if (!('release' in db)) return withTx((c) => queueEmail(c, a));
+    await db.query(`select pg_advisory_xact_lock(hashtext('twj_e1:' || lower($1)))`, [a.to]);
     const { rows } = await db.query<{ n: number }>(
       `select count(*)::int as n from email_log where template = 'E1' and to_email = $1 and created_at > now() - interval '1 day'`,
       [a.to],
