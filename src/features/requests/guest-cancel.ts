@@ -11,7 +11,8 @@ import { dishBySlug } from '@/content/menu-helpers';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
-import { vancouverDate, weekStartOf, windowLabel } from '@/lib/time';
+import { vancouverDate, weekStartOf } from '@/lib/time';
+import { whenLabel } from '@/lib/when';
 import { hostLeft } from './joined-cascade';
 import { releaseLiveOffers } from './offers';
 import {
@@ -41,6 +42,15 @@ interface Row {
   host_status: string | null;
   google_event_id: string | null;
   calendar_state: string;
+}
+
+/**
+ * E12's {when} (T3.2, M7): the locked time as the site writes it, "Fri Apr 2 · noon–2 pm" (Vancouver, whenLabel);
+ * null when nothing was locked.
+ */
+export function e12When(r: Pick<Row, 'status' | 'starts_at' | 'ends_at'>): string | null {
+  if (r.status !== 'locked' || !r.starts_at || !r.ends_at) return null;
+  return whenLabel(r.starts_at, r.ends_at);
 }
 
 /** Locked (own or through the host) and the end has passed: lazily done (AD-8), so nothing left to cancel. */
@@ -105,7 +115,8 @@ async function cancelTx(
   }
 
   const dish = dishBySlug(r.dish)?.name ?? r.dish;
-  const wasLocked = r.status === 'locked' && r.starts_at !== null;
+  const when = e12When(r);
+  const wasLocked = when !== null;
   after.emailIds.push(
     ...queuedId(
       await queueEmail(c, { template: 'E11', to: r.contact_email, requestId, eventKey: audit!.id, vars: {} }),
@@ -122,7 +133,7 @@ async function cancelTx(
         vars: {
           name: r.contact_name,
           dish,
-          when: wasLocked ? windowLabel(r.starts_at!) : E12_PARTS.noTime,
+          when: when ?? E12_PARTS.noTime,
           standby: wasLocked
             ? await standbyNames(c, weekStartOf(vancouverDate(r.starts_at!)))
             : E12_PARTS.noWeek,

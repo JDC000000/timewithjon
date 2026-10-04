@@ -53,6 +53,10 @@ export function dayLabel(instant: Date): string {
   return formatInTimeZone(instant, TZ, 'EEE MMM d');
 }
 
+/**
+ * The engine's machine label for a window start, 24-hour ("Thu May 13, 12:00", AC13). Never shown to a guest or
+ * Jon: words they read use whenLabel() / guestWhen() from '@/lib/when' (the 12-hour house style).
+ */
 export function windowLabel(instant: Date): string {
   return formatInTimeZone(instant, TZ, 'EEE MMM d, HH:mm');
 }

@@ -431,7 +431,7 @@ describe('guest cancel (T2.7.04, E11 + E12, AC5)', () => {
       [id],
     );
     expect(vars!.vars).toMatchObject({ name: 'Dave Guest', dish: 'The Long Lunch', standby: 'Sue Standby' });
-    expect(vars!.vars.when).toMatch(/^Thu Jun 24, \d\d:\d\d$/);
+    expect(vars!.vars.when).toBe('Thu Jun 24 · noon–2 pm'); // T3.2 M7: the site's 12-hour style
     expect(vars!.vars.adminLink).toBe(`${SITE}/admin/requests/${id}`);
 
     const open = await newRequest([]);
