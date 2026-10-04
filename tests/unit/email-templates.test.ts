@@ -29,6 +29,7 @@ const ALLOWED: Record<TemplateId, string[]> = {
   E13: ['count', 'lines', 'adminLink'],
   E14: ['adminLink'],
   E16: ['dish', 'name', 'adminLink'],
+  E17: [],
 };
 const BANNED = /note|plan|seal|surprise|phone|story|stories|before60/i;
 
