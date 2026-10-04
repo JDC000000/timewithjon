@@ -117,8 +117,8 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         },
         "E12": {
           "fromLocal": "admin",
-          "subject": "Cancelled: The Long Lunch, Thu Oct 1, 12:00 pm",
-          "text": "Sam cancelled The Long Lunch (Thu Oct 1, 12:00 pm). Stand-by for that week: Alex, Kim
+          "subject": "Cancelled: The Long Lunch, Thu Oct 1 · noon–2 pm",
+          "text": "Sam cancelled The Long Lunch (Thu Oct 1 · noon–2 pm). Stand-by for that week: Alex, Kim
       https://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666
       ",
         },
@@ -147,7 +147,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E2": {
           "fromLocal": "admin",
           "subject": "New request: The Long Lunch from Sam",
-          "text": "Sam wants The Long Lunch. Crew 2. Thu Oct 1, 12:00 pm.
+          "text": "Sam wants The Long Lunch. Crew 2. 2 time(s).
       https://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666
       ",
         },

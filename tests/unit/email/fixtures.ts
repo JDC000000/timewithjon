@@ -1,5 +1,5 @@
 // T3.2.U2: one realistic var set per template (the shapes the senders build), shared by the HTML tests. The guest
-// emails' times read as the site writes them (QA C: "Thu Oct 1 · noon–2 pm"); Jon's E2 and E12 keep their own.
+// emails' times, and Jon's E12, read as the site writes them (QA C, T3.2 M7: "Thu Oct 1 · noon–2 pm"); E2 has no time.
 import { E4C_LEAD, E5B_PARTS, fill, type TemplateId } from '@/content/emails';
 
 export const SITE = 'https://timewithjon.com';
@@ -8,7 +8,7 @@ const REQ = `${SITE}/admin/requests/0f6c1f4e-1111-4222-8333-444455556666`;
 
 export const VARS: Record<TemplateId, Record<string, string | number>> = {
   E1: { dish: 'The Long Lunch', times: 'Thu Oct 1 · noon–2 pm\nSat Oct 3 · 7 pm' },
-  E2: { name: 'Sam', dish: 'The Long Lunch', summary: 'Crew 2. Thu Oct 1, 12:00 pm.', adminLink: REQ },
+  E2: { name: 'Sam', dish: 'The Long Lunch', summary: 'Crew 2. 2 time(s).', adminLink: REQ },
   E3: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
   E4: {
     dish: 'The Long Lunch',
@@ -41,7 +41,7 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
   E12: {
     name: 'Sam',
     dish: 'The Long Lunch',
-    when: 'Thu Oct 1, 12:00 pm',
+    when: 'Thu Oct 1 · noon–2 pm',
     standby: 'Alex, Kim',
     adminLink: REQ,
   },
