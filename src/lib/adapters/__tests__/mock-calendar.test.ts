@@ -4,7 +4,12 @@
 // reaches the process log or test-results/mock-calendar-log.jsonl that the E2E suite reads.
 import { describe, expect, it } from 'vitest';
 import { CalendarWriteGuardError } from '../google/calendar';
-import { MOCK_APP_CALENDAR_ID, type MockCalendarCall, mockCalendarGateway } from '../mock/calendar';
+import {
+  MOCK_APP_CALENDAR_ID,
+  type MockCalendarCall,
+  mockCalendarAttendees,
+  mockCalendarGateway,
+} from '../mock/calendar';
 import type { CalendarEvent } from '../types';
 
 const REQ = '0b9f6a52-1c3e-4f7a-9d2b-6e8c1a0f4d31';
@@ -21,6 +26,28 @@ function gatewayOn(target: string | null) {
   const calls: MockCalendarCall[] = [];
   return { calls, gw: mockCalendarGateway({ target: () => target, record: (c) => calls.push(c) }) };
 }
+
+describe('mock calendar attendees behave as on Google', () => {
+  it('a plain patch keeps the attendees; only {attendees: true} changes them; remove forgets them', async () => {
+    const { calls, gw } = gatewayOn(MOCK_APP_CALENDAR_ID);
+    const { eventId } = await gw.insert(event);
+    await gw.patch(eventId, { ...event, attendees: ['sam@example.com', 'kim@example.com'] });
+    expect(mockCalendarAttendees(eventId)).toEqual(['sam@example.com']);
+    await gw.patch(
+      eventId,
+      { ...event, attendees: ['sam@example.com', 'kim@example.com'] },
+      { attendees: true },
+    );
+    expect(mockCalendarAttendees(eventId)).toEqual(['sam@example.com', 'kim@example.com']);
+    expect(calls.map((c) => c.attendees)).toEqual([
+      ['sam@example.com'],
+      ['sam@example.com'],
+      ['sam@example.com', 'kim@example.com'],
+    ]);
+    await gw.remove(eventId);
+    expect(mockCalendarAttendees(eventId)).toBeUndefined();
+  });
+});
 
 describe('mock calendar write target (T3.5 AC3)', () => {
   it('logs the stored app calendar it resolved, once per write', async () => {
