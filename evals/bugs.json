@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": "B005",
+    "date": "2026-10-04",
+    "area": "photos/finalise",
+    "title": "A refused upload could be finalised again",
+    "symptom": "A refused upload (too big or unreadable) could be re-sent to the same path and finalised again, re-running the image decode each time; only successful finalises were counted.",
+    "fix": "A refused upload is marked done without a photo (finalised_at set, photo_id null); finalising it again answers not_found before any download.",
+    "test": "tests/int/photos.int.test.ts (B005)"
+  },
+  {
+    "id": "B006",
+    "date": "2026-10-04",
+    "area": "requests/intake",
+    "title": "No daily cap on guest intake emails from the general invite",
+    "symptom": "The general link sends E1/E6 to whatever address is typed, bounded only by the per-IP limit, so the daily email budget could be spent on it.",
+    "fix": "Per general invite, at most 20 guest intake emails a day (requestSendInvite); over it the request is still stored and Jon still gets E2.",
+    "test": "tests/int/requests.int.test.ts (B006)"
+  },
+  {
+    "id": "B007",
+    "date": "2026-10-04",
+    "area": "admin/sign-in",
+    "title": "Other people's attempts could refuse the admin's correct sign-in code",
+    "symptom": "The per-address verify bucket counted every attempt, so 10 tries at the admin's address from anywhere refused the admin's correct code for an hour.",
+    "fix": "The per-address bucket counts only wrong codes, after the check; the per-IP limit still counts every attempt.",
+    "test": "tests/int/admin-verify.int.test.ts (B007)"
+  },
+  {
+    "id": "B008",
+    "date": "2026-10-04",
+    "area": "sentry",
+    "title": "Scrubber missed names and free-text keys, and pg failing-row details",
+    "symptom": "Keys like contact_name, pitch_idea or before60_answer in Sentry extras/tags passed through, and a check violation's 'Failing row contains (...)' kept the row values.",
+    "fix": "SENSITIVE also matches name, pitch, need_to_know, answer, plan and detail; scrubText redacts 'Failing row contains (...)'.",
+    "test": "src/lib/__tests__/sentry-scrub.test.ts (B008)"
+  },
+  {
+    "id": "B009",
+    "date": "2026-10-04",
+    "area": "turnstile",
+    "title": "Siteverify hostname was not checked",
+    "symptom": "A solve from any site using our key passed.",
+    "fix": "Outside prototype, siteverify's hostname must equal NEXT_PUBLIC_SITE_URL's host (a mismatch is reported).",
+    "test": "src/lib/__tests__/turnstile.test.ts (B009)"
+  },
+  {
+    "id": "B010",
+    "date": "2026-10-04",
+    "area": "analytics/events",
+    "title": "A chunked beacon body was read whole before the size check",
+    "symptom": "Without a Content-Length, POST /api/events buffered the entire body before refusing it as over 256 bytes.",
+    "fix": "The body is read with a bounded reader that stops once it passes the limit.",
+    "test": "src/app/api/events/__tests__/route.test.ts (B010)"
+  },
+  {
+    "id": "B011",
+    "date": "2026-10-04",
+    "area": "availability/freebusy",
+    "title": "Free/busy refetch had no single flight",
+    "symptom": "After the 10-minute cache expired, every guest render called Google until one write landed.",
+    "fix": "The refetch runs under a transaction advisory lock; renders that arrive meanwhile serve the stale cache.",
+    "test": "tests/int/freebusy-cooldown.int.test.ts (B011)"
+  },
+  {
+    "id": "B012",
+    "date": "2026-10-04",
+    "area": "requests/intake",
+    "title": "A Surprise plan was stored on any dish",
+    "symptom": "surprisePlan sent with a non-Surprise dish was stored as surprise_plan_sealed, and Jon saw 'Sealed plan on file' on that request.",
+    "fix": "storableBody drops surprisePlan unless the dish is Surprise Me.",
+    "test": "src/features/requests/__tests__/validate.test.ts (B012)"
+  }
+]

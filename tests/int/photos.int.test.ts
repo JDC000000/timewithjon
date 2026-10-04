@@ -387,6 +387,18 @@ describe('finalise (T3.6.03)', () => {
     });
     expect(mem.store.objects.size).toBe(0);
   });
+  it('a refused upload stays refused: bytes on its path again are never read or decoded (B005)', async () => {
+    const storyId = await newStory();
+    const uploadId = await upload(storyId, Buffer.from('definitely not a photo'));
+    expect(await finalisePhotoUpload(uploadId, storyId, mem.store)).toEqual({
+      ok: false,
+      code: 'unreadable',
+    });
+    mem.store.put(`incoming/${uploadId}`, Buffer.from('another file, same path'), 'image/jpeg');
+    const download = vi.spyOn(mem.store, 'download');
+    expect(await finalisePhotoUpload(uploadId, storyId, mem.store)).toEqual({ ok: false, code: 'not_found' });
+    expect(download).not.toHaveBeenCalled();
+  });
   it('a refused upload frees its place at once, not after 15 min (pr38 F5)', async () => {
     const storyId = await newStory();
     const bad = await upload(storyId, Buffer.from('not an image'));

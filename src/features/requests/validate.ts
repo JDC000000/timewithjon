@@ -38,6 +38,11 @@ function validTz(tz: string): boolean {
   }
 }
 
+/** The body as stored: a sealed Surprise plan only on a Surprise Me request (any other dish drops it). */
+export function storableBody(b: RequestBody, dish: Dish): RequestBody {
+  return dish.flow === 'surprise' || b.surprisePlan === undefined ? b : { ...b, surprisePlan: undefined };
+}
+
 export function validateRequest(
   b: RequestBody,
   dish: Dish,

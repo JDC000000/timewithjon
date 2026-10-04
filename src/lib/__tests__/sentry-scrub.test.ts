@@ -1,6 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { scrubEvent, scrubBreadcrumb } from '@/lib/sentry-scrub';
+import { scrubEvent, scrubBreadcrumb, scrubObject, scrubText } from '@/lib/sentry-scrub';
 describe('AD-11 scrubber', () => {
+  it('scrubs names and free-text keys, and pg failing-row details (B008)', () => {
+    expect(
+      scrubObject({
+        contact_name: 'Dave',
+        from_name: 'Dave',
+        name: 'Dave',
+        pitch_idea: 'x',
+        surprise_need_to_know: 'x',
+        before60_answer: 'x',
+        answer: 'x',
+        area: 'requests',
+      }),
+    ).toEqual({
+      contact_name: '[scrubbed]',
+      from_name: '[scrubbed]',
+      name: '[scrubbed]',
+      pitch_idea: '[scrubbed]',
+      surprise_need_to_know: '[scrubbed]',
+      before60_answer: '[scrubbed]',
+      answer: '[scrubbed]',
+      area: 'requests',
+    });
+    const t = scrubText('new row violates check constraint. Failing row contains (x, dave, (a, b)).');
+    expect(t).not.toMatch(/dave/i);
+    expect(t).toBe('new row violates check constraint. Failing row contains ([scrubbed]).');
+  });
   it('drops bodies, query strings and cookies', () => {
     const e = scrubEvent({
       request: {

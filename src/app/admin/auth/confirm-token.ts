@@ -1,6 +1,8 @@
 // src/app/admin/auth/confirm-token.ts — T2.1.U1 (V5, g1 #20 (a)): the A1c interstitial's CSRF token. The GET page
 // signs the emailed token_hash with an expiry; the POST only spends the token_hash when the form it came from was
-// our own interstitial for that exact link (plus the Origin check). key = HKDF(SESSION_SIGNING_SECRET,
+// our own interstitial for that exact link (plus the Origin check). Any plain GET of the page mints one, so on its
+// own it proves only "came through our page"; the Origin check and the allowlist re-check after verifyOtp are what
+// stop a sign-in started from elsewhere. key = HKDF(SESSION_SIGNING_SECRET,
 // 'twj-a1c-csrf-v1'): no new secret. Nothing here is logged. Node runtime only.
 import 'server-only';
 import { createHmac, hkdfSync, timingSafeEqual } from 'node:crypto';

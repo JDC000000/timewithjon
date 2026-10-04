@@ -88,4 +88,21 @@ describe('free/busy failure cooldown (pr41 F3)', () => {
     expect(await mark()).toBeNull();
     expect(h.warn).not.toHaveBeenCalled();
   });
+
+  it('single flight: 5 renders at once with an expired cache call Google once; the rest serve the stale cache (B011)', async () => {
+    await q(`insert into freebusy_cache (id, fetched_at, busy) values (true, $1, $2)`, [
+      at(-3_600_000),
+      JSON.stringify([BLOCK]),
+    ]);
+    let release = () => {};
+    h.busy.mockImplementation(() => new Promise((r) => (release = () => r([])))); // slow Google
+    const first = getBusy(SEASON, T0);
+    await vi.waitFor(() => expect(h.busy).toHaveBeenCalledTimes(1));
+    const others = await Promise.all([1, 2, 3, 4].map(() => getBusy(SEASON, T0)));
+    for (const busy of others) expect(busy).toEqual([BLOCK]); // the stale cache
+    release();
+    expect(await first).toEqual([]);
+    expect(h.busy).toHaveBeenCalledTimes(1);
+    expect(h.warn).not.toHaveBeenCalled();
+  });
 });

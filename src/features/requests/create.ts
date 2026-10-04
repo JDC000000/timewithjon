@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg';
 import { getEnv } from '@/config/env';
 import { countEvent } from '@/features/analytics/count';
 import { withTx } from '@/lib/db';
+import { hit } from '@/lib/ratelimit';
 import type { CountsToward } from '@/features/availability/types';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { intakeEmails, requestedTimeLines } from './intake-emails';
@@ -24,7 +25,12 @@ export interface CreateArgs {
   countsToward: CountsToward;
   bigCrew: boolean;
   dishName: string;
+  /** The general invite: guest intake emails count toward its daily cap (requestSendInvite). */
+  capGuestEmails?: boolean;
 }
+
+/** The intake emails addressed to the guest (to whatever address the form carried). */
+const GUEST_INTAKE = new Set(['E1', 'E6']);
 
 export async function createRequestTx(
   c: PoolClient,
@@ -122,7 +128,9 @@ export async function createRequestTx(
       jonEmail: jonEmail(),
       siteUrl: getEnv().NEXT_PUBLIC_SITE_URL,
     });
-    for (const e of emails) await queueEmail(c, e);
+    // Over the general invite's daily cap: the request stands and Jon's E2 goes, the guest's email does not.
+    const guestOk = !a.capGuestEmails || (await hit('requestSendInvite', a.inviteId));
+    for (const e of emails) if (guestOk || !GUEST_INTAKE.has(e.template)) await queueEmail(c, e);
   }
   if (!a.spam) await countEvent('request_sent', c); // T3.11: a honeypot hit is a bot, not a request
   return { requestId, created: true };
