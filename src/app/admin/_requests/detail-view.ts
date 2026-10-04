@@ -144,9 +144,12 @@ export function detailView(
 ): DetailView {
   if (d.spamSuspect) return spamView(d);
   const filter = filterOf(d);
-  const open = filter === 'needs' || filter === 'waiting';
-  const backLabel = open ? DETAIL.back.requests : DETAIL.back[filter as keyof typeof DETAIL.back];
-  const section = open ? DETAIL.back.requests : backLabel;
+  const waiting = filter === 'needs' || filter === 'waiting';
+  // Jon (2026-10-04): a stand-by request is acted on like an open one (Lock it in, Suggest another time; canLock
+  // allows it), and keeps its own Stand-by tab. No Before 60 box: that one is for after the time together.
+  const open = waiting || filter === 'standby';
+  const backLabel = waiting ? DETAIL.back.requests : DETAIL.back[filter as keyof typeof DETAIL.back];
+  const section = waiting ? DETAIL.back.requests : backLabel;
   const who = d.contact.name;
   const prefs = datePrefs(d.datePrefs);
 
@@ -171,7 +174,7 @@ export function detailView(
     who,
     caption: captionOf(d, filter, now),
     filter,
-    back: { href: open ? '/admin' : `/admin#${filter}`, label: backLabel },
+    back: { href: waiting ? '/admin' : `/admin#${filter}`, label: backLabel },
     pageTitle: DETAIL.pageTitle(who, section),
     facts,
     times,

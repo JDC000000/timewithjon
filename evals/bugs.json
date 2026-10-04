@@ -247,5 +247,18 @@
     "summary": "/dev POSTs authenticated by cookie had no Origin check (AD-7).",
     "fix": "devGuard refuses a cookie-authenticated non-GET from another origin.",
     "test": "tests/int/dev-access.int.test.ts"
+  },
+  {
+    "id": "standby-detail-no-actions",
+    "date": "2026-10-04",
+    "task": "T2.4",
+    "area": "admin",
+    "summary": "A stand-by request's detail was treated as closed: no Lock in, no Suggest another time, and the Before 60 box (meant for after the time together) showed, although the engine allows locking a stand-by request.",
+    "fix": "The detail view treats stand-by like an open request for its actions and keeps the Stand-by tab; Move to stand-by is not offered again.",
+    "tests": [
+      "src/app/admin/_requests/detail-view.test.ts",
+      "src/app/admin/_requests/DetailPane.dom.test.tsx",
+      "tests/e2e/admin/standby-actions.spec.ts"
+    ]
   }
 ]

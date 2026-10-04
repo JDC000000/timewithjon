@@ -170,6 +170,13 @@ describe('detailView: other states', () => {
     expect(v.back.href).toBe('/admin#standby');
     expect(detailView(base({ status: 'standby' }), now).caption).toEqual({ text: 'Stand-by' });
   });
+  it('stand-by can be acted on like an open request (Lock it in, Suggest), and stays under its Stand-by tab', () => {
+    const v = detailView(base({ status: 'standby', standbyWeek: '2027-04-12' }), now);
+    expect(v.open).toBe(true); // the action bar; no "Before 60" box: that is for after the time together
+    expect(v.filter).toBe('standby');
+    expect(v.back).toEqual({ href: '/admin#standby', label: 'Stand-by' });
+    expect(v.pageTitle).toContain('Stand-by');
+  });
   it('Surprise Me: only that a sealed plan exists, and what Jon needs to know', () => {
     const v = detailView(
       base({
