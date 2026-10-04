@@ -6,6 +6,9 @@
 // acts, so a 503 would hold the monitor down for days; the admin lists are where they're acted on.
 // A public, unauthenticated URL: the route serves cachedHealthReport, so a flood costs one check per 15 s (pr61 F6).
 // Outside the prototype, a demo invite from supabase/seed.sql (its secret is public) fails `seed_invites`.
+// T3.14.01: a tick where every job threw fails `tick` as 'jobs_failing' (the heartbeat alone stayed ok); a tick where
+// some threw is a warning. The public body says only ok/fail per check (publicHealthBody); the reason codes and
+// warnings are served only with the cron secret.
 import 'server-only';
 import { getEnv, type AppMode } from '@/config/env';
 import { SIGNIN_FAILED_KEY } from '@/features/admin/signin';
@@ -17,6 +20,7 @@ import { SeedInvitePresent, seedSecretsToCheck } from '@/features/invites/seed-i
 import { q } from '@/lib/db';
 import { report } from '@/lib/report';
 import { MEDIA_MAX_ATTEMPTS } from './media-limits';
+import { TICK_FAILED_KEY } from './registry';
 
 const MIN = 60_000;
 /** TSD T3.14 thresholds. The tick runs every 15 min, the media job every 5, the token check once a day. */
@@ -49,6 +53,7 @@ export function notDeliveredLine(count: number): string {
 
 interface Row {
   tick_at: Date | null;
+  tick_failed: string | null;
   media_at: Date | null;
   signin_at: Date | null;
   signin_reason: string | null;
@@ -65,6 +70,19 @@ interface Row {
 /** A heartbeat older than `limitMs`, or never written, fails. */
 const heartbeat = (at: Date | null, now: Date, limitMs: number): string =>
   !at ? 'missing' : now.getTime() - at.getTime() < limitMs ? 'ok' : 'stale';
+
+/** The last tick's "failed/attempted" (registry.ts); null when unknown or unreadable. */
+export function parseTickFailed(value: string | null): { failed: number; attempted: number } | null {
+  const m = /^(\d+)\/(\d+)$/.exec(value ?? '');
+  return m ? { failed: Number(m[1]), attempted: Number(m[2]) } : null;
+}
+
+function tickCheck(r: Row, now: Date): string {
+  const beat = heartbeat(r.tick_at, now, HEALTH_LIMITS.tickMs);
+  if (beat !== 'ok') return beat;
+  const t = parseTickFailed(r.tick_failed);
+  return t && t.attempted > 0 && t.failed === t.attempted ? 'jobs_failing' : 'ok';
+}
 
 function googleCheck(r: Row, now: Date): string {
   if (!r.has_google) return 'skipped'; // R2-L6: production between T3.1 and T3.3 (AC5)
@@ -87,6 +105,7 @@ export async function healthReport(
     // (The calendar kinds by prefix: this file never names the delete kind, see ics-cancel-static.test.ts.)
     [row] = (await q<Row>(
       `select (select updated_at from system_status where key = 'last_tick_at') as tick_at,
+              (select value from system_status where key = $7) as tick_failed,
               (select updated_at from system_status where key = 'last_media_run_at') as media_at,
               (select updated_at from system_status where key = $2) as signin_at,
               (select value from system_status where key = $2) as signin_reason,
@@ -106,7 +125,15 @@ export async function healthReport(
               (select last_error from oauth_connection where provider = 'google') as google_error,
               (select count(*)::int from email_log where status = 'failed' and attempts >= $5) as abandoned_emails,
               exists (select 1 from invite where token_secret = any($6::text[])) as seed_invites`,
-      [now, SIGNIN_FAILED_KEY, MEDIA_MAX_ATTEMPTS, OUTBOX_MAX_ATTEMPTS, EMAIL_MAX_ATTEMPTS, seedSecrets],
+      [
+        now,
+        SIGNIN_FAILED_KEY,
+        MEDIA_MAX_ATTEMPTS,
+        OUTBOX_MAX_ATTEMPTS,
+        EMAIL_MAX_ATTEMPTS,
+        seedSecrets,
+        TICK_FAILED_KEY,
+      ],
     )) as [Row];
   } catch (e) {
     report(e, { area: 'health' }); // pr61 F4: a SQL bug must not pass for a Supabase outage (the class name only)
@@ -128,7 +155,7 @@ export async function healthReport(
   const signinFresh = row.signin_at && now.getTime() - row.signin_at.getTime() < HEALTH_LIMITS.signinEmailMs;
   const checks: Record<CheckName, string> = {
     database: 'ok',
-    tick: heartbeat(row.tick_at, now, HEALTH_LIMITS.tickMs),
+    tick: tickCheck(row, now),
     outbox:
       row.oldest_due && now.getTime() - row.oldest_due.getTime() >= HEALTH_LIMITS.outboxOverdueMs
         ? 'overdue'
@@ -150,8 +177,25 @@ export async function healthReport(
   else if (budgetHit) warnings.push('email_budget: limit hit 2 days running');
   if (row.abandoned_emails > 0) warnings.push(`failed_emails: ${notDeliveredLine(row.abandoned_emails)}`);
   if (row.media_given_up > 0) warnings.push(`outbox: ${givenUpLine(row.media_given_up)}`);
+  const tickFailed = parseTickFailed(row.tick_failed);
+  if (checks.tick === 'ok' && tickFailed && tickFailed.failed > 0)
+    warnings.push(`tick: ${tickFailed.failed} of ${tickFailed.attempted} jobs failed`);
 
   return { ok: failing.length === 0, checks, failing, warnings };
+}
+
+export interface PublicHealthBody {
+  ok: boolean;
+  checks: Record<CheckName, 'ok' | 'fail'>;
+  failing: CheckName[];
+}
+
+/** what anyone may see: ok/fail per check ('skipped' counts as ok), no reason codes, no warnings. */
+export function publicHealthBody(r: HealthReport): PublicHealthBody {
+  const checks = Object.fromEntries(
+    (Object.keys(r.checks) as CheckName[]).map((k) => [k, r.failing.includes(k) ? 'fail' : 'ok']),
+  ) as Record<CheckName, 'ok' | 'fail'>;
+  return { ok: r.ok, checks, failing: r.failing };
 }
 
 export const HEALTH_CACHE_MS = 15_000;

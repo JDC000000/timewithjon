@@ -1,7 +1,8 @@
 // T3.17.02: the MIME builder (headers, multipart/alternative, attachments, base64url) and GmailApiMailer.
 import { describe, expect, it, vi } from 'vitest';
 import { base64url, buildMime, encodeWord, formatAddress, type MimeInput } from '@/lib/adapters/gmail/mime';
-import { createGmailApiMailer, GMAIL_SEND_URL } from '@/lib/adapters/gmail/mailer';
+import { createGmailApiMailer, GMAIL_SEND_URL, GMAIL_TIMEOUT_MS } from '@/lib/adapters/gmail/mailer';
+import { withMailDeadline } from '@/lib/adapters/mail-deadline';
 import {
   MailerHttpError,
   MailerInvalidMessageError,
@@ -281,6 +282,36 @@ describe('GmailApiMailer', () => {
       expect(err).toBeInstanceOf(MailerHttpError);
       expect((err as MailerHttpError).status).toBe(502);
     }
+  });
+
+  it('every send has a 10 s timeout; a hung send ends as a TimeoutError at the hard stop', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const hung = vi.fn(
+      (_u: string, init: RequestInit) =>
+        new Promise<Response>((_, reject) =>
+          init.signal!.addEventListener('abort', () => reject(init.signal!.reason)),
+        ),
+    );
+    const m = createGmailApiMailer({ getAccessToken: async () => 't', fetch: hung as never });
+    const started = Date.now();
+    const err = await withMailDeadline(Date.now() + 100, () => m.send(EMAIL)).catch((e: unknown) => e);
+    expect((err as Error).name).toBe('TimeoutError');
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(hung).toHaveBeenCalledTimes(1);
+    expect(timeout.mock.calls[0]![0]).toBeLessThanOrEqual(100);
+    // Outside a hard stop, the mailer's own 10 s.
+    const ok = vi.fn(async () => new Response('{"id":"g1"}', { status: 200 }));
+    await createGmailApiMailer({ getAccessToken: async () => 't', fetch: ok as never }).send(EMAIL);
+    expect(timeout).toHaveBeenLastCalledWith(GMAIL_TIMEOUT_MS);
+    expect(GMAIL_TIMEOUT_MS).toBe(10_000);
+    // Past the hard stop: nothing is sent.
+    const late = vi.fn();
+    const lateErr = await withMailDeadline(Date.now() - 1, () =>
+      createGmailApiMailer({ getAccessToken: async () => 't', fetch: late }).send(EMAIL),
+    ).catch((e: unknown) => e);
+    expect((lateErr as Error).name).toBe('TimeoutError');
+    expect(late).not.toHaveBeenCalled();
+    timeout.mockRestore();
   });
 
   it('no token: nothing is built or sent', async () => {
