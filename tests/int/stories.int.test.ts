@@ -8,7 +8,7 @@ import { pool, q } from '@/lib/db';
 import { POST as emailInRoute } from '@/app/api/admin/stories/email-in/route';
 import { POST as adminSignRoute } from '@/app/api/admin/stories/[id]/photos/sign/route';
 import { POST as adminFinaliseRoute } from '@/app/api/admin/stories/[id]/photos/finalise/route';
-import { ownStoryPageStory, saveStoryPageStory } from '@/features/photos/story-page';
+import { createStoryPageStory, ownStoryPageStory, saveStoryPageStory } from '@/features/photos/story-page';
 import { signPhotoUpload } from '@/features/photos/sign';
 import { finalisePhotoUpload } from '@/features/photos/finalise';
 import { runMediaJob } from '@/features/jobs/media';
@@ -25,6 +25,9 @@ vi.mock('@/features/admin/supabase', () => ({ currentAuthEmail: vi.fn(async () =
 const SITE = 'http://localhost:3000';
 const tag = `int-stories-${randomUUID().slice(0, 8)}`;
 type TestInvite = Parameters<typeof saveStoryPageStory>[1];
+/** A new story_page story (createStoryPageStory is the only way one is made). */
+const createStory = async (...a: Parameters<typeof createStoryPageStory>) =>
+  (await createStoryPageStory(...a))!;
 const INVITE: TestInvite = {
   id: '',
   kind: 'personal',
@@ -271,7 +274,7 @@ describe('T3.7.03 photos for an emailed story', () => {
     expect(await sixth.json()).toMatchObject({ code: 'too_many_photos' });
   });
   it("a guest's story, an unknown id or a non-uuid → 404 (photos only on Jon's emailed stories)", async () => {
-    const guest = await saveStoryPageStory(null, INVITE, { body: `${tag} guest`, consent: true });
+    const guest = await createStory(INVITE, { body: `${tag} guest`, consent: true });
     for (const id of [guest, randomUUID(), 'nope']) expect((await sign(id)).status, id).toBe(404);
   });
   it('AC2: finalise queues once (202), the media job re-encodes (no EXIF), then it answers the photo (200)', async () => {
@@ -315,7 +318,7 @@ describe('T3.7.03 photos for an emailed story', () => {
 
 describe('T3.12.01 the story page (no booking)', () => {
   it('first save creates a story_page story; the capability id updates the same one (sticky spam)', async () => {
-    const id = await saveStoryPageStory(null, INVITE, { body: `${tag} sp`, consent: false, spam: true });
+    const id = await createStory(INVITE, { body: `${tag} sp`, consent: false, spam: true });
     const again = await saveStoryPageStory(id, INVITE, { body: `${tag} sp2`, consent: true, name: 'Pia C' });
     expect(again).toBe(id);
     const [s] = await q(
@@ -335,8 +338,8 @@ describe('T3.12.01 the story page (no booking)', () => {
     });
   });
   it('pr43 F1: a story saved through an is_test invite is reachable through invite.is_test (purge, export)', async () => {
-    const id = await saveStoryPageStory(null, INVITE, { body: `${tag} test-invite`, consent: true });
-    const other = await saveStoryPageStory(null, OTHER, { body: `${tag} real-invite`, consent: true });
+    const id = await createStory(INVITE, { body: `${tag} test-invite`, consent: true });
+    const other = await createStory(OTHER, { body: `${tag} real-invite`, consent: true });
     const viaTest = await q<{ id: string }>(
       `select s.id from story s join invite i on i.id = s.invite_id where i.is_test and s.body like $1`,
       [`${tag}%`],
@@ -352,21 +355,23 @@ describe('T3.12.01 the story page (no booking)', () => {
       ]),
     ).rejects.toMatchObject({ code: '23503' });
     const gone: TestInvite = { ...OTHER, id: await makeInvite(true) };
-    const id = await saveStoryPageStory(null, gone, { body: `${tag} unlinked`, consent: false });
+    const id = await createStory(gone, { body: `${tag} unlinked`, consent: false });
     await q(`delete from invite where id = $1`, [gone.id]);
     expect(await q(`select invite_id from story where id = $1`, [id])).toEqual([{ invite_id: null }]);
   });
   it('pr43 F3: twj_story counts only through the invite it was saved on (another invite: none, new story)', async () => {
-    const id = await saveStoryPageStory(null, INVITE, { body: `${tag} mine`, consent: false });
+    const id = await createStory(INVITE, { body: `${tag} mine`, consent: false });
     expect(await ownStoryPageStory(id, INVITE.id)).toBe(id);
     expect(await ownStoryPageStory(id, OTHER.id)).toBeNull();
+    const before = (await q(`select 1 from story`)).length;
     const theirs = await saveStoryPageStory(id, OTHER, { body: `${tag} theirs`, consent: true });
-    expect(theirs).not.toBe(id);
+    expect(theirs).toBeNull(); // never another invite's story, and never a new one from here
     expect(await q(`select body from story where id = $1`, [id])).toEqual([{ body: `${tag} mine` }]);
+    expect((await q(`select 1 from story`)).length).toBe(before);
   });
   it('pr43 F4: no typed name → a personal label or the prefill, never a general invite label', async () => {
     const name = async (inv: TestInvite) => {
-      const id = await saveStoryPageStory(null, inv, { body: `${tag} name`, consent: false });
+      const id = await createStory(inv, { body: `${tag} name`, consent: false });
       return (await q<{ from_name: string | null }>(`select from_name from story where id = $1`, [id]))[0]!
         .from_name;
     };
@@ -376,14 +381,15 @@ describe('T3.12.01 the story page (no booking)', () => {
       'Pia P',
     );
   });
-  it('a capability for another kind of story never lets the page write to it: a new story instead', async () => {
+  it('a capability for another kind of story never lets the page write to it, nor makes a new one', async () => {
     const emailedId = await addEmailed();
     const id = await saveStoryPageStory(emailedId, INVITE, { body: `${tag} sp3`, consent: false });
-    expect(id).not.toBe(emailedId);
+    expect(id).toBeNull();
+    expect(await q(`select 1 from story where body = $1`, [`${tag} sp3`])).toEqual([]);
     expect((await storyRow(emailedId))!.source).toBe('email_in');
   });
   it('T3.12.02 AC1: a story + 2 photos save (EXIF stripped); a 3rd is refused', async () => {
-    const id = await saveStoryPageStory(null, INVITE, { body: `${tag} photos`, consent: true });
+    const id = await createStory(INVITE, { body: `${tag} photos`, consent: true });
     for (let i = 0; i < 2; i++) {
       const s = await signPhotoUpload(id, mem.store);
       if (!s.ok) throw new Error(s.code);
