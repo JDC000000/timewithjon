@@ -280,6 +280,33 @@
     ]
   },
   {
+    "id": "story-page-revisit-overwrites",
+    "date": "2026-10-04",
+    "task": "T3.12",
+    "area": "stories",
+    "summary": "A second /story visit within the 2-hour twj_story capability edited the first story instead of starting a new one, so the earlier story was lost.",
+    "fix": "Only a save marked edit (a later save in the same page view) updates the capability's story; any other save creates one.",
+    "tests": ["tests/int/story-page-limits.int.test.ts", "tests/e2e/guest-after/story-page.spec.ts"]
+  },
+  {
+    "id": "story-page-first-save-retry-duplicates",
+    "date": "2026-10-04",
+    "task": "T3.12",
+    "area": "stories",
+    "summary": "A first story-page save retried after a lost answer (no twj_story yet) created a second story and spent a second place in the daily limit.",
+    "fix": "The page view's clientKey makes the first save idempotent on story(source, idempotency_key); a retry gets the same story and its twj_story back.",
+    "tests": ["tests/int/story-page-limits.int.test.ts"]
+  },
+  {
+    "id": "story-page-edit-of-deleted-story-inserts",
+    "date": "2026-10-04",
+    "task": "T3.12",
+    "area": "stories",
+    "summary": "An edit whose story had been deleted fell through to an insert with no bot check, no daily limit and no new capability.",
+    "fix": "An edit never creates: saveStoryPageStory only updates, and the route answers the stale line (403 capability_expired).",
+    "tests": ["tests/int/story-page-limits.int.test.ts", "tests/int/stories.int.test.ts"]
+  },
+  {
     "id": "manage-links-expire-after-weather-or-block",
     "date": "2026-10-04",
     "task": "T2.7.05",

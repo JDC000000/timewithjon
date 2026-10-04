@@ -177,6 +177,60 @@ describe('story-page first save', () => {
     expect(ts.verify).not.toHaveBeenCalled();
   });
 
+  it('a first save retried with the same clientKey (no twj_story yet) makes one story; both answers are 200', async () => {
+    useInvite(generalId);
+    const clientKey = randomUUID();
+    const first = await freshSave({ body: `${tag} retry`, clientKey, turnstileToken: 't' });
+    expect(first.status).toBe(200);
+    ts.verify.mockClear();
+    const used = await q<{ n: number }>(
+      `select count(*)::int as n from rate_limit where scope = 'storyPageNew'`,
+    );
+    // the answer was lost: the browser never got twj_story, and the retry carries the words as they are now
+    const again = await freshSave({ body: `${tag} retry, longer`, clientKey, turnstileToken: 'spent' });
+    expect(again.status).toBe(200);
+    expect(jar.has(STORY_COOKIE)).toBe(true); // handed back
+    const rows = await q<{ id: string; body: string }>(
+      `select id, body from story where idempotency_key = $1`,
+      [clientKey],
+    );
+    expect(rows).toEqual([{ id: expect.any(String), body: `${tag} retry, longer` }]);
+    // a retry spends neither the Turnstile check nor a place in the daily limit
+    expect(ts.verify).not.toHaveBeenCalled();
+    expect(await q(`select count(*)::int as n from rate_limit where scope = 'storyPageNew'`)).toEqual(used);
+    // and the key is the invite's own: through another invite it names nothing and makes nothing
+    useInvite(personalId);
+    const other = await freshSave({ body: `${tag} retry elsewhere`, clientKey });
+    expect(other.status).toBe(409);
+    expect(await q(`select 1 from story where body = $1`, [`${tag} retry elsewhere`])).toEqual([]);
+  });
+
+  it('an edit whose story was deleted is refused as stale (403) and creates nothing; so is one with no twj_story', async () => {
+    useInvite(personalId);
+    await q(`delete from story where invite_id = $1`, [personalId]);
+    expect((await freshSave({ body: `${tag} soon gone` })).status).toBe(200);
+    const id = (await storiesOf(personalId))[0]!.id;
+    await q(`delete from story where id = $1`, [id]);
+    const before = (await q(`select 1 from story`)).length;
+    const res = await editSave({ body: `${tag} after delete` });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'capability_expired', message: ERRORS.stale });
+    jar.delete(STORY_COOKIE);
+    expect((await editSave({ body: `${tag} no cookie` })).status).toBe(403);
+    expect((await q(`select 1 from story`)).length).toBe(before);
+    // the same race at the update itself (deleted after the capability check): no row is made there either
+    const { saveStoryPageStory } = await import('@/features/photos/story-page');
+    const invite = {
+      id: personalId,
+      kind: 'personal' as const,
+      display_name: 'x',
+      prefill_name: null,
+      prefill_email: null,
+    };
+    expect(await saveStoryPageStory(id, invite, { body: `${tag} race`, consent: false })).toBeNull();
+    expect((await q(`select 1 from story`)).length).toBe(before);
+  });
+
   it('QA r2 M4: a general-link story keeps the typed name, and Jon sees it instead of "No name"', async () => {
     useInvite(generalId);
     const res = await freshSave({ body: `${tag} g-named`, name: '  Gina Ruiz ', turnstileToken: 't' });
