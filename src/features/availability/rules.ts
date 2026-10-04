@@ -1,5 +1,6 @@
 // src/lib/engine/rules.ts — the shared C3 predicates. Pure functions only.
-import { datesTouched, isoWeekday, vancouverDate, weekStartOf } from '@/lib/time';
+import type { DateRule } from '@/content/types';
+import { datesTouched, isoWeekday, vancouverDate, vancouverInstant, weekStartOf } from '@/lib/time';
 import type { Block, Booking, BusyInterval, EngineSettings, Offer, Range, Slot, Week } from './types';
 
 /** Half-open overlap: [aS,aE) ∩ [bS,bE) ≠ ∅ */
@@ -14,6 +15,24 @@ export function rangedBookings(bookings: Booking[], excludeRequestId?: string): 
 
 /** Rule 2(c): Jon's household hold, Thu Apr 1 lunch, until Jon releases it. Fixed, not tied to season_start (L5). */
 export const HOUSEHOLD_HOLD = { date: '2027-04-01', windowKind: 'lunch' } as const;
+/** The hold's times (the lunch window's, 12–2), so a range lock can't cover it either (QA r2 L6). */
+export const HOUSEHOLD_HOLD_RANGE: Range = {
+  startsAt: vancouverInstant(HOUSEHOLD_HOLD.date, '12:00'),
+  endsAt: vancouverInstant(HOUSEHOLD_HOLD.date, '14:00'),
+};
+
+/** The household hold still stands over this range (QA r2 L6: date dishes respect it as time dishes do). */
+export function householdHoldOver(range: Range, s: Pick<EngineSettings, 'householdHoldReleased'>): boolean {
+  return !s.householdHoldReleased && overlaps(range, HOUSEHOLD_HOLD_RANGE);
+}
+
+/** A dates-mode dish's day rule (the grid, validate.ts and the engine share it): weekends, or Thu to Sun. */
+export function dateRuleAllows(rule: DateRule | null | undefined, date: string): boolean {
+  const dow = isoWeekday(date);
+  if (rule === 'weekend') return dow >= 6;
+  if (rule === 'weekend-or-thu-fri') return dow >= 4;
+  return true;
+}
 
 export function inSeason(date: string, s: EngineSettings): boolean {
   return date >= s.seasonStart && date <= s.seasonEnd;

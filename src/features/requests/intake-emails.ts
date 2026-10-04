@@ -4,6 +4,7 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { TZ, vancouverInstant } from '@/lib/time';
 import { guestWhen } from '@/lib/when';
+import { ROW } from '@/content/ui/admin-requests';
 import type { EmailArgs } from '@/features/email/send';
 
 export interface IntakeEmailInput {
@@ -16,6 +17,8 @@ export interface IntakeEmailInput {
   crew: number;
   bigCrew: boolean;
   choiceCount: number;
+  /** What the choices are: picked times (slots mode) or dates (dates mode), for E2's count (QA r2 L3). */
+  choiceKind: 'times' | 'dates';
   standbyWeek: string | null;
   /** E1: the requested times (slots mode) or dates (dates mode), one line each; see requestedTimeLines. */
   requestedTimes: string[];
@@ -64,7 +67,7 @@ export function intakeEmails(i: IntakeEmailInput): EmailArgs[] {
   const summary = `Crew ${i.crew}${i.bigCrew ? ' (big crew)' : ''}. ${
     i.status === 'standby'
       ? `Stand-by, week of ${standbyWeekLabel(i.standbyWeek!)}.`
-      : `${i.choiceCount} time(s).`
+      : `${ROW[i.choiceKind](i.choiceCount)}.`
   }`;
   const jon: EmailArgs = {
     template: 'E2',

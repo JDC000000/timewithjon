@@ -4,6 +4,7 @@ import 'server-only';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { ERRORS } from '@/content';
+import { withTx } from '@/lib/db';
 import { jsonError, noStore } from '@/lib/http';
 import { requireAdmin } from './auth';
 import { createInvite, CreateInviteBody, listInvites, revokeInvite, rotateGeneral } from './invites';
@@ -59,7 +60,8 @@ export async function postRotateGeneral(req: NextRequest): Promise<Response> {
 /**
  * POST /api/admin/invites/import (T5.1.02): a `text/csv` body with header `name,email,dish` → one personal invite
  * per row through createInvite, our_things always []. All-or-nothing: every row is checked before any is written,
- * and any problem is a 400 listing `errors` [{line, reason}] with 0 rows written. 200 {ok, created}.
+ * and any problem is a 400 listing `errors` [{line, reason}] with 0 rows written; the rows are then written in ONE
+ * transaction, so a failure part way through writes none (a re-upload never duplicates). 200 {ok, created}.
  */
 export async function postInviteImport(req: NextRequest): Promise<Response> {
   const admin = await requireAdmin(req);
@@ -74,6 +76,9 @@ export async function postInviteImport(req: NextRequest): Promise<Response> {
       NextResponse.json({ ok: false, code: 'invalid', message: ERRORS.generic, errors }, { status: 400 }),
     );
   }
-  for (const row of rows) await createInvite(row);
+  const now = new Date();
+  await withTx(async (c) => {
+    for (const row of rows) await createInvite(row, now, c);
+  });
   return noStore(NextResponse.json({ ok: true, created: rows.length }));
 }

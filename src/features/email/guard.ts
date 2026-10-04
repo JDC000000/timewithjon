@@ -16,6 +16,7 @@ export const PRIORITY: Record<TemplateId, AppPriority> = {
   E7: 1,
   E10: 1,
   E11: 1,
+  E17: 1, // Jon cancelled the guest's booking (QA r2 M5): as urgent as E11
   E14: 1,
   E1: 2,
   E6: 2,

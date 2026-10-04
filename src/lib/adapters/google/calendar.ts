@@ -8,6 +8,11 @@
 //   accepted attendee, so the booking shows him busy on his main calendar and Google emails him nothing (he
 //   owns the calendar). The app itself never calls the API on `primary`: the write guard below refuses it.
 // - No guest attendee (the .ics fallback's "attendee-less" event) means sendUpdates=none: Google emails no one.
+// - A joined guest coming or going (patch with {attendees: true}) GETs the event and sends the new attendee list,
+//   keeping every staying attendee's entry (and so their responseStatus) as Google has it. A plain patch still
+//   sends content only.
+// - A 401 on the cached access token drops it and retries once with a fresh one: only a second refusal (or a
+//   refresh that fails) reaches the caller, so one stale token never alerts Jon.
 import 'server-only';
 import { TZ } from '@/lib/time';
 import type { CalendarEvent, CalendarGateway, CalendarHealth, EventRsvps } from '../types';
@@ -18,8 +23,13 @@ import { toGuestRsvp } from './rsvp';
 /** Google's own cap for one events.list page. A season holds ~100 bookings, so one page is the whole answer. */
 export const RSVP_LIST_MAX = 2500;
 
+interface EventAttendee {
+  email?: string;
+  responseStatus?: string;
+}
+
 interface EventList {
-  items?: { id?: string; status?: string; attendees?: { email?: string; responseStatus?: string }[] }[];
+  items?: { id?: string; status?: string; attendees?: EventAttendee[] }[];
 }
 
 export class CalendarWriteGuardError extends Error {
@@ -98,8 +108,16 @@ const EVENT_SETTINGS = {
 
 export function googleCalendarGateway(deps: GoogleCalendarDeps): CalendarGateway {
   async function authorized<T>(url: URL, req: Parameters<typeof googleFetch>[1]): Promise<T> {
+    const send = async () =>
+      googleFetch<T>(url.toString(), { ...req, accessToken: await deps.accessToken() });
     try {
-      return await googleFetch<T>(url.toString(), { ...req, accessToken: await deps.accessToken() });
+      return await send();
+    } catch (e) {
+      if (!(e instanceof GoogleApiError && e.status === 401)) throw e;
+      deps.forgetAccessToken(); // a 401 is refused before Google acts on it, so one retry is safe for any method
+    }
+    try {
+      return await send();
     } catch (e) {
       if (e instanceof GoogleApiError && e.status === 401) deps.forgetAccessToken();
       throw e;
@@ -121,10 +139,44 @@ export function googleCalendarGateway(deps: GoogleCalendarDeps): CalendarGateway
   const ownerEmail = async () => (await deps.target())?.ownerEmail ?? '';
   const eventPath = (id: string) => `/${encodeURIComponent(id)}`;
 
-  /** A reschedule: time and text only. Never revives a cancelled event, never touches the attendee list. */
-  async function patch(eventId: string, e: CalendarEvent): Promise<void> {
+  /**
+   * A reschedule: time and text only. Never revives a cancelled event, never touches the attendee list.
+   * With {attendees: true} (a joined guest came or went) the attendee list is synced too (syncAttendees).
+   */
+  async function patch(eventId: string, e: CalendarEvent, opts?: { attendees?: boolean }): Promise<void> {
+    if (opts?.attendees) return syncAttendees(eventId, e);
     const { hasGuests } = attendees(e, await ownerEmail());
     await call('events_patch', eventPath(eventId), { method: 'PATCH', json: content(e), notify: hasGuests });
+  }
+
+  /**
+   * GET the event, then send the derived attendee list, reusing Google's entry for everyone who stays (their
+   * responseStatus is kept). Added guests get the invite and removed ones the cancellation (sendUpdates=all).
+   * The same set as Google's = a plain content patch. Never sets status: a cancelled event stays cancelled.
+   */
+  async function syncAttendees(eventId: string, e: CalendarEvent): Promise<void> {
+    const existing = await call<{ attendees?: EventAttendee[] }>('events_get', eventPath(eventId), {
+      method: 'GET',
+    });
+    const { list, hasGuests } = attendees(e, await ownerEmail());
+    const key = (a: EventAttendee) => (a.email ?? '').trim().toLowerCase();
+    const current = new Map((existing?.attendees ?? []).map((a) => [key(a), a]));
+    const wanted = new Set(list.map(key));
+    const changed = current.size !== wanted.size || [...wanted].some((email) => !current.has(email));
+    if (!changed) {
+      await call('events_patch', eventPath(eventId), {
+        method: 'PATCH',
+        json: content(e),
+        notify: hasGuests,
+      });
+      return;
+    }
+    const removedGuests = [...current.keys()].some((email) => !wanted.has(email));
+    await call('events_patch', eventPath(eventId), {
+      method: 'PATCH',
+      json: { ...content(e), attendees: list.map((a) => current.get(key(a)) ?? a) },
+      notify: hasGuests || removedGuests,
+    });
   }
 
   /** The 409 path: the id exists at Google. GET first (events.get returns cancelled events too). */

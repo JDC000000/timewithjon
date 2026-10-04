@@ -2,7 +2,8 @@
 // doesn't suit (take_offer token) or a weather call (pick_new_date token). §6: `requested` / `needs_new_time` /
 // `standby` → `requested`, updating the SAME row and replacing its choices, E16 to Jon, `awaiting_jon_since` = now.
 // It reuses L3's re-request (T2.7.05): checkRerequest() before the transaction (it may read Google free/busy), then
-// one transaction in the lock order request → action_token → offer (pr46-review M1): the request row FOR UPDATE,
+// one transaction in the lock order (host →) request → action_token → offer (pr46-review M1): a joined guest's host
+// row first, as every other action on a joined guest takes it (side-effects.ts lockHostOf), the request row FOR UPDATE,
 // the single-use token spent (exactly one caller wins), then rerequestTx() (releases the live offers, E16).
 // A refusal inside rerequestTx rolls everything back, so the token stays usable. A spent, released or expired
 // link answers with the current state (the route reads L3's page models).
@@ -12,7 +13,7 @@ import { z } from 'zod';
 import { consumeToken, findToken, tokenState } from '@/features/invites/action-tokens';
 import { pool, withTx } from '@/lib/db';
 import { checkRerequest, RerequestBody, rerequestTx, type RerequestResult } from './rerequest';
-import { runAfterCommit } from './side-effects';
+import { lockHostOf, runAfterCommit } from './side-effects';
 
 export const ProposeBody = RerequestBody.extend({ token: z.string().max(100) }).strict();
 export type ProposeBody = z.infer<typeof ProposeBody>;
@@ -65,6 +66,9 @@ export async function proposeTimes(b: ProposeBody, spam = false, now = new Date(
   let out;
   try {
     out = await withTx(async (c) => {
+      // Host first, then this row: a weather-called joined guest still names its host, and Promote to host on a
+      // sibling takes the host before the joined rows.
+      await lockHostOf(c, found.request_id);
       const {
         rows: [r],
       } = await c.query<{ status: string }>(`select r.status from request r where r.id = $1 for update`, [

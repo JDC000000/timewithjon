@@ -1,6 +1,6 @@
 // src/app/api/admin/requests/[id]/cancel/route.ts — T2.9.03: POST → Jon's "Cancel for the guest" in A3 (TSD T2.9
 // AC3, §6): cancelled, the event deleted (a joined guest only leaves the host's event), live offers released,
-// E11 to the guest and no E12. Behind FEATURE_ADMIN_AUTH + requireAdmin + the Origin check (AD-7). Idempotent:
+// E17 to the guest (QA r2 M5) and no E12. Behind FEATURE_ADMIN_AUTH + requireAdmin + the Origin check (AD-7). Idempotent:
 // a second call answers ok with already=true; a booking that has already ended is 409 already_done.
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';

@@ -123,6 +123,7 @@ export async function createRequestTx(
       crew: b.crew,
       bigCrew: a.bigCrew,
       choiceCount: a.mode === 'slots' ? b.slotIds.length : b.dates.length,
+      choiceKind: a.mode === 'slots' ? 'times' : 'dates',
       standbyWeek: b.standbyWeek ?? null,
       requestedTimes: requestedTimeLines(slots, a.mode === 'dates' ? b.dates : [], b.guestTimeZone ?? null),
       jonEmail: jonEmail(),

@@ -14,6 +14,7 @@ import { engineInput, loadEngineData, withoutOwnBooking } from '@/features/avail
 import { openWindows } from '@/features/availability/openWindows';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { jonEmail, queueEmail } from '@/features/email/send';
+import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { findInviteById } from '@/features/invites/repo';
 import { q, withTx } from '@/lib/db';
 import { isLazilyDone } from './guest-cancel';
@@ -144,6 +145,8 @@ export async function rerequestTx(
     if (r.calendar_state === 'ics_sent')
       after.emailIds.push(...(await queueIcsEmail(c, requestId, 'CANCEL')));
   }
+  // A locked booking's manage links ran to its end + 7 days; open again, they get the unlocked lifetime (§6).
+  if (r.status === 'locked') await reopenManageTokens(c, [requestId], now);
   await c.query(
     `update request
         set status = 'requested', mode = $2, counts_toward = $3, date_prefs = $4, overnight = $5, standby_week = null,

@@ -165,9 +165,9 @@ describe('T2.4.03 Move to stand-by → E6', () => {
     expect((await moveToStandby(late.id, '2027-04-07', new Date('2027-04-09T20:00:00Z'))).ok).toBe(true);
     const locked = await newRequest();
     const slot = await slotId('2027-04-01');
-    expect(
-      (await lockRequest({ requestId: locked.id, target: { slotId: slot }, mode: 'lock', now: NOW })).ok,
-    ).toBe(true);
+    // Thu Apr 1 lunch is the household hold (QA r2 L6): a lock there needs Book anyway.
+    const lock = { requestId: locked.id, target: { slotId: slot }, mode: 'lock' as const, now: NOW };
+    expect((await lockRequest({ ...lock, bookAnyway: true })).ok).toBe(true);
     expect(await moveToStandby(locked.id, '2027-05-10')).toMatchObject({
       status: 409,
       reason: 'not_allowed',

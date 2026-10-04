@@ -18,7 +18,7 @@ import { cascadeToJoined, HostRangeClearedError } from '@/features/requests/join
 import { lockRequest, type LockTarget } from '@/features/requests/lock';
 import { rerequest } from '@/features/requests/rerequest';
 import { RequestBody } from '@/features/requests/schema';
-import { mockCalendar } from '@/lib/adapters/mock/calendar';
+import { mockCalendar, mockCalendarAttendees } from '@/lib/adapters/mock/calendar';
 import { pool, q, withTx } from '@/lib/db';
 import { removeRequests } from '../fixtures/requests-db';
 import { vancouverInstant } from '@/lib/time';
@@ -178,6 +178,12 @@ describe('Join to booking (T2.10.01, rule 1)', () => {
     // The host's event now lists both guests.
     expect(patch).toHaveBeenCalledTimes(1);
     expect(patch.mock.calls[0]![1].attendees).toEqual([await email(host), await email(joined)]);
+    // ...and the patch carries the attendee change, so the event (as Google would hold it) has both.
+    expect(patch.mock.calls[0]![2]).toEqual({ attendees: true });
+    expect(mockCalendarAttendees((await row(host)).google_event_id!)).toEqual([
+      await email(host),
+      await email(joined),
+    ]);
     // AC2: one E4, sent, with a manage link that opens the joined request at the host's time.
     expect(await templates(joined)).toEqual(['E4:sent']);
     const body = (await sentBody(joined, 'E4'))!;
@@ -318,6 +324,8 @@ describe('the joined lifecycle (§6 rules 2–5)', () => {
     expect(await cancelByGuest(joined)).toEqual({ ok: true, already: false });
     expect(remove).not.toHaveBeenCalled();
     expect(patch.mock.calls.at(-1)![1].attendees).toEqual([await email(host)]);
+    expect(patch.mock.calls.at(-1)![2]).toEqual({ attendees: true });
+    expect(mockCalendarAttendees((await row(host)).google_event_id!)).toEqual([await email(host)]);
     expect((await row(host)).status).toBe('locked');
     expect((await row(host)).google_event_id).toMatch(/^mock-/);
     expect(await templates(joined)).toEqual(['E4:sent', 'E11:sent', 'E12:sent']);
@@ -729,6 +737,7 @@ describe('the joined lifecycle (§6 rules 2–5)', () => {
     expect(await row(joined)).toMatchObject({ status: 'requested', joined_to_request_id: null });
     expect(await templates(joined)).toEqual(['E4:sent', 'E16:sent']);
     expect(patch.mock.calls.at(-1)![1].attendees).toEqual([await email(host)]);
+    expect(mockCalendarAttendees((await row(host)).google_event_id!)).toEqual([await email(host)]);
     expect((await row(host)).status).toBe('locked');
   });
 });

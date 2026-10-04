@@ -8,7 +8,7 @@ const REQ = `${SITE}/admin/requests/0f6c1f4e-1111-4222-8333-444455556666`;
 
 export const VARS: Record<TemplateId, Record<string, string | number>> = {
   E1: { dish: 'The Long Lunch', times: 'Thu Oct 1 · noon–2 pm\nSat Oct 3 · 7 pm' },
-  E2: { name: 'Sam', dish: 'The Long Lunch', summary: 'Crew 2. 2 time(s).', adminLink: REQ },
+  E2: { name: 'Sam', dish: 'The Long Lunch', summary: 'Crew 2. 2 times.', adminLink: REQ },
   E3: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
   E4: {
     dish: 'The Long Lunch',
@@ -52,6 +52,7 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
   },
   E14: { adminLink: `${SITE}/admin/settings` },
   E16: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
+  E17: {},
 };
 export const LINKS = (id: TemplateId) =>
   Object.entries(VARS[id])
