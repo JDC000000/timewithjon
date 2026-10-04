@@ -375,8 +375,26 @@ describe('finalise (T3.6.03)', () => {
     ]);
     const third = await upload(storyId, await png());
     for (const id of ids) expect((await finalisePhotoUpload(id, storyId, mem.store)).ok).toBe(true);
-    expect(await finalisePhotoUpload(third, storyId, mem.store)).toEqual({ ok: false, code: 'too_many' });
+    const [{ p: rawPath }] = (await q<{ p: string }>(
+      `select incoming_path p from photo_upload where id = $1`,
+      [third],
+    )) as [{ p: string }];
+    expect(mem.store.objects.has(rawPath)).toBe(true);
+    // The story is already full: refused before the raw file is read or decoded, and the raw file is deleted.
+    let downloads = 0;
+    const watched = {
+      ...mem.store,
+      download: (path: string) => {
+        downloads++;
+        return mem.store.download(path);
+      },
+    };
+    expect(await finalisePhotoUpload(third, storyId, watched)).toEqual({ ok: false, code: 'too_many' });
+    expect(downloads).toBe(0);
+    expect(mem.store.objects.has(rawPath)).toBe(false);
     expect([...mem.store.objects.keys()].filter((k) => k.startsWith('final/'))).toHaveLength(2);
+    // refused for good: its place is freed and a later finalise of it reads nothing
+    expect(await finalisePhotoUpload(third, storyId, mem.store)).toEqual({ ok: false, code: 'not_found' });
   });
   it('an unreadable file is refused and its raw bytes deleted at once', async () => {
     const storyId = await newStory();

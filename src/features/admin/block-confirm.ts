@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { E5B_PARTS } from '@/content/emails';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { takeLink } from '@/features/email/link-vars';
+import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { queueEmail } from '@/features/email/send';
 import { RangeFields } from '@/features/requests/lock-api';
 import { cascadeToJoined, dishName } from '@/features/requests/joined-cascade';
@@ -117,6 +118,11 @@ export async function moveBooking(
     to_status: 'needs_new_time',
     ...(offerId ? { offer_id: offerId } : {}),
   });
+  // The guests riding this booking (rule 3), read before the cascade moves them, for their manage links below.
+  const { rows: joined } = await c.query<{ id: string }>(
+    `select j.id from request j where j.joined_to_request_id = $1 and j.status = 'locked'`,
+    [requestId],
+  );
   // Rule 3, while the host still has its range (the joined rows keep a copy of it for Promote to host).
   after.emailIds.push(
     ...(await cascadeToJoined(c, requestId, {
@@ -143,6 +149,8 @@ export async function moveBooking(
     [requestId, offerId !== null, now],
   );
   if (moved.rowCount !== 1) throw new Error(`block_confirm: booking ${requestId} is no longer locked`);
+  // Back to waiting on a new time: live manage links last the unlocked lifetime, not the old end + 7 days.
+  await reopenManageTokens(c, [requestId, ...joined.map((j) => j.id)], now);
   after.outboxIds.push(await enqueueCalendar(c, 'calendar_delete', requestId));
   after.emailIds.push(
     ...queuedId(

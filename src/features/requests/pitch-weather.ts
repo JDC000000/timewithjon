@@ -13,6 +13,7 @@ import { dishBySlug } from '@/content/menu-helpers';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { manageLink, menuLink, pickLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
+import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { withTx } from '@/lib/db';
 import { isLazilyDone } from './guest-cancel';
 import { cascadeToJoined } from './joined-cascade';
@@ -137,6 +138,9 @@ async function weatherTx(c: PoolClient, requestId: string, now: Date): Promise<O
       where id = $1`,
     [requestId],
   );
+  // Back to waiting on a new time: the live manage links (host and joined guests) last the unlocked lifetime, not
+  // the old end + 7 days, as after Ask for another time.
+  await reopenManageTokens(c, [requestId, ...joined.map((j) => j.id)], now);
   after.outboxIds.push(await enqueueCalendar(c, 'calendar_delete', requestId));
   after.emailIds.push(
     ...queuedId(
