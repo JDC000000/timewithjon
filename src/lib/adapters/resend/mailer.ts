@@ -4,6 +4,7 @@
 // (AD-5 rule 6): it throws MailerQuotaError and the send path queues the email for the next UTC day.
 import 'server-only';
 import { MailerHttpError, MailerQuotaError } from '../errors';
+import { MailDeadlineError, mailCallTimeoutMs } from '../mail-deadline';
 import type { Mailer, OutgoingEmail } from '../types';
 
 export const RESEND_URL = 'https://api.resend.com/emails';
@@ -67,10 +68,13 @@ export function createResendMailer(opts: ResendOptions): Mailer {
       } satisfies RequestInit;
       for (let attempt = 0; ; attempt++) {
         let retryable: Error;
+        // T3.9.01: never past the caller's hard stop (the tick's), retry waits included.
+        const timeoutMs = mailCallTimeoutMs(ATTEMPT_TIMEOUT_MS);
+        if (timeoutMs <= 0) throw new MailDeadlineError('resend send not started: past the hard stop');
         try {
           const res = await doFetch(RESEND_URL, {
             ...init,
-            signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+            signal: AbortSignal.timeout(timeoutMs),
           });
           if (res.ok) {
             const { id } = (await res.json()) as { id: string };
@@ -88,7 +92,7 @@ export function createResendMailer(opts: ResendOptions): Mailer {
           retryable = err instanceof Error ? err : new Error('fetch failed'); // network error or timeout
         }
         const delay = RETRY_DELAYS_MS[attempt];
-        if (delay === undefined) throw retryable;
+        if (delay === undefined || mailCallTimeoutMs(ATTEMPT_TIMEOUT_MS) - delay <= 0) throw retryable;
         await sleep(delay);
       }
     },
