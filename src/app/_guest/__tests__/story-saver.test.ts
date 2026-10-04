@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { storySaver } from '../story-submit';
 
 const signal = new AbortController().signal;
+const KEY = expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 function fetchAnswering(...statuses: number[]) {
   const fetchMock = vi.fn(async () => new Response('{}', { status: statuses.shift() ?? 200 }));
   vi.stubGlobal('fetch', fetchMock);
@@ -24,7 +25,7 @@ describe('storySaver', () => {
     const takeToken = vi.fn(async () => 'tok');
     const s = storySaver({ endpoint: '/api/story-page', opened: false, takeToken, reset: vi.fn() });
     expect((await s.save({ consent: true, body: 'hi' }, signal)).ok).toBe(true);
-    expect(sentBody(f, 0)).toEqual({ consent: true, body: 'hi', turnstileToken: 'tok' });
+    expect(sentBody(f, 0)).toEqual({ consent: true, body: 'hi', turnstileToken: 'tok', clientKey: KEY });
     expect((await s.open(signal)).ok).toBe(true);
     await s.save({ consent: false }, signal);
     expect(f).toHaveBeenCalledTimes(2);
@@ -50,6 +51,9 @@ describe('storySaver', () => {
     });
     await again.save({ consent: false, body: 'S2' }, signal);
     expect([0, 1, 2].map((n) => sentBody(f, n).edit)).toEqual([undefined, true, undefined]);
+    // each page view has its own key; an edit needs none
+    expect(sentBody(f, 1).clientKey).toBeUndefined();
+    expect(sentBody(f, 2).clientKey).not.toBe(sentBody(f, 0).clientKey);
   });
 
   it('a refused first save leaves the next one a first save (no edit)', async () => {
@@ -62,7 +66,7 @@ describe('storySaver', () => {
     });
     await s.save({ consent: false, body: 'a' }, signal);
     await s.save({ consent: false, body: 'a' }, signal);
-    expect(sentBody(f, 1)).toEqual({ consent: false, body: 'a' });
+    expect(sentBody(f, 1)).toEqual({ consent: false, body: 'a', clientKey: sentBody(f, 0).clientKey });
   });
 
   it('open before Send saves the story as it stands; a refused open resets the widget and stays closed', async () => {
@@ -72,7 +76,8 @@ describe('storySaver', () => {
     expect((await s.open(signal)).status).toBe(400);
     expect(reset).toHaveBeenCalledTimes(1);
     expect((await s.open(signal)).ok).toBe(true);
-    expect(sentBody(f, 1)).toEqual({ consent: false, turnstileToken: 'tok' });
+    expect(sentBody(f, 1)).toEqual({ consent: false, turnstileToken: 'tok', clientKey: KEY });
+    expect(sentBody(f, 1).clientKey).toBe(sentBody(f, 0).clientKey); // the retry keeps the page view's key
   });
 
   it('an already-open form (S11, S17) never asks for a token', async () => {
