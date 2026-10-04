@@ -11,6 +11,7 @@ const base = {
   crew: 2,
   bigCrew: false,
   choiceCount: 2,
+  choiceKind: 'times' as const,
   standbyWeek: null,
   requestedTimes: ['Thu Oct 1, 12:00 pm', 'Sat Oct 3, 6:00 pm'],
   jonEmail: 'jon@example.com',
@@ -29,6 +30,17 @@ describe('intakeEmails', () => {
     expect(emails.map((e) => e.template)).toEqual(['E6', 'E2']);
     expect(emails[0]).toMatchObject({ eventKey: 'audit-1', vars: { week: 'May 10' } });
     expect(String(emails[1]!.vars.summary)).toContain('Stand-by, week of May 10.');
+  });
+});
+
+describe('E2 summary counts (QA r2 L3)', () => {
+  const summary = (choiceCount: number, choiceKind: 'times' | 'dates') =>
+    String(intakeEmails({ ...base, status: 'requested', choiceCount, choiceKind })[1]!.vars.summary);
+  it('says "1 time" / "2 times", and "1 date" / "2 dates" for a date dish; never "time(s)"', () => {
+    expect(summary(1, 'times')).toBe('Crew 2. 1 time.');
+    expect(summary(2, 'times')).toBe('Crew 2. 2 times.');
+    expect(summary(1, 'dates')).toBe('Crew 2. 1 date.');
+    expect(summary(2, 'dates')).toBe('Crew 2. 2 dates.');
   });
 });
 

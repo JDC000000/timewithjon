@@ -93,7 +93,7 @@ describe('Check these: a request (T2.9.04)', () => {
     expect(await tab('check')).not.toContain(id);
     const sent = await emails(id);
     expect(sent.map((e) => [e.template, e.to_email, e.status])).toEqual([['E2', 'jon@example.com', 'sent']]);
-    expect(sent[0]!.vars.summary).toBe('Crew 3. 2 time(s).');
+    expect(sent[0]!.vars.summary).toBe('Crew 3. 2 times.'); // QA r2 L3;
     expect(sent[0]!.vars.adminLink).toMatch(new RegExp(`/admin/requests/${id}$`));
     expect(await audits('request_not_spam', id)).toHaveLength(1);
 

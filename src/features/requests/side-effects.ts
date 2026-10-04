@@ -18,10 +18,11 @@ export async function enqueueCalendar(
   c: PoolClient,
   kind: 'calendar_create' | 'calendar_patch' | 'calendar_delete',
   requestId: string,
+  payload: { attendees?: true } = {},
 ): Promise<string> {
   const { rows } = await c.query<{ id: string }>(
-    `insert into outbox (kind, request_id) values ($1, $2) returning id`,
-    [kind, requestId],
+    `insert into outbox (kind, request_id, payload) values ($1, $2, $3) returning id`,
+    [kind, requestId, JSON.stringify(payload)],
   );
   return rows[0]!.id;
 }
@@ -42,14 +43,19 @@ export async function lockHostOf(c: PoolClient, requestId: string): Promise<stri
   return host;
 }
 
-/** A joined guest left the host's booking: patch the host's event (its attendees are derived), if it's live. */
+/**
+ * A joined guest left the host's booking: patch the host's event, if it's live. Its attendees are derived, and
+ * the row says so ({attendees: true}), so the gateway sends Google the new attendee list.
+ */
 export async function patchHostIfLocked(c: PoolClient, hostId: string): Promise<string | null> {
   // Locked (normally already by lockHostOf; this covers a host re-pointed between that read and the row lock).
   const { rows } = await c.query<{ status: string }>(
     `select r.status from request r where r.id = $1 for update`,
     [hostId],
   );
-  return rows[0]?.status === 'locked' ? enqueueCalendar(c, 'calendar_patch', hostId) : null;
+  return rows[0]?.status === 'locked'
+    ? enqueueCalendar(c, 'calendar_patch', hostId, { attendees: true })
+    : null;
 }
 
 export function queuedId(r: QueueResult): string[] {

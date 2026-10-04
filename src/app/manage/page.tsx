@@ -7,7 +7,6 @@
 // and the manage APIs' Origin check refuses it (see SIGN_IN_LINK_PAGE there). strict-origin keeps the token out of
 // every Referer (origin only) and lets the Origin header through.
 import type { Metadata } from 'next';
-import { Fragment } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MANAGE_UI } from '@/content/manage';
@@ -18,6 +17,7 @@ import { MANAGE_HEADER } from '@/features/invites/require';
 import { MAX_PHOTOS } from '@/features/photos/limits';
 import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
+import { SentReceipt } from '../_guest/sent-receipt';
 import { dishPhotoSlot, dishView } from '../book/[dish]/_lib/flow-view';
 import { loadRequestLines } from '../sent/model';
 import { ManageActions } from './actions';
@@ -119,21 +119,7 @@ function Manage({ model, token, sent }: { model: Open; token: string; sent: stri
             )}
           </div>
         )}
-        {!model.when && sent.length > 0 && (
-          <div className="receipt" data-manage-sent="">
-            <dl className="facts" style={{ marginTop: 0, border: 0, padding: 0 }}>
-              <dt>{MANAGE_UI.when}</dt>
-              <dd>
-                {sent.map((line, i) => (
-                  <Fragment key={line}>
-                    {i > 0 && <br />}
-                    <KeepWhole text={line} />
-                  </Fragment>
-                ))}
-              </dd>
-            </dl>
-          </div>
-        )}
+        {!model.when && <SentReceipt lines={sent} />}
         {model.ownPlan && (
           <>
             <p className="cap muted" style={{ marginTop: 'var(--s4)' }}>

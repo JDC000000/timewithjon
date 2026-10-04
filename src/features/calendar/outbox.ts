@@ -12,6 +12,8 @@
 // event with fresh rows (outOfAttempts). pr39 F4: a row also waits for an older one still in flight on its LAST try,
 // so a delete can never run beside a create that is still inserting.
 // T3.15.02: a row with payload {resync: true} (resync.ts) inserts even when the request has an event id.
+// A row with payload {attendees: true} (a joined guest came or went) patches the attendee list too; a plain
+// patch sends time and text only, so without it Google would never hear of the change.
 import 'server-only';
 import { deliverEmail } from '@/features/email/send';
 import { adapters } from '@/lib/adapters';
@@ -34,7 +36,13 @@ export async function processOutbox(
   id: string,
   opts: { inline: boolean; now?: Date },
 ): Promise<OutboxResult> {
-  const [claimed] = await q<{ request_id: string; attempts: number; kind: string; resync: boolean }>(
+  const [claimed] = await q<{
+    request_id: string;
+    attempts: number;
+    kind: string;
+    resync: boolean;
+    attendees: boolean;
+  }>(
     `update outbox o
         set attempts = o.attempts + 1, last_error = null,
             next_attempt_at = coalesce($3, now()) + case o.attempts when 0 then interval '5 minutes'
@@ -48,7 +56,8 @@ export async function processOutbox(
                            and older.kind in ${CALENDAR_KINDS} and older.done_at is null
                            and (older.attempts < ${OUTBOX_MAX_ATTEMPTS} or older.next_attempt_at > coalesce($3, now()))
                            and (older.created_at, older.id) < (o.created_at, o.id))
-      returning o.request_id, o.attempts, o.kind, coalesce((o.payload->>'resync')::boolean, false) as resync`,
+      returning o.request_id, o.attempts, o.kind, coalesce((o.payload->>'resync')::boolean, false) as resync,
+                coalesce((o.payload->>'attendees')::boolean, false) as attendees`,
     [id, opts.inline, opts.now ?? null],
   );
   // pr57 F1: the claim clears last_error, so "attempts > 0, last_error null, lease not lapsed" = IN FLIGHT: a
@@ -81,7 +90,7 @@ export async function processOutbox(
     // T3.15.02: a re-sync row always inserts. The id is deterministic, so an event that is still there answers
     // 409 and converges (a cancelled one is revived); one lost with a deleted calendar is made again, once.
     if (r.google_event_id && !claimed.resync) {
-      await cal.patch(r.google_event_id, event);
+      await cal.patch(r.google_event_id, event, claimed.attendees ? { attendees: true } : undefined);
     } else {
       const { eventId } = await cal.insert(event);
       // Stored at once, before done_at: a failure after this point retries as a patch, never a second insert.

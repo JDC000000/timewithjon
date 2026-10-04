@@ -241,4 +241,23 @@ describe('requestOptions: what the A3 sheets offer', () => {
     ]);
     expect((await requestOptions(host))!.joinHosts).toEqual([]);
   });
+
+  it("QA r2 M3: a date dish's stand-by weeks start at the guest's own dates, open by the engine's date rules", async () => {
+    // Season time (booking open): the weeks' state is the engine's, not 'closed'. Jun 5 2027 is a Saturday.
+    const now = new Date('2027-03-15T18:00:00Z');
+    const id = await makeRequest({
+      status: 'requested',
+      awaiting_jon_since: now,
+      mode: 'dates',
+      dish: 'the-grind',
+      counts_toward: 'big_day',
+      date_prefs: JSON.stringify({ dates: ['2027-06-05', '2027-06-19'], window_text: null }),
+    });
+    const o = (await requestOptions(id, now))!;
+    expect(o.weeks.map((w) => w.weekStart)).toEqual(['2027-05-31', '2027-06-14', '2027-06-21']);
+    // The Grind takes Thu to Sun: the rows read "Jun 3–6", and a free week is open, never "full" for lack of slots.
+    expect(o.weeks[0]).toMatchObject({ firstDate: '2027-06-03', lastDate: '2027-06-06', state: 'open' });
+    expect(o.weeks[1]).toMatchObject({ firstDate: '2027-06-17', lastDate: '2027-06-20' });
+    expect(o.openTimes).toEqual([]); // a date dish has no time slots to suggest
+  });
 });

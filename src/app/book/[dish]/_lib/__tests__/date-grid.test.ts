@@ -184,3 +184,15 @@ describe('the Tab stop and the first month', () => {
     expect(initialCalMonth([], [])).toBe('');
   });
 });
+
+describe('ruleAllows matches the engine (QA r2 M3: one rule for the grid, the server and the stand-by sheet)', () => {
+  it('every rule, every day of a season week', async () => {
+    const { dateRuleAllows } = await import('@/features/availability/rules');
+    const { ruleAllows } = await import('../date-grid');
+    for (const rule of ['any-day', 'weekend', 'weekend-or-thu-fri', null] as const)
+      for (let d = 10; d <= 16; d++) {
+        const date = `2027-05-${d}`;
+        expect(ruleAllows(rule, date), `${rule} ${date}`).toBe(dateRuleAllows(rule, date));
+      }
+  });
+});
