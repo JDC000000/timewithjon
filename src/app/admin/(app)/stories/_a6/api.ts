@@ -80,3 +80,41 @@ export async function storySpam(
   const code = (data as { code?: unknown } | null)?.code;
   return { status, code: typeof code === 'string' ? code : null };
 }
+
+/** What Export hands the browser: the signed link (staging, production) or the zip itself (the prototype). */
+export type ExportDownload = { kind: 'link'; url: string } | { kind: 'file'; blob: Blob; name: string };
+
+const EXPORT_FALLBACK_NAME = 'time-with-jon-stories.zip';
+
+/** The file name in an `attachment; filename="…"` header. */
+export function attachmentName(disposition: string | null): string {
+  return /filename="([^"]+)"/.exec(disposition ?? '')?.[1] ?? EXPORT_FALLBACK_NAME;
+}
+
+/**
+ * A6 Export (T3.10.U1): POST /api/admin/export with its defaults (consented stories only, no emails). A JSON
+ * { url } answer is the 10-minute signed link; an application/zip answer is the file. null on any refusal (409 =
+ * an export is already running) or a network error.
+ */
+export async function exportStories(): Promise<ExportDownload | null> {
+  try {
+    const res = await fetch('/api/admin/export', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    if (!res.ok) return null;
+    if (res.headers.get('content-type')?.startsWith('application/zip')) {
+      return {
+        kind: 'file',
+        blob: await res.blob(),
+        name: attachmentName(res.headers.get('content-disposition')),
+      };
+    }
+    const url = ((await res.json().catch(() => null)) as { url?: unknown } | null)?.url;
+    return typeof url === 'string' && url.startsWith('https://') ? { kind: 'link', url } : null;
+  } catch {
+    return null;
+  }
+}

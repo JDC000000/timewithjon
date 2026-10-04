@@ -3527,3 +3527,9 @@ li[hidden] {
 .a5-preview .hero .cta {
   margin-top: var(--s4);
 }
+
+/* T3.10.U1: A6 Export's error line sits on its own row under the Stories actions */
+.stories-export-err {
+  flex-basis: 100%;
+  margin-top: 0;
+}

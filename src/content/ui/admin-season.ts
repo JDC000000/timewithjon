@@ -113,6 +113,8 @@ export const STORIES = {
   titlePage: 'Stories · Time with Jon admin', // PACK v1.12 wf09 A6
   cap: 'The Stories We Still Tell', // PACK v1.12 wf09 A6
   add: 'Add emailed story', // PACK v1.12 wf09 A6
+  export: 'Export', // approved: Jon (2026-10-04)
+  exporting: 'Exporting…', // approved: Jon (2026-10-04)
   after: (dish: string) => `after ${dish}`, // PACK v1.12 wf09 A6
   capAfter: (dish: string) => `After ${dish}`, // PACK v1.12 wf09 A6
   byEmail: 'sent by email', // approved: Jon (2026-10-03) (an emailed story has no dish)

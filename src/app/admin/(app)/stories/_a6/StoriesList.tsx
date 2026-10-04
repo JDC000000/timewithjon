@@ -1,11 +1,12 @@
 // src/app/admin/(app)/stories/_a6/StoriesList.tsx — T2.9.U1: the A6 list pane (wireframe 09 A6): the title, "Add
-// emailed story" (T3.7.U1) and one row per story ("Priya · after The Long Lunch · OK for the book"). Server.
-// T3.10.U1's Export button is GATED on the paid exports bucket: not built here.
+// emailed story" (T3.7.U1), "Export" (T3.10.U1) and one row per story ("Priya · after The Long Lunch · OK for the
+// book"). Server.
 import Link from 'next/link';
 import { Fragment } from 'react';
 import type { StoryItem } from '@/features/admin/stories';
 import { STORIES } from '@/content/ui/admin-season';
 import { AddStory } from './AddStory';
+import { ExportStories } from './ExportStories';
 import { storyMeta, storyWho } from './model';
 import { storyPath } from './paths';
 
@@ -21,6 +22,7 @@ export function StoriesList({ stories, current }: { stories: StoryItem[]; curren
         </p>
         <div style={{ marginTop: 'var(--s3)', display: 'flex', flexWrap: 'wrap', gap: 'var(--s2)' }}>
           <AddStory />
+          <ExportStories />
         </div>
       </div>
       <ul className="rows" style={{ marginTop: 'var(--s3)' }}>
