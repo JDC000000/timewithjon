@@ -49,7 +49,13 @@ describe('verifyTurnstile', () => {
     expect(report).not.toHaveBeenCalled();
   });
 
-  it('outside prototype, refuses a solve from another hostname and accepts our own (B009)', async () => {
+  it('staging does not check the hostname (test keys answer another host)', async () => {
+    env.mode = 'staging';
+    fetchMock.mockResolvedValue(answer({ success: true, hostname: 'example.com' }));
+    expect(await verifyTurnstile('tok', '1.2.3.4')).toBe(true);
+  });
+
+  it('in production, refuses a solve from another hostname and accepts our own (B009)', async () => {
     env.mode = 'production';
     fetchMock.mockResolvedValue(answer({ success: true, hostname: 'evil.test' }));
     expect(await verifyTurnstile('tok', '1.2.3.4')).toBe(false);

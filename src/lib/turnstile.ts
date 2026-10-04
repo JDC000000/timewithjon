@@ -22,7 +22,8 @@ export async function verifyTurnstile(token: string | undefined, ip: string): Pr
     if (!res.ok) throw new Error(`siteverify ${res.status}`);
     const out = (await res.json()) as { success?: boolean; hostname?: string };
     if (out.success !== true) return false;
-    if (env.APP_MODE === 'prototype') return true;
+    // Production only: staging and previews may run Cloudflare's test keys, whose answers name another host.
+    if (env.APP_MODE !== 'production') return true;
     const ours = new URL(env.NEXT_PUBLIC_SITE_URL).hostname;
     if (out.hostname === ours) return true;
     reportMessage('turnstile hostname mismatch', { area: 'turnstile', step: 'hostname' }); // a config slip shows
