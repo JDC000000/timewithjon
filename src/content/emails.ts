@@ -20,7 +20,8 @@ export type TemplateId =
   | 'E12'
   | 'E13'
   | 'E14'
-  | 'E16'; // E15 removed in TSD v1.4 (stories@ forwards to Gmail)
+  | 'E16'
+  | 'E17'; // E15 removed in TSD v1.4 (stories@ forwards to Gmail)
 export const JON_FACING: TemplateId[] = ['E2', 'E3', 'E12', 'E13', 'E14', 'E16'];
 export interface EmailCopy {
   subject: string;
@@ -81,6 +82,11 @@ export const EMAIL_COPY: Record<TemplateId, EmailCopy> = {
     body: 'The “Time with Jon” calendar connection stopped working. Connect it again in Settings.\n{adminLink}',
   },
   E16: { subject: 'Updated: {dish} from {name}', body: '{name} picked new times for {dish}.\n{adminLink}' }, // §14.4
+  // QA r2 M5 (T2.9): Jon's "Cancel for the guest" (A3). The guest's own cancel keeps E11. No link: they reply.
+  E17: {
+    subject: 'I’m booked on that day. Can we try another day?', // approved: Jon (2026-10-04)
+    body: 'Hey, can you suggest one or two other times that work in your calendar? Sorry, my calendar is a little more full than I expected. I’ll be in touch.', // approved: Jon (2026-10-04)
+  },
 };
 /** E12 fillers when the cancelled request had no locked time, or its week has nobody on stand-by (T2.7.07). */
 export const E12_PARTS = {

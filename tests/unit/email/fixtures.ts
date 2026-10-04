@@ -52,6 +52,7 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
   },
   E14: { adminLink: `${SITE}/admin/settings` },
   E16: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
+  E17: {},
 };
 export const LINKS = (id: TemplateId) =>
   Object.entries(VARS[id])

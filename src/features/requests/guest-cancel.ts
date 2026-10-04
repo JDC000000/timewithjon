@@ -3,7 +3,8 @@
 // offers released, the calendar outbox row and the pending E11 + E12 rows. Google and the mailer run after
 // commit (L-3). A cancelled booking no longer counts anywhere, so its window is free at once (T2.7 AC5).
 // T2.9.03: Jon's "Cancel for the guest" (A3) is the same transaction with by='jon': cancelled_by/actor 'jon',
-// and E11 only, never E12 (§6 state machine; C5: E12 is only for a guest's own cancel).
+// and E17 only (QA r2 M5: his own words, never the self-cancel E11), never E12 (§6; C5: E12 is only for a guest's
+// own cancel).
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { E12_PARTS } from '@/content/emails';
@@ -119,7 +120,13 @@ async function cancelTx(
   const wasLocked = when !== null;
   after.emailIds.push(
     ...queuedId(
-      await queueEmail(c, { template: 'E11', to: r.contact_email, requestId, eventKey: audit!.id, vars: {} }),
+      await queueEmail(c, {
+        template: by === 'jon' ? 'E17' : 'E11',
+        to: r.contact_email,
+        requestId,
+        eventKey: audit!.id,
+        vars: {},
+      }),
     ),
   );
   if (by === 'jon') return { result: { ok: true, already: false }, after };
@@ -161,7 +168,7 @@ export async function cancelByGuest(requestId: string, now = new Date()): Promis
   return result;
 }
 
-/** T2.9.03: Jon's Cancel for the guest (A3). Same rules as the guest's cancel; E11 to the guest, no E12. */
+/** T2.9.03: Jon's Cancel for the guest (A3). Same rules as the guest's cancel; E17 to the guest, no E12. */
 export async function cancelForGuest(requestId: string, now = new Date()): Promise<CancelResult> {
   const { result, after } = await withTx((c) => cancelTx(c, requestId, now, 'jon'));
   await runAfterCommit(after, 'jon_cancel');
