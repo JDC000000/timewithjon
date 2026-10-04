@@ -12,6 +12,8 @@ import { pool, q, withTx } from '@/lib/db';
 import { createRequestTx } from '@/features/requests/create';
 import { RequestBody } from '@/features/requests/schema';
 import { runExport } from '@/features/export/run';
+import { exportStories } from '@/features/export/build';
+import { removeRequests } from '../fixtures/requests-db';
 import { createMemoryStore, type MemoryStore } from '@/lib/adapters/mock/object-store';
 import { createMemoryExportStore, type MemoryExportStore } from '@/lib/adapters/mock/export-store';
 import type { ExportStore } from '@/lib/adapters/exports';
@@ -247,6 +249,27 @@ describe('POST /api/admin/export: runExport (T3.10.01)', () => {
     expect(files[`photos/${test}-1.jpg`]).toBeUndefined();
     await q(`delete from story where invite_id = $1`, [realInvite]);
     await q(`delete from invite where id = $1`, [realInvite]);
+  });
+
+  it("a joined guest's story is dated by the host's time together, not the day the story came in", async () => {
+    const host = await newRequest('Hostie');
+    const joined = await newRequest('Joiner');
+    await q(
+      `update request set status = 'done', locked_slot_id = $2, locked_starts_at = '2027-05-13T19:00:00Z',
+              locked_ends_at = '2027-05-13T21:00:00Z' where id = $1`,
+      [host, slotId],
+    );
+    await q(`update request set status = 'done', joined_to_request_id = $2 where id = $1`, [joined, host]);
+    const id = await story({ requestId: joined, consent: true });
+    try {
+      const out = await exportStories({ consentedOnly: true, includeEmail: false });
+      expect(out.find((r) => r.id === id)?.date).toBe('2027-05-13');
+    } finally {
+      // A finished joined row has no range of its own: left behind, other files' "free slot" queries see it
+      // overlap everything.
+      await q(`delete from story where id = $1`, [id]);
+      await removeRequests([joined, host]);
+    }
   });
 
   it('a missing photo object is left out of the zip and the CSV', async () => {

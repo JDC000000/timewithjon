@@ -1,5 +1,5 @@
 // AD-8: every /api/jobs/** and /api/cron/** route refuses a caller without the cron secret, before any work.
-import { globSync } from 'node:fs';
+import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -39,4 +39,9 @@ describe('job endpoints', () => {
     },
     30_000,
   ); // a cold import of the tick route (every job module) can pass 5 s on a loaded host
+  it.each(routes)('%s checks the secret with the one shared helper (lib/cron-auth.ts)', (file) => {
+    const src = readFileSync(path.join(ROOT, file), 'utf8');
+    expect(src).toMatch(/hasCronSecret\(req\)/);
+    expect(src).not.toMatch(/safeEqual|CRON_SECRET/);
+  });
 });

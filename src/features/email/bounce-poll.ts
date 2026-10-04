@@ -113,6 +113,7 @@ export async function pollDeliveryOutcomes(
       `with pick as (
        select id, delivery_checked_at as prev, created_at from email_log
         where status = 'sent' and delivery_final_at is null and resend_id is not null
+          and resend_id not like 'gmail:%' -- sent by the Gmail mailer: Resend has no record of it
           and created_at > now() - interval '72 hours'
           and (delivery_checked_at is null or delivery_checked_at < now() - interval '${RECHECK_AFTER_MIN} minutes')
         order by delivery_checked_at nulls first, created_at
