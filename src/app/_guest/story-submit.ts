@@ -13,6 +13,8 @@ export function decideSubmit(text: string, photos: PhotoState): SubmitDecision {
 }
 
 export interface StoryFields {
+  /** S19 on the general link only (QA r2 M4). */
+  name?: string;
   body: string;
   consent: boolean;
   before60Answer?: string;
@@ -22,6 +24,7 @@ export interface StoryFields {
 /** The JSON body for POST /api/stories (and /api/story-page): blank optional answers are left out, never sent as "". */
 export function storyBody(f: StoryFields): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = { consent: f.consent };
+  if (f.name?.trim()) out.name = f.name.trim();
   if (f.body.trim()) out.body = f.body.trim();
   if (f.before60Answer?.trim()) out.before60Answer = f.before60Answer.trim();
   if (f.hp) out.hp = f.hp;
@@ -40,20 +43,24 @@ export interface StorySaverOptions {
 }
 
 /**
- * The story POST. On S19 the first save creates the story, so `open` (run before the first photo sign) saves the
- * story as it stands when a photo comes before Send; once a save lands, `open` does nothing and Send just updates.
+ * The story POST. On S19 the first save of this page view creates a story, so `open` (run before the first photo
+ * sign) saves the story as it stands when a photo comes before Send; once a save lands, `open` does nothing and
+ * every later save carries `edit: true`, so it updates that story. Without it the server starts a new story: a
+ * fresh /story never overwrites the one an earlier visit saved (QA r2 H1).
  */
 export function storySaver(o: StorySaverOptions): {
   save: (fields: Record<string, string | boolean>, signal: AbortSignal) => Promise<Response>;
   open: OpenStory;
 } {
   let opened = o.opened;
+  const storyPage = !o.opened;
   const save = async (fields: Record<string, string | boolean>, signal: AbortSignal) => {
     const token = opened ? undefined : await o.takeToken();
+    const extra = token ? { turnstileToken: token } : storyPage && opened ? { edit: true } : {};
     const res = await fetch(o.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...o.headers },
-      body: JSON.stringify(token ? { ...fields, turnstileToken: token } : fields),
+      body: JSON.stringify({ ...fields, ...extra }),
       signal,
     }).catch((e: unknown) => {
       if (token) o.reset(); // the token may have gone with a call whose answer was lost
