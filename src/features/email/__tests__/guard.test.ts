@@ -41,7 +41,8 @@ describe('PRIORITY', () => {
   it('classes every template exactly as AD-5 rule 2', () => {
     const byClass = (p: number) =>
       (Object.keys(PRIORITY) as TemplateId[]).filter((t) => PRIORITY[t] === p).sort();
-    expect(byClass(1)).toEqual(['E10', 'E11', 'E14', 'E4', 'E4c', 'E5', 'E5b', 'E5j', 'E7']); // E5j (L3): P1 like E5, TSD delta
+    // E5j (L3): P1 like E5, TSD delta; E17 (QA r2 M5): P1 like the E11 it replaces for Jon's cancel
+    expect(byClass(1)).toEqual(['E10', 'E11', 'E14', 'E17', 'E4', 'E4c', 'E5', 'E5b', 'E5j', 'E7']);
     expect(byClass(2)).toEqual(['E1', 'E6', 'E8', 'E9']);
     expect(byClass(3)).toEqual(['E12', 'E13', 'E16', 'E2', 'E3']);
     expect(Object.keys(PRIORITY).sort()).toEqual(Object.keys(EMAIL_COPY).sort());

@@ -1,4 +1,4 @@
-// src/features/jobs/jobs/prune-old-rows.ts — AD-9: rate_limit windows are at most 1 h long; drop old rows
+// src/features/jobs/jobs/prune-old-rows.ts — AD-9: rate_limit windows are at most 1 day long (most 1 h); drop old rows
 // so the table doesn't grow for the whole season (review T4.2.00 L13). T3.13: webhook_event only dedupes
 // redeliveries inside Svix's retry window (hours), so a week is plenty.
 import { q } from '@/lib/db';

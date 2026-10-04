@@ -112,8 +112,9 @@ async function joinTx(c: PoolClient, requestId: string, hostId: string, now: Dat
     [requestId, JSON.stringify({ from_status: r.status, to_status: 'locked' })],
   );
   const after = noSideEffects();
-  // The host's event gains this attendee: attendees are derived from the locked joined rows (outbox.ts).
-  after.outboxIds.push(await enqueueCalendar(c, 'calendar_patch', hostId));
+  // The host's event gains this attendee: attendees are derived from the locked joined rows (outbox.ts), and
+  // {attendees: true} makes the patch send Google the new list.
+  after.outboxIds.push(await enqueueCalendar(c, 'calendar_patch', hostId, { attendees: true }));
   await extendManageTokens(c, requestId, h.locked_ends_at);
   after.emailIds.push(
     ...queuedId(

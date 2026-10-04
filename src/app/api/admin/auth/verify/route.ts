@@ -1,5 +1,5 @@
 // src/app/api/admin/auth/verify/route.ts — T2.1.04 (T2.1 AC3): the 6-digit code signs in within the same tab.
-// Public (there's no session yet), same-origin only, and limited per IP so a code can't be guessed.
+// Public (there's no session yet), same-origin only, limited per IP; wrong codes are also counted per address.
 import { createHash } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
@@ -33,18 +33,19 @@ async function verifyCode(req: NextRequest): Promise<NextResponse> {
   if (!sameOrigin(req)) return jsonError(403, 'bad_origin', ERRORS.generic);
   const parsed = VerifyBody.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return jsonError(400, 'invalid', ERRORS.generic);
-  // Per IP, then per address (review F1): a pool of IPs still gets only 10 guesses at one address's code.
-  let verdict: LimitVerdict = await check('adminSignInVerify', clientIp(req));
-  if (verdict === 'allowed') verdict = await check('adminSignInVerifyEmail', emailKey(parsed.data.email));
-  // Fail closed (security review 2026-09-30): if the limiter can't count, no code is checked at all.
+  // Per IP: every attempt counts (fail closed: if the limiter can't count, no code is checked at all).
+  const verdict: LimitVerdict = await check('adminSignInVerify', clientIp(req));
   if (verdict === 'unavailable') return jsonError(503, 'unavailable', SIGN_IN.unavailable);
   if (verdict === 'limited') return jsonError(429, 'rate_limited', ERRORS.rateLimited);
+  // Per address: only WRONG codes count, after the check, so other people's attempts at the address never refuse
+  // the admin's correct code. Over it, a wrong code answers 429.
   const result = await completeSignIn(parsed.data);
   if (!result.ok) {
     // Review guarantee 5: a verified user who is off the allowlist gets 401 (their session is already dropped).
-    return result.reason === 'not_admin'
-      ? jsonError(401, 'unauthorized', ERRORS.generic)
-      : jsonError(400, 'invalid_code', ERRORS.generic);
+    if (result.reason === 'not_admin') return jsonError(401, 'unauthorized', ERRORS.generic);
+    const wrong = await check('adminSignInVerifyEmail', emailKey(parsed.data.email));
+    if (wrong === 'limited') return jsonError(429, 'rate_limited', ERRORS.rateLimited);
+    return jsonError(400, 'invalid_code', ERRORS.generic);
   }
   return NextResponse.json({ ok: true });
 }

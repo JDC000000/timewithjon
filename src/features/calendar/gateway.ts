@@ -20,7 +20,7 @@ const gateway = googleCalendarGateway({
 /** The target is read per call, so a reconnect is picked up. A dead grant alerts Jon (E14, T3.14.02). */
 export const realCalendar: CalendarGateway = {
   insert: (e) => withGoogleAlert(() => gateway.insert(e)),
-  patch: (id, e) => withGoogleAlert(() => gateway.patch(id, e)),
+  patch: (id, e, opts) => withGoogleAlert(() => gateway.patch(id, e, opts)),
   remove: (id) => withGoogleAlert(() => gateway.remove(id)),
   rsvps: (from) => withGoogleAlert(() => gateway.rsvps(from)),
   // No withGoogleAlert: health() returns 'revoked' instead of throwing, and its caller (L4's 07:00 check,

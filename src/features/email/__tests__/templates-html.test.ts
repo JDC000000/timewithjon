@@ -1,5 +1,6 @@
-// T3.2.U2 (T3.2 AC1): the HTML part of the 16 templates after E1/E2, on the #107 Layout, with the text part's
-// copy (src/content/emails.ts, no new copy). AC3: the text part is unchanged (renderText snapshot below).
+// T3.2.U2 (T3.2 AC1): the HTML part of the 17 templates after E1/E2 (E17: QA r2 M5), on the #107 Layout, with
+// the text part's copy (src/content/emails.ts, no new copy). AC3: the text part is unchanged (renderText snapshot
+// below).
 import { describe, expect, it } from 'vitest';
 import { EMAIL_COPY, JON_FACING, fill, type TemplateId } from '@/content/emails';
 import { ADMIN_SHELL } from '@/content/ui/foundation';
@@ -17,7 +18,7 @@ const BUTTON: Partial<Record<TemplateId, string>> = {
 const LIST: Partial<Record<TemplateId, string>> = { E5: 'times', E13: 'lines' };
 
 describe('T3.2.U2 html: each template renders on the Layout with its copy', () => {
-  it('covers the 16 templates after E1/E2', () => expect(REST).toHaveLength(16));
+  it('covers the 17 templates after E1/E2', () => expect(REST).toHaveLength(17));
 
   it.each(REST)('%s', async (id) => {
     const vars = VARS[id];
@@ -144,10 +145,18 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
       https://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666
       ",
         },
+        "E17": {
+          "fromLocal": "jon",
+          "subject": "I’m booked on that day. Can we try another day?",
+          "text": "Hey, can you suggest one or two other times that work in your calendar? Sorry, my calendar is a little more full than I expected. I’ll be in touch.
+
+      Jon
+      ",
+        },
         "E2": {
           "fromLocal": "admin",
           "subject": "New request: The Long Lunch from Sam",
-          "text": "Sam wants The Long Lunch. Crew 2. 2 time(s).
+          "text": "Sam wants The Long Lunch. Crew 2. 2 times.
       https://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666
       ",
         },

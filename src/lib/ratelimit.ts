@@ -16,13 +16,16 @@ export const LIMITS = {
   photoSign: { limit: 30, windowSec: 3600 },
   // New story-page stories per INVITE per day (keyed by invite id, not IP): the general link is shared and forwardable.
   storyPageNew: { limit: 20, windowSec: 86400 },
+  // Guest intake emails (E1/E6) per GENERAL invite per day (keyed by invite id): the shared link takes any address.
+  // Over it the request is still stored and Jon still gets E2; only the guest's email is skipped.
+  requestSendInvite: { limit: 20, windowSec: 86400 },
   offerTake: { limit: 10, windowSec: 3600 }, // T2.4 guest takes/proposes an offered time
   manageAction: { limit: 20, windowSec: 3600 }, // T2.7 /api/manage/* (cancel, ask another time, add a story)
   eventBeacon: { limit: 60, windowSec: 3600 }, // T3.11: POST /api/events (sheet/picker opened)
   devLogin: { limit: 10, windowSec: 3600 }, // T1.10.10: slows passphrase guessing on /dev/login
   adminSignInStart: { limit: 5, windowSec: 3600 }, // T2.1.08: every address alike; over it, the same 200
   adminSignInVerify: { limit: 10, windowSec: 3600 }, // T2.1.04: codes + link opens per IP (the callback shares it)
-  adminSignInVerifyEmail: { limit: 10, windowSec: 3600 }, // review F1: per address, so no IP pool out-guesses a code
+  adminSignInVerifyEmail: { limit: 10, windowSec: 3600 }, // per address, WRONG codes only (a right one always passes)
 } as const;
 
 export type LimitScope = keyof typeof LIMITS;

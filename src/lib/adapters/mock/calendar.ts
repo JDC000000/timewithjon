@@ -5,6 +5,8 @@
 // before the guard error is rethrown, so it shows in the log instead of vanishing. The log is mirrored, one JSON
 // line per write, to test-results/mock-calendar-log.jsonl ONLY when that folder already exists (the Playwright run
 // creates it); no other build or preview ever writes a file, and the real adapter never touches this module.
+// Attendees behave as on Google: insert sets them, a plain patch leaves them as they were, and only a patch with
+// {attendees: true} replaces them. Each written entry carries the event's attendee list after the write.
 import { randomUUID } from 'node:crypto';
 import { appendFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -24,6 +26,8 @@ export interface MockCalendarCall {
   eventId: string;
   requestId?: string;
   startsAt?: string;
+  /** The event's attendees after the write (insert, patch); what Google would now hold. */
+  attendees?: string[];
   at: string;
 }
 
@@ -35,8 +39,26 @@ export interface MockCalendarDeps {
 }
 
 // On globalThis so a dev-server module reload keeps one log per process.
-const store = globalThis as typeof globalThis & { __twjMockCalendarLog?: MockCalendarCall[] };
+const store = globalThis as typeof globalThis & {
+  __twjMockCalendarLog?: MockCalendarCall[];
+  __twjMockCalendarAttendees?: Map<string, string[]>;
+};
 const log = (store.__twjMockCalendarLog ??= []);
+/** Attendees by event id, newest MOCK_CALENDAR_LOG_MAX events only. */
+const attendeesByEvent = (store.__twjMockCalendarAttendees ??= new Map());
+
+/** The attendees the mock now holds for an event (undefined: never inserted, or removed). */
+export function mockCalendarAttendees(eventId: string): readonly string[] | undefined {
+  return attendeesByEvent.get(eventId);
+}
+
+function holdAttendees(eventId: string, attendees: string[]): void {
+  attendeesByEvent.delete(eventId);
+  attendeesByEvent.set(eventId, attendees);
+  if (attendeesByEvent.size > MOCK_CALENDAR_LOG_MAX) {
+    attendeesByEvent.delete(attendeesByEvent.keys().next().value!);
+  }
+}
 
 function recordToProcessLog(call: MockCalendarCall): void {
   log.push(call);
@@ -59,7 +81,12 @@ export function mockCalendarLog(): readonly MockCalendarCall[] {
 export function mockCalendarGateway(deps: MockCalendarDeps): CalendarGateway {
   const sink = deps.record ?? recordToProcessLog;
 
-  function write(method: MockCalendarCall['method'], eventId: string, e?: CalendarEvent): void {
+  function write(
+    method: MockCalendarCall['method'],
+    eventId: string,
+    e?: CalendarEvent,
+    attendees?: () => string[],
+  ): void {
     const stored = deps.target();
     const base = {
       method,
@@ -75,17 +102,23 @@ export function mockCalendarGateway(deps: MockCalendarDeps): CalendarGateway {
       sink({ ...base, calendarId: stored ?? '', outcome: 'refused' });
       throw err;
     }
-    sink({ ...base, calendarId, outcome: 'written' });
+    const after = attendees?.();
+    if (after) holdAttendees(eventId, after);
+    else if (method === 'remove') attendeesByEvent.delete(eventId);
+    sink({ ...base, calendarId, outcome: 'written', ...(after ? { attendees: after } : {}) });
   }
 
   return {
     async insert(e) {
       const eventId = `mock-${randomUUID()}`;
-      write('insert', eventId, e);
+      write('insert', eventId, e, () => [...e.attendees]);
       return { eventId };
     },
-    async patch(eventId, e) {
-      write('patch', eventId, e); // the outbox row records the email side
+    async patch(eventId, e, opts) {
+      // As on Google: a plain patch keeps the attendees the event already has.
+      write('patch', eventId, e, () =>
+        opts?.attendees ? [...e.attendees] : [...(attendeesByEvent.get(eventId) ?? [])],
+      );
     },
     async remove(eventId) {
       write('remove', eventId);

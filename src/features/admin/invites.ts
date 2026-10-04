@@ -159,8 +159,13 @@ async function insertInvite(
   }
 }
 
-export async function createInvite(input: CreateInviteInput, now = new Date()): Promise<InviteListItem> {
-  const row = await withTx((c) =>
+/** In its own transaction, or with `db` inside the caller's (the CSV import writes every row in one). */
+export async function createInvite(
+  input: CreateInviteInput,
+  now = new Date(),
+  db?: PoolClient,
+): Promise<InviteListItem> {
+  const insert = (c: PoolClient) =>
     insertInvite(
       c,
       (secret) => [
@@ -176,8 +181,8 @@ export async function createInvite(input: CreateInviteInput, now = new Date()): 
       `insert into invite as i (kind, token_secret, name_slug, display_name, our_things, picked_dish, prefill_name,
                            prefill_email, hoped_for, is_test)
        values ('personal', $1, $2, $3, $4, $5, $3, $6, $7, $8) returning ${COLS}`,
-    ),
-  );
+    );
+  const row = db ? await insert(db) : await withTx(insert);
   return toItem(row, NO_REQUESTS, now);
 }
 

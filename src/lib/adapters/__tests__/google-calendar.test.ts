@@ -192,16 +192,77 @@ describe('GoogleCalendarGateway', () => {
     expect(google.calls.map((c) => c.method)).toEqual(['POST', 'POST']); // googleFetch's one retry, no patch
   });
 
-  it('a 401 drops the cached access token and rethrows', async () => {
+  it('a 401 drops the cached access token and retries once; a second 401 rethrows', async () => {
     google.state.overrides.push(() => ({
       status: 401,
       json: { error: { errors: [{ reason: 'authError' }] } },
     }));
     await expect(gateway().patch(EVENT_ID, event())).rejects.toMatchObject({ status: 401 });
-    expect(forget).toHaveBeenCalledTimes(1);
+    expect(forget).toHaveBeenCalledTimes(2);
+    expect(google.calls.map((c) => c.method)).toEqual(['PATCH', 'PATCH']);
     google.state.overrides = [() => ({ status: 403 })];
     await expect(gateway().patch(EVENT_ID, event())).rejects.toMatchObject({ status: 403 });
+    expect(forget).toHaveBeenCalledTimes(2);
+  });
+
+  it('one 401 on a stale token: forget it, retry with a fresh one, and succeed', async () => {
+    await gateway().insert(event());
+    google.calls.length = 0;
+    let token = 0;
+    const refreshing = googleCalendarGateway({
+      accessToken: async () => `at-${++token}`,
+      target: async () => ({ calendarId: stored, ownerEmail: JON }),
+      forgetAccessToken: forget,
+    });
+    google.state.overrides.push((c) => (c.auth === 'Bearer at-1' ? { status: 401 } : undefined));
+    await expect(refreshing.patch(EVENT_ID, event({ summary: 'Moved' }))).resolves.toBeUndefined();
     expect(forget).toHaveBeenCalledTimes(1);
+    expect(google.calls.map((c) => c.auth)).toEqual(['Bearer at-1', 'Bearer at-2']);
+    expect(stored_()?.summary).toBe('Moved');
+  });
+
+  it('patch {attendees: true}: a joined guest is added, everyone else keeps their answer, sendUpdates=all', async () => {
+    await gateway().insert(event());
+    const ev = stored_()!;
+    google.events.set(`${CAL}/${EVENT_ID}`, {
+      ...ev,
+      attendees: [
+        { email: 'sam@example.com', responseStatus: 'accepted' },
+        { email: JON, responseStatus: 'accepted' },
+      ],
+    });
+    google.calls.length = 0;
+    await gateway().patch(EVENT_ID, event({ attendees: ['sam@example.com', 'kim@example.com'] }), {
+      attendees: true,
+    });
+    expect(writes()).toEqual([
+      `GET /calendar/v3/calendars/${CAL}/events/${EVENT_ID} null`,
+      `PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`,
+    ]);
+    expect(JSON.parse(google.calls[1]!.body)).not.toHaveProperty('status');
+    expect(stored_()?.attendees).toEqual([
+      { email: 'sam@example.com', responseStatus: 'accepted' },
+      { email: 'kim@example.com' },
+      { email: JON, responseStatus: 'accepted' },
+    ]);
+
+    // The joined guest leaves: dropped (Google sends the cancellation), Sam's answer still kept.
+    await gateway().patch(EVENT_ID, event(), { attendees: true });
+    expect(writes().at(-1)).toBe(`PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`);
+    expect(stored_()?.attendees).toEqual([
+      { email: 'sam@example.com', responseStatus: 'accepted' },
+      { email: JON, responseStatus: 'accepted' },
+    ]);
+  });
+
+  it('patch {attendees: true}: the last guest leaving an .ics-only event still tells them; same set = no list', async () => {
+    await gateway().insert(event({ attendees: ['kim@example.com'] }));
+    await gateway().patch(EVENT_ID, event({ attendees: [] }), { attendees: true });
+    expect(writes().at(-1)).toBe(`PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`);
+    expect(stored_()?.attendees).toEqual([{ email: JON, responseStatus: 'accepted' }]);
+    await gateway().patch(EVENT_ID, event({ attendees: [] }), { attendees: true });
+    expect(writes().at(-1)).toBe(`PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} none`);
+    expect(JSON.parse(google.calls.at(-1)!.body)).not.toHaveProperty('attendees');
   });
 
   it.each([['primary'], ['PRIMARY'], ['jon@example.com'], [null], ['']])(

@@ -1,8 +1,9 @@
 // src/lib/requests/validate.ts — T1.7 server re-check of a request against the dish and the engine. Pure.
 import { isBookable } from '@/content/menu-helpers';
 import type { Dish } from '@/content/types';
+import { dateRuleAllows } from '@/features/availability/rules';
 import type { CountsToward, EngineOutput } from '@/features/availability/types';
-import { addDays, isoWeekday, vancouverDate } from '@/lib/time';
+import { addDays, vancouverDate } from '@/lib/time';
 import type { RequestBody } from './schema';
 
 export type ValidationCode =
@@ -36,6 +37,11 @@ function validTz(tz: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** The body as stored: a sealed Surprise plan only on a Surprise Me request (any other dish drops it). */
+export function storableBody(b: RequestBody, dish: Dish): RequestBody {
+  return dish.flow === 'surprise' || b.surprisePlan === undefined ? b : { ...b, surprisePlan: undefined };
 }
 
 export function validateRequest(
@@ -82,10 +88,7 @@ export function validateRequest(
   for (const d of b.dates) {
     if (d < season.start || d > season.end) return { ok: false, code: 'out_of_season' };
     if (unavailable.has(d)) return { ok: false, code: 'date_unavailable' };
-    const dow = isoWeekday(d);
-    if (dish.dateRule === 'weekend' && dow < 6) return { ok: false, code: 'date_not_allowed' };
-    if (dish.dateRule === 'weekend-or-thu-fri' && ![4, 5, 6, 7].includes(dow))
-      return { ok: false, code: 'date_not_allowed' };
+    if (!dateRuleAllows(dish.dateRule, d)) return { ok: false, code: 'date_not_allowed' };
   }
   const countsToward: CountsToward =
     dish.countsToward === 'jon_sets'

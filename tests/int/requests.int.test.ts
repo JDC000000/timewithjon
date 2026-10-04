@@ -189,6 +189,24 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
     expect(out.map((o) => o.template)).toEqual(['E1']);
     expect(out[0]!.text_body).toMatch(/^Got your times:\nThu May 13 · noon–2 pm\nI’ll lock one in/); // option A, QA C
   });
+  it('the general invite: the 21st request in a day queues E2 but not E1, and is still stored (B006)', async () => {
+    await q(`delete from rate_limit where scope = 'requestSendInvite'`);
+    try {
+      const capped = (b: ReturnType<typeof mk>) => ({ ...args(b), capGuestEmails: true });
+      for (let i = 0; i < 20; i++) {
+        const { requestId } = await create(capped(mk()));
+        expect((await emailsFor(requestId)).map((e) => e.template)).toEqual(['E1', 'E2']);
+      }
+      const { requestId } = await create(capped(mk()));
+      expect((await emailsFor(requestId)).map((e) => e.template)).toEqual(['E2']);
+      expect(await q(`select 1 from request where id = $1`, [requestId])).toHaveLength(1);
+      // A personal invite is never capped.
+      const own = await create(args(mk(), false, 'requested', personalInviteId));
+      expect((await emailsFor(own.requestId)).map((e) => e.template)).toEqual(['E1', 'E2']);
+    } finally {
+      await q(`delete from rate_limit where scope = 'requestSendInvite'`);
+    }
+  });
   it('an idempotent replay sends what a crashed first attempt left pending', async () => {
     const email = `replay+${randomUUID().slice(0, 6)}@example.com`;
     const b = mk({ email });

@@ -46,6 +46,12 @@ describe('T0.2 schema', () => {
       ),
     ).rejects.toThrow(/check/);
   });
+  it('story.invite_id (a foreign key) has an index (B004)', async () => {
+    const rows = await q<{ indexdef: string }>(
+      `select indexdef from pg_indexes where schemaname = 'public' and tablename = 'story' and indexname = 'story_invite_id_idx'`,
+    );
+    expect(rows.map((r) => r.indexdef)).toEqual([expect.stringMatching(/\(invite_id\)$/)]);
+  });
   it('AC6 audit_log refuses non-whitelisted detail keys', async () => {
     await expect(
       q(`insert into audit_log (actor, action, detail) values ('jon','x','{"note":"x"}')`),

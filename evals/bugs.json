@@ -1,5 +1,173 @@
 [
   {
+    "id": "tick-hard-stop",
+    "date": "2026-10-04",
+    "task": "T3.9.01",
+    "area": "jobs",
+    "summary": "A hung Google or mailer call inside a tick job ran past the route's maxDuration: the heartbeat was not written and the jobs after it never ran while the provider was slow.",
+    "fix": "Every Google and mailer call in a tick stops at the start budget + 1 s; jobs the budget skipped run first on the next tick.",
+    "test": "tests/unit/tick-hard-stop.test.ts"
+  },
+  {
+    "id": "gmail-send-timeout",
+    "date": "2026-10-04",
+    "task": "T3.17.01",
+    "area": "email",
+    "summary": "The Gmail mailer's send had no timeout, so a hung socket held the request until the function was killed.",
+    "fix": "A 10 s timeout on every Gmail send, shortened by the tick's hard stop.",
+    "test": "src/lib/adapters/__tests__/gmail-mime.test.ts"
+  },
+  {
+    "id": "tick-jobs-failing",
+    "date": "2026-10-04",
+    "task": "T3.14.01",
+    "area": "health",
+    "summary": "/api/health reported the tick ok while every job threw on every tick.",
+    "fix": "The heartbeat records the failed count; a tick where every job failed fails the tick check, a partial failure is a warning.",
+    "test": "tests/int/health.int.test.ts"
+  },
+  {
+    "id": "health-public-detail",
+    "date": "2026-10-04",
+    "task": "T3.14.01",
+    "area": "health",
+    "summary": "The public /api/health body named each check's internal state.",
+    "fix": "The public body says only ok/fail per check; reason codes and warnings need the cron secret.",
+    "test": "tests/int/health.int.test.ts"
+  },
+  {
+    "id": "BUG-001",
+    "date": "2026-10-04",
+    "task": "T3.4",
+    "area": "calendar",
+    "summary": "A guest joining or leaving a host's locked booking never reached Google: the host-event patch sent time and text only, so a joined guest got no invite and a removed one kept theirs. The mock calendar did not model attendees, so tests could not see it.",
+    "fix": "Patch rows written for a joined-guest change carry {attendees: true}; the gateway then GETs the event and sends the new attendee list, keeping every staying attendee's entry (and responseStatus). The mock now keeps attendees the way Google does.",
+    "tests": [
+      "src/lib/adapters/__tests__/google-calendar.test.ts",
+      "src/lib/adapters/__tests__/mock-calendar.test.ts",
+      "tests/int/calendar-gateway.int.test.ts",
+      "tests/int/joined.int.test.ts",
+      "tests/int/admin-cancel.int.test.ts"
+    ]
+  },
+  {
+    "id": "BUG-002",
+    "date": "2026-10-04",
+    "task": "T3.14.02",
+    "area": "calendar",
+    "summary": "One 401 on a cached access token recorded last_error 'unauthorized' and sent Jon the reconnect email, even when a fresh refresh would have worked.",
+    "fix": "On a 401 the gateway drops the cached token, refreshes and retries once; only a second 401 or a failed refresh reaches the alert.",
+    "tests": ["src/lib/adapters/__tests__/google-calendar.test.ts", "tests/int/calendar-gateway.int.test.ts"]
+  },
+  {
+    "id": "B001",
+    "date": "2026-10-04",
+    "area": "requests/manage",
+    "title": "Manage link ran out while a re-requested booking was still open",
+    "symptom": "After Ask for another time on a locked booking (or its host leaving, for joined guests), every live manage link kept the old end + 7 days, so the guest saw Link expired while still waiting on Jon.",
+    "fix": "A locked booking that goes back to waiting on Jon gives its live manage links at least the unlocked lifetime (120 days from now); joined guests get the same when their host leaves.",
+    "test": "tests/int/manage.int.test.ts (B001)"
+  },
+  {
+    "id": "B002",
+    "date": "2026-10-04",
+    "area": "requests/propose",
+    "title": "Proposing new times locked the request before its host",
+    "symptom": "A weather-called joined guest proposing new times while Jon promoted a sibling to host could end in a deadlock (40P01) and a 500 on one side.",
+    "fix": "proposeTimes locks the host row first (lockHostOf), then the request, as every other joined-guest action does.",
+    "test": "tests/int/propose.int.test.ts (B002)"
+  },
+  {
+    "id": "B003",
+    "date": "2026-10-04",
+    "area": "admin/invites",
+    "title": "CSV invite import could write part of the file",
+    "symptom": "Each row was its own transaction, so a failure at row N left N-1 invites; a re-upload then made duplicates.",
+    "fix": "All rows are written in one transaction (createInvite takes the caller's client).",
+    "test": "tests/int/admin-invites-import.int.test.ts (B003)"
+  },
+  {
+    "id": "B004",
+    "date": "2026-10-04",
+    "area": "db/story",
+    "title": "story.invite_id foreign key had no index",
+    "symptom": "Removing an invite (on delete set null) and purging stories by invite scanned the story table.",
+    "fix": "Migration 20261102000740_story_invite_index.sql adds story_invite_id_idx.",
+    "test": "tests/int/schema.int.test.ts (story.invite_id has an index)"
+  },
+  {
+    "id": "B005",
+    "date": "2026-10-04",
+    "area": "photos/finalise",
+    "title": "A refused upload could be finalised again",
+    "symptom": "A refused upload (too big or unreadable) could be re-sent to the same path and finalised again, re-running the image decode each time; only successful finalises were counted.",
+    "fix": "A refused upload is marked done without a photo (finalised_at set, photo_id null); finalising it again answers not_found before any download.",
+    "test": "tests/int/photos.int.test.ts (B005)"
+  },
+  {
+    "id": "B006",
+    "date": "2026-10-04",
+    "area": "requests/intake",
+    "title": "No daily cap on guest intake emails from the general invite",
+    "symptom": "The general link sends E1/E6 to whatever address is typed, bounded only by the per-IP limit, so the daily email budget could be spent on it.",
+    "fix": "Per general invite, at most 20 guest intake emails a day (requestSendInvite); over it the request is still stored and Jon still gets E2.",
+    "test": "tests/int/requests.int.test.ts (B006)"
+  },
+  {
+    "id": "B007",
+    "date": "2026-10-04",
+    "area": "admin/sign-in",
+    "title": "Other people's attempts could refuse the admin's correct sign-in code",
+    "symptom": "The per-address verify bucket counted every attempt, so 10 tries at the admin's address from anywhere refused the admin's correct code for an hour.",
+    "fix": "The per-address bucket counts only wrong codes, after the check; the per-IP limit still counts every attempt.",
+    "test": "tests/int/admin-verify.int.test.ts (B007)"
+  },
+  {
+    "id": "B008",
+    "date": "2026-10-04",
+    "area": "sentry",
+    "title": "Scrubber missed names and free-text keys, and pg failing-row details",
+    "symptom": "Keys like contact_name, pitch_idea or before60_answer in Sentry extras/tags passed through, and a check violation's 'Failing row contains (...)' kept the row values.",
+    "fix": "SENSITIVE also matches name, pitch, need_to_know, answer, plan and detail; scrubText redacts 'Failing row contains (...)'.",
+    "test": "src/lib/__tests__/sentry-scrub.test.ts (B008)"
+  },
+  {
+    "id": "B009",
+    "date": "2026-10-04",
+    "area": "turnstile",
+    "title": "Siteverify hostname was not checked",
+    "symptom": "A solve from any site using our key passed.",
+    "fix": "Outside prototype, siteverify's hostname must equal NEXT_PUBLIC_SITE_URL's host (a mismatch is reported).",
+    "test": "src/lib/__tests__/turnstile.test.ts (B009)"
+  },
+  {
+    "id": "B010",
+    "date": "2026-10-04",
+    "area": "analytics/events",
+    "title": "A chunked beacon body was read whole before the size check",
+    "symptom": "Without a Content-Length, POST /api/events buffered the entire body before refusing it as over 256 bytes.",
+    "fix": "The body is read with a bounded reader that stops once it passes the limit.",
+    "test": "src/app/api/events/__tests__/route.test.ts (B010)"
+  },
+  {
+    "id": "B011",
+    "date": "2026-10-04",
+    "area": "availability/freebusy",
+    "title": "Free/busy refetch had no single flight",
+    "symptom": "After the 10-minute cache expired, every guest render called Google until one write landed.",
+    "fix": "The refetch runs under a transaction advisory lock; renders that arrive meanwhile serve the stale cache.",
+    "test": "tests/int/freebusy-cooldown.int.test.ts (B011)"
+  },
+  {
+    "id": "B012",
+    "date": "2026-10-04",
+    "area": "requests/intake",
+    "title": "A Surprise plan was stored on any dish",
+    "symptom": "surprisePlan sent with a non-Surprise dish was stored as surprise_plan_sealed, and Jon saw 'Sealed plan on file' on that request.",
+    "fix": "storableBody drops surprisePlan unless the dish is Surprise Me.",
+    "test": "src/features/requests/__tests__/validate.test.ts (B012)"
+  },
+  {
     "id": "webhook-bounce-before-send-recorded",
     "date": "2026-10-04",
     "task": "T3.13.01",

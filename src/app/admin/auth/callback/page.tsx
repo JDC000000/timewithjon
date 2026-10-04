@@ -1,6 +1,8 @@
 // src/app/admin/auth/callback/page.tsx — T2.1.U1 A1c (V5, g1 #20 (a)): the emailed sign-in link opens this one-tap
 // page. The GET has NO side effects: it never calls Auth, so a link scanner, a prefetch or a HEAD can't spend the
-// one-time token. Only the POST (/api/admin/auth/confirm, same-origin, with this page's CSRF token) signs in.
+// one-time token. Only the POST (/api/admin/auth/confirm, same-origin, with this page's form token) signs in. The form
+// token is minted here for any well-formed token_hash, so it shows only that the POST came through this page; what
+// keeps a sign-in from being started elsewhere is the Origin check plus the allowlist re-check of the signed-in email.
 // A malformed link (not exactly one type=email and one token_hash) is a 404. Never cached (dynamic).
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';

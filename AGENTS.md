@@ -27,7 +27,9 @@ If this file and the TSD disagree, the TSD wins. Tell the orchestrator about the
 - Next.js App Router (16.x), TypeScript strict, React 19, on **Vercel**, functions pinned to `sfo1`
 - **Supabase**: Postgres (`us-west-1`), private Storage (`photos`, `exports`), Auth email OTP for the admin only
 - **Email**: Resend Free outbound in production (daily-budget guard); Gmail API mailer for staging and as the
-  production fallback; inbound jon@/stories@ via Cloudflare Email Routing to Jon's Gmail (no inbound webhook)
+  production fallback; inbound jon@/stories@ via Cloudflare Email Routing to Jon's Gmail (no inbound webhook).
+  Gmail has no idempotency key: a send Gmail accepted whose answer was lost (timeout, network error, 5xx) is
+  retried by the tick and may reach the guest twice. This rare duplicate is an accepted risk on the Gmail mailer.
 - **Google Calendar API**: OAuth as Jon, refresh token AES-256-GCM encrypted
 - **Cloudflare**: DNS, Turnstile · **R2**: photo backup only · **Sentry** (scrubbed) · **UptimeRobot** → `/api/health`
 - `pg_cron` + `pg_net` → `POST /api/cron/tick` (15 min) and `POST /api/jobs/media` (5 min)
