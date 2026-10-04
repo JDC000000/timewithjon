@@ -467,7 +467,8 @@ describe('guest cancel (T2.7.04, E11 + E12, AC5)', () => {
   it('rule 2: a joined guest who cancels leaves the host locked; only their attendee goes (a host patch)', async () => {
     const patch = vi.spyOn(mockCalendar, 'patch');
     const remove = vi.spyOn(mockCalendar, 'remove');
-    const { id: host } = await lockedRequest('2027-04-01');
+    // Not Thu Apr 1 lunch: the household hold (QA r2 L6) refuses a plain lock there.
+    const { id: host } = await lockedRequest('2027-04-02', 'evening');
     const joined = await joinTo(host);
     const res = await cancelByGuest(joined);
     expect(res).toEqual({ ok: true, already: false });

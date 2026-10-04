@@ -74,6 +74,7 @@ export async function markRequestNotSpam(id: string): Promise<SpamResult> {
         crew: r.crew_size,
         bigCrew: r.big_crew,
         choiceCount: r.choices,
+        choiceKind: r.mode === 'slots' ? 'times' : 'dates',
         standbyWeek: r.standby_week,
         requestedTimes: [], // only E2 is sent here
         jonEmail: jonEmail(),

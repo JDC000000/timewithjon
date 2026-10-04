@@ -33,7 +33,7 @@ export default async function NewDatePage({ searchParams }: { searchParams: Sear
     return (
       <S18Shell>
         <S18Page page="new-date" view={model} state="current">
-          <S18Current message={model.message} />
+          <S18Current message={model.message} requestId={model.requestId} />
         </S18Page>
       </S18Shell>
     );
