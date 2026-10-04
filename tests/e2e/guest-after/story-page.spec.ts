@@ -3,10 +3,11 @@
 // prototype's (POST /api/photos/sign answers { mock: true }, §5.5), so nothing leaves the box; the 2-photo save
 // through the real pipeline is proven in tests/int/stories.int.test.ts.
 // AC1: a story and 2 photos save with source 'story_page'. AC2: /story can't be reached without an invite.
+// QA r2 H1: a second visit starts a new story and never overwrites the first. M4: the general link asks for a name.
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { Client } from 'pg';
-import { AFTER_SEND } from '../../../src/content';
+import { AFTER_SEND, FLOW } from '../../../src/content';
 import { PHOTO_PICKER, STALE, STORY_FORM } from '../../../src/content/ui/guest-after';
 import { signCookie } from '../../../src/features/invites/tokens';
 import { expect, test } from '../support/fixtures';
@@ -40,15 +41,15 @@ async function withInvite(page: Page, baseURL: string | undefined, inviteId?: st
 }
 
 /** A test invite of this test's own, so its story rows can be counted while other tests share the seeded one. */
-async function freshInvite(): Promise<string> {
+async function freshInvite(label = 'S19 photo-first'): Promise<string> {
   const secret = Array.from(
     { length: 8 },
     () => 'abcdefghjkmnpqrstvwxyz23456789'[Math.floor(Math.random() * 30)],
   ).join('');
   const [row] = await sql<{ id: string }>(
     `insert into invite (kind, token_secret, name_slug, display_name, is_test)
-     values ('personal', $1, $2, 'S19 photo-first', true) returning id`,
-    [secret, `e2e-s19-${secret}`],
+     values ('personal', $1, $2, $3, true) returning id`,
+    [secret, `e2e-s19-${secret}`, label],
   );
   return row!.id;
 }
@@ -63,13 +64,14 @@ async function openStory(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
 }
 
-test('S19 AC1: with an invite, a story then 2 photos save as one story with source story_page', async ({
+test('S19 AC1 + QA r2 H1: a story saves; a second visit with 2 photos is a new story, the first is kept', async ({
   page,
   baseURL,
 }) => {
-  const inviteId = await withInvite(page, baseURL);
+  const inviteId = await withInvite(page, baseURL, await freshInvite('S19 two visits'));
   const first = `S19 ${randomUUID()}: the lunch that ran to dinner.`;
   await openStory(page);
+  await expect(page.getByRole('textbox', { name: FLOW.nameLabel })).toHaveCount(0); // a personal link names its guest
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(first);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(first);
   await page.getByRole('checkbox', { name: AFTER_SEND.consent }).check();
@@ -83,7 +85,7 @@ test('S19 AC1: with an invite, a story then 2 photos save as one story with sour
     { id: expect.any(String), source: 'story_page', invite_id: inviteId, consent: true },
   ]);
 
-  // Back on S19 with the twj_story capability the first save issued: 2 photos go up, and Send updates that story.
+  // Back on S19 while the first save's twj_story is still set: 2 photos go up and Send saves a NEW story.
   await openStory(page);
   await page.getByLabel(AFTER_SEND.photoButton).setInputFiles([
     { name: 'a.png', mimeType: 'image/png', buffer: PNG },
@@ -95,16 +97,38 @@ test('S19 AC1: with an invite, a story then 2 photos save as one story with sour
     ).toBeVisible();
   }
   await expect(page.getByText(PHOTO_PICKER.full(2, 2))).toBeVisible();
-  const second = `${first} And the photos.`;
+  const second = `S19 ${randomUUID()}: and the photos.`;
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(second);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(second);
   await page.getByRole('button', { name: STORY_FORM.send }).click();
   await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
-  const after = await sql<{ id: string; source: string; body: string }>(
-    `select id, source, body from story where id = $1`,
-    [saved[0]!.id],
+  const rows = await sql<{ source: string; body: string }>(
+    `select source, body from story where invite_id = $1 order by created_at`,
+    [inviteId],
   );
-  expect(after).toEqual([{ id: saved[0]!.id, source: 'story_page', body: second }]);
+  expect(rows).toEqual([
+    { source: 'story_page', body: first },
+    { source: 'story_page', body: second },
+  ]);
+});
+
+test('S19 QA r2 M4: on the general link the guest can give a name, and the story keeps it', async ({
+  page,
+  baseURL,
+}) => {
+  await withInvite(page, baseURL);
+  const body = `S19 ${randomUUID()}: from the general link.`;
+  await openStory(page);
+  const name = page.getByRole('textbox', { name: FLOW.nameLabel });
+  await name.fill('Gina Ruiz');
+  await expect(name).toHaveValue('Gina Ruiz');
+  await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(body);
+  await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(body);
+  await page.getByRole('button', { name: STORY_FORM.send }).click();
+  await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
+  expect(await sql(`select from_name from story where body = $1`, [body])).toEqual([
+    { from_name: 'Gina Ruiz' },
+  ]);
 });
 
 test('S19 AC1 photo-first: 2 photos picked at once before the first Send make exactly 1 story_page story', async ({

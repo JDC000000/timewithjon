@@ -3,6 +3,7 @@
 // saves with source 'story_page' (AC1); 'none' or 'stale' shows the S16 stale page, never the form.
 // Photos go to /api/photos/sign?for=story_page (invite + twj_story). S19 has no photo slot of its own.
 // The first save creates the story; for the general invite it carries a Turnstile token (AD-9, as /api/requests).
+// The general invite's form also asks for the guest's name (QA r2 M4); a personal invite already names them.
 import type { Metadata } from 'next';
 import { getEnv } from '@/config/env';
 import { SEND_A_STORY } from '@/content';
@@ -30,7 +31,7 @@ export default async function StoryPage() {
       {valid ? (
         <Story
           before60={(await loadSettings()).before60_enabled}
-          siteKey={session.invite.kind === 'general' ? getEnv().NEXT_PUBLIC_TURNSTILE_SITE_KEY : undefined}
+          general={session.invite.kind === 'general'}
         />
       ) : (
         <StaleState />
@@ -40,7 +41,8 @@ export default async function StoryPage() {
   );
 }
 
-function Story({ before60, siteKey }: { before60: boolean; siteKey: string | undefined }) {
+function Story({ before60, general }: { before60: boolean; general: boolean }) {
+  const siteKey = general ? getEnv().NEXT_PUBLIC_TURNSTILE_SITE_KEY : undefined;
   return (
     <main id="main">
       <div className="wrap" style={NARROW}>
@@ -53,7 +55,7 @@ function Story({ before60, siteKey }: { before60: boolean; siteKey: string | und
           maxPhotos={MAX_PHOTOS.story_page}
           before60={before60}
           skipHref={ROUTES.home}
-          storyPage={siteKey ? { siteKey } : {}}
+          storyPage={general ? { siteKey, askName: true } : {}}
         />
       </div>
     </main>

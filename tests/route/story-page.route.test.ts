@@ -1,5 +1,6 @@
 // T3.12.02 (TSD T3.12 AC1–AC2) against a real prototype server: a story saves with source `story_page` and its
-// photo calls ride the twj_story capability; without an invite → 403. (The prototype stores no photo bytes,
+// photo calls ride the twj_story capability; without an invite → 403. QA r2 H1: only a save marked `edit` (the same
+// page view) updates the capability's story; a fresh page view's save starts a new one. (The prototype stores no photo bytes,
 // §5.5, so sign answers { mock: true }; the 2-photo save through the real pipeline is in stories.int.test.ts.)
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
@@ -48,7 +49,7 @@ describe('POST /api/story-page (T3.12)', () => {
     expect(await storiesTagged()).toEqual([]);
   });
 
-  it('AC1: saves source story_page; the capability updates the SAME story; photos ride twj_story', async () => {
+  it('AC1: saves source story_page; an edit updates the SAME story, a fresh save a new one; photos ride twj_story', async () => {
     const first = await post(
       '/api/story-page',
       { body: `${tag} first`, consent: false, storyId: randomUUID() },
@@ -60,15 +61,26 @@ describe('POST /api/story-page (T3.12)', () => {
     expect(story).toBeTruthy();
     const second = await post(
       '/api/story-page',
-      { body: `${tag} second`, consent: true },
+      { body: `${tag} second`, consent: true, edit: true },
       `${invite}; ${story}`,
     );
     expect(second.status).toBe(200);
-    // pr43 F3: twj_story is issued once; a later save never slides its 2 hours
+    // pr43 F3: twj_story is issued once per story; an edit never slides its 2 hours
     expect(cookieOf(second, 'twj_story')).toBeUndefined();
     const rows = await storiesTagged();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ source: 'story_page', consent: true, consent_source: 'tickbox' });
+
+    // QA r2 H1: a fresh page view, cookie still set, no `edit`: a NEW story with its own twj_story.
+    const fresh = await post(
+      '/api/story-page',
+      { body: `${tag} fresh`, consent: false },
+      `${invite}; ${story}`,
+    );
+    expect(fresh.status).toBe(200);
+    expect(cookieOf(fresh, 'twj_story')).toBeTruthy();
+    expect(cookieOf(fresh, 'twj_story')).not.toBe(story);
+    expect((await storiesTagged()).map((r) => r.id)).toEqual([rows[0]!.id, expect.any(String)]);
 
     const both = `${invite}; ${story}`;
     const signed = await post('/api/photos/sign?for=story_page', {}, both);
