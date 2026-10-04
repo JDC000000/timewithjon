@@ -19,7 +19,7 @@ import { manageLink, type EmailVar } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { extendManageTokens } from '@/features/invites/action-tokens';
 import { withTx } from '@/lib/db';
-import { dayLabel, vancouverDate, weekStartOf } from '@/lib/time';
+import { datesTouched, dayLabel, weekStartOf } from '@/lib/time';
 import { guestWhen } from '@/lib/when';
 import { dishName } from './joined-cascade';
 import { releaseLiveOffers } from './offers';
@@ -77,12 +77,21 @@ export type TxOutcome =
 /** The in-transaction outcome of a lock (T2.4.07 composes it with spending the offer token; afterLock runs it). */
 export type LockTxOutcome = TxOutcome;
 
-/** Serialise every lock and stand-by offer in the week of `startsAt` (AC2): the seeded week row FOR UPDATE, or a
- * transaction advisory lock on the same week if the row is ever missing. */
-export async function lockWeekOf(c: PoolClient, startsAt: Date): Promise<void> {
-  const weekStart = weekStartOf(vancouverDate(startsAt));
-  const week = await c.query(`select 1 from week where week_start = $1 for update`, [weekStart]);
-  if (!week.rowCount) await c.query(`select pg_advisory_xact_lock(hashtext('twj_week:' || $1))`, [weekStart]);
+/**
+ * Serialise every lock and stand-by offer in each week the range touches (AC2): the seeded week rows FOR UPDATE,
+ * or a transaction advisory lock on the same week if a row is ever missing. A range that runs from Sunday into
+ * Monday (an overnight, up to 72 h) holds both weeks, so a lock or offer in the second week waits for it too.
+ * Weeks are taken in date order, so two transactions never wait on each other in a cycle.
+ */
+export async function lockWeeksOf(c: PoolClient, range: { startsAt: Date; endsAt: Date }): Promise<void> {
+  // datesTouched's end is exclusive; an empty range still holds the week it starts in.
+  const end = new Date(Math.max(range.endsAt.getTime(), range.startsAt.getTime() + 1));
+  const weeks = [...new Set(datesTouched(range.startsAt, end).map(weekStartOf))].sort();
+  for (const weekStart of weeks) {
+    const week = await c.query(`select 1 from week where week_start = $1 for update`, [weekStart]);
+    if (!week.rowCount)
+      await c.query(`select pg_advisory_xact_lock(hashtext('twj_week:' || $1))`, [weekStart]);
+  }
 }
 
 /** AD-9: a guest take with the honeypot filled is recorded (its own audit row: the detail keys are fixed). */
@@ -182,9 +191,9 @@ export async function applyLock(
     return { ok: true, warnings: [] };
   }
 
-  // Serialise every lock in the week. The seeded week row is the lock; if it is ever missing, a transaction
-  // advisory lock on the same week keeps the serialisation (review L3) without inventing a week row.
-  await lockWeekOf(c, range.startsAt);
+  // Serialise every lock in each week the range touches. The seeded week rows are the lock; if one is ever
+  // missing, a transaction advisory lock on the same week keeps the serialisation without inventing a week row.
+  await lockWeeksOf(c, range);
   const loaded = await loadEngineData(now, c);
   const verdict = canLock({
     now,

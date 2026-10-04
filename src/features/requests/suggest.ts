@@ -2,15 +2,19 @@
 // `needs_new_time` → `needs_new_time`, including a re-suggest): up to 4 open windows (slots mode) or up to 4 ranges
 // (dates mode). One transaction: the request row FOR UPDATE, the old live offers released (a re-suggest replaces
 // them), a `suggested_times` offer (no expiry), the audit row and the pending E5 with ONE take link (a link spec,
-// minted at send time). After commit the email is sent, awaited. Whether a window is still free is decided when
-// the guest takes it (canLock, T2.4.07), never here.
+// minted at send time). After commit the email is sent, awaited. A time outside the season or shut by a block is
+// refused here (the engine's blockedBy); whether a window is still free is decided when the guest takes it
+// (canLock, T2.4.07).
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { dishBySlug } from '@/content/menu-helpers';
+import { loadEngineData } from '@/features/availability/load';
+import { blockedBy, inSeason } from '@/features/availability/rules';
 import type { CountsToward, RequestStatus } from '@/features/availability/types';
 import { takeLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
+import { vancouverDate } from '@/lib/time';
 import { guestWhen } from '@/lib/when';
 import { createOffer, releaseLiveOffers, sameLiveOffer, type OfferRange } from './offers';
 import { noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
@@ -103,6 +107,14 @@ async function suggestTx(
   const times = await offeredTimes(c, a.options, a.now);
   if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
   if (times === 'in_the_past') return { result: { ok: false, status: 409, reason: times }, after: none };
+  // The season and the one block rule (blockedBy, as a lock checks them): a time Jon has shut, or one outside
+  // the season, is never offered (the guest's take would only say "Looks like that one went"). Still free or not
+  // is the take's to decide.
+  const loaded = await loadEngineData(a.now, c);
+  if (times.some((t) => !inSeason(vancouverDate(t.startsAt), loaded.settings)))
+    return { result: { ok: false, status: 409, reason: 'out_of_season' }, after: none };
+  if (times.some((t) => blockedBy({ range: t }, loaded.blocks, loaded.settings)))
+    return { result: { ok: false, status: 409, reason: 'in_block' }, after: none };
 
   // A double submit acts once: the same windows already on offer keep their offer and their one E5.
   const same =

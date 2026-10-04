@@ -26,6 +26,29 @@ export function householdHoldOver(range: Range, s: Pick<EngineSettings, 'househo
   return !s.householdHoldReleased && overlaps(range, HOUSEHOLD_HOLD_RANGE);
 }
 
+/**
+ * Rules 2(b), 2(c) and 8, the ONE block rule (locks, Suggest another time and the block-confirm move all use it):
+ * what keeps a window shut, or null. A whole-day block on any date the window touches (so one running past
+ * midnight into a blocked day counts); a single-window block (T2.5.06) on its own slot, or one whose times it
+ * overlaps (a range can't cover it); or the household hold while it stands (QA r2 L6).
+ */
+export function blockedBy<B extends Block>(
+  target: { slot: Pick<Slot, 'date' | 'windowKind' | 'startsAt' | 'endsAt'> } | { range: Range },
+  blocks: B[],
+  s: Pick<EngineSettings, 'householdHoldReleased'>,
+): B | 'household_hold' | null {
+  const range =
+    'slot' in target ? { startsAt: target.slot.startsAt, endsAt: target.slot.endsAt } : target.range;
+  for (const d of datesTouched(range.startsAt, range.endsAt)) {
+    const whole = blockCovering(d, blocks);
+    if (whole) return whole;
+  }
+  const window =
+    ('slot' in target && windowBlock(target.slot, blocks)) || windowBlockOverlapping(range, blocks);
+  if (window) return window as B;
+  return householdHoldOver(range, s) ? 'household_hold' : null;
+}
+
 /** A dates-mode dish's day rule (the grid, validate.ts and the engine share it): weekends, or Thu to Sun. */
 export function dateRuleAllows(rule: DateRule | null | undefined, date: string): boolean {
   const dow = isoWeekday(date);

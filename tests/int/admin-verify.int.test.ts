@@ -150,18 +150,27 @@ describe('POST /api/admin/auth/verify (the 6-digit code, AC3)', () => {
 describe('POST /api/admin/auth/verify: limits, caching and Sentry (review F1, L2)', () => {
   const clearIpBucket = () => q(`delete from rate_limit where scope = 'adminSignInVerify'`);
 
-  it('an 11th WRONG code at one address within the hour is a 429 even from a fresh IP; other addresses are not', async () => {
+  const WRONG_CAP = 30; // LIMITS.adminSignInVerifyEmail
+
+  it('after 30 WRONG codes at one address within the hour, the next try is a 429 from any IP, before any code check; other addresses are not', async () => {
+    auth.verifyOtp.mockReset(); // no queued answer from an earlier test
     auth.verifyOtp.mockResolvedValue(refused());
-    for (let i = 0; i < 10; i++) {
-      await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '000000' });
-      if (i === 4) await clearIpBucket();
+    for (let i = 0; i < WRONG_CAP; i++) {
+      if (i % 5 === 0) await clearIpBucket(); // spread over many IPs
+      expect((await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '000000' })).status).toBe(
+        400,
+      );
     }
     await clearIpBucket(); // a new IP
+    auth.verifyOtp.mockClear();
+    auth.verifyOtp.mockResolvedValue(session(ADMIN)); // even a right code is not checked now
     const res = await post(verify, '/api/admin/auth/verify', {
       email: ` ${ADMIN.toUpperCase()}`,
-      code: '000000',
+      code: '123456',
     });
     expect(res.status).toBe(429);
+    expect(auth.verifyOtp).not.toHaveBeenCalled();
+    auth.verifyOtp.mockResolvedValue(refused());
     const other = await post(verify, '/api/admin/auth/verify', {
       email: 'other@example.com',
       code: '000000',

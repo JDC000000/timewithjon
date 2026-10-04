@@ -3,8 +3,8 @@
 // §6: `requested` / `needs_new_time` → `standby` (E6; `awaiting_jon_since` cleared). A stand-by offer is a
 // `standby_open` offer that lives 48 hours; while it lives the engine hides its window from everyone else (C3
 // 2(f)). L13: only a window that fits the guest's dish can be offered, unless Jon ticks Override. AC2: two stand-by
-// guests can't hold a live offer on the same window: the week row is locked FOR UPDATE (as a lock does) before the
-// live offers are read, so two offers in one week are serialised. Expiry, cancel or lock releases the offer; on
+// guests can't hold a live offer on the same window: the week rows the window touches are locked FOR UPDATE (as a
+// lock does) before the live offers are read, so two offers in one week, or across a Sunday night, are serialised. Expiry, cancel or lock releases the offer; on
 // expiry the request goes back to Needs a reply, with no email.
 import 'server-only';
 import type { PoolClient } from 'pg';
@@ -18,7 +18,7 @@ import { withTx } from '@/lib/db';
 import { formatInTimeZone } from 'date-fns-tz';
 import { addDays, TZ, vancouverDate, weekStartOf } from '@/lib/time';
 import { standbyWeekLabel } from './intake-emails';
-import { lockWeekOf } from './lock';
+import { lockWeeksOf } from './lock';
 import { createOffer, STANDBY_OFFER_HOURS, type OfferRange } from './offers';
 import { noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
 import { audit, requestForOffer, timeLabel, type OfferActionResult } from './suggest';
@@ -119,7 +119,7 @@ async function offerTx(
   if (!fits && !a.override) return refuse('not_for_this_dish');
 
   // Serialise with every other offer and lock in the week, then read what holds the window (AC2).
-  await lockWeekOf(c, range.startsAt);
+  await lockWeeksOf(c, range);
   const loaded = await loadEngineData(a.now, c);
   const verdict = canLock({
     now: a.now,

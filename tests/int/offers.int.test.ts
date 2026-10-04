@@ -261,6 +261,46 @@ describe('T2.4.02 Suggest another time → E5', () => {
     expect((await req(other.id)).status).toBe('requested');
   });
 
+  it('never offers a time a block shuts (the one block rule) or one outside the season: 409, no offer, no E5', async () => {
+    const { id } = await newRequest();
+    const blocks = await q<{ id: string }>(
+      `insert into availability_block (start_date, end_date, kind, window_kind)
+       values ('2027-06-06', '2027-06-06', 'blocked', null), ('2027-06-17', '2027-06-17', 'blocked', 'lunch')
+       returning id`,
+    );
+    try {
+      const at = (d: string, t: string) => vancouverInstant(d, t);
+      // a range running past midnight into a blocked Sunday
+      const overMidnight = {
+        startsAt: at('2027-06-05', '22:00'),
+        endsAt: at('2027-06-06', '01:00'),
+        where: null,
+      };
+      expect(await suggestTimes(id, { ranges: [overMidnight] }, '', NOW)).toMatchObject({
+        status: 409,
+        reason: 'in_block',
+      });
+      // a single-window block shuts its own slot, not the evening of that day
+      expect(await suggestTimes(id, { slotIds: [await slotId('2027-06-17')] }, '', NOW)).toMatchObject({
+        status: 409,
+        reason: 'in_block',
+      });
+      const july = { startsAt: at('2027-07-05', '12:00'), endsAt: at('2027-07-05', '14:00'), where: null };
+      expect(await suggestTimes(id, { ranges: [july] }, '', NOW)).toMatchObject({
+        status: 409,
+        reason: 'out_of_season',
+      });
+      expect(await q(`select 1 from offer where request_id = $1`, [id])).toEqual([]);
+      expect(await q(`select 1 from email_log where request_id = $1 and template = 'E5'`, [id])).toEqual([]);
+      expect((await req(id)).status).toBe('requested');
+      expect((await suggestTimes(id, { slotIds: [await slotId('2027-06-17', 'evening')] }, '', NOW)).ok).toBe(
+        true,
+      );
+    } finally {
+      await q(`delete from availability_block where id = any($1::uuid[])`, [blocks.map((b) => b.id)]);
+    }
+  });
+
   it('pr46-review M2: refuses a locked request (nothing released, no E5) and a joined one', async () => {
     // The latest slot nothing locked or finished overlaps: other files' bookings stay on a re-run of the same DB.
     const [free] = await q<{ id: string }>(

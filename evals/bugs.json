@@ -249,6 +249,37 @@
     "test": "tests/int/dev-access.int.test.ts"
   },
   {
+    "id": "signin-address-cap",
+    "date": "2026-10-04",
+    "task": "T2.1.04",
+    "area": "admin-auth",
+    "summary": "Once only wrong codes counted per address, the count never stopped the next try, so codes for one address could be tried without end from many IPs.",
+    "fix": "Before checking a typed code, the per-address count of wrong codes this hour is read; at 30 no typed code is checked for that address until the hour ends. The emailed link still signs in.",
+    "test": "tests/int/admin-verify.int.test.ts"
+  },
+  {
+    "id": "lock-week-of-start-only",
+    "date": "2026-10-04",
+    "task": "T2.3",
+    "area": "requests",
+    "summary": "Locks and stand-by offers took only the week of a range's start, so a range running from Sunday into Monday was not serialised with a lock or stand-by offer in the second week; two live stand-by offers could hold overlapping cross-week windows.",
+    "fix": "lockWeeksOf locks every week the range touches, in date order (lock.ts, standby.ts).",
+    "tests": ["tests/int/standby.int.test.ts"]
+  },
+  {
+    "id": "block-rule-outside-engine",
+    "date": "2026-10-04",
+    "task": "T2.3",
+    "area": "availability",
+    "summary": "The block-confirm move re-implemented the block rule in SQL, and Suggest another time checked neither blocks nor the season, so a blocked or out-of-season time could be offered and the guest's take then failed.",
+    "fix": "One engine rule, blockedBy (rules.ts), used by canLock, the block-confirm check and Suggest; Suggest refuses a blocked (in_block) or out-of-season time.",
+    "tests": [
+      "src/features/availability/__tests__/block-rule.test.ts",
+      "tests/int/admin-block-confirm.int.test.ts",
+      "tests/int/offers.int.test.ts"
+    ]
+  },
+  {
     "id": "story-page-revisit-overwrites",
     "date": "2026-10-04",
     "task": "T3.12",
