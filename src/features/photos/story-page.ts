@@ -1,10 +1,10 @@
 // src/features/photos/story-page.ts — T3.12.01 (F27, S19): a story without a booking, reached from a valid invite.
-// The first save creates it, linked to the invite (pr43 F1: an is_test invite's stories can be purged and kept out
-// of the export). A later save with twj_story through the SAME invite updates that story (never another).
-// A photo sign never creates one: the page's first save does (createStoryPageStory, within the invite's limit).
+// The first save of a page view creates it, linked to the invite (pr43 F1: an is_test invite's stories can be purged
+// and kept out of the export). A later save in that page view, with twj_story through the SAME invite, updates that
+// story (never another). A photo sign never creates one: the page's first save does (createStoryPageStory).
 import 'server-only';
 import type { QueryResultRow } from 'pg';
-import { q, withTx } from '@/lib/db';
+import { q } from '@/lib/db';
 import type { Invite } from '@/features/invites/repo';
 
 export interface StoryPageInput {
@@ -76,26 +76,7 @@ async function insertStory(run: Run, invite: StoryInvite, s: StoryPageInput): Pr
   return rows[0]!.id;
 }
 
-/**
- * A new story_page story for this invite, unless it already has `max` of them (null = no total limit). The invite
- * row is locked for the count, so two first saves at once can't both take the last place. Null when full.
- */
-export async function createStoryPageStory(
-  invite: StoryInvite,
-  s: StoryPageInput,
-  max: number | null,
-): Promise<string | null> {
-  return withTx(async (c) => {
-    const run: Run = async <T extends QueryResultRow>(sql: string, params: unknown[]) =>
-      (await c.query<T>(sql, params)).rows;
-    await c.query(`select 1 from invite where id = $1 for update`, [invite.id]);
-    if (max !== null) {
-      const [row] = await run<{ n: number }>(
-        `select count(*)::int as n from story where source = 'story_page' and invite_id = $1`,
-        [invite.id],
-      );
-      if ((row?.n ?? 0) >= max) return null;
-    }
-    return insertStory(run, invite, s);
-  });
+/** A new story_page story for this invite (the route has already applied the invite's daily limit). */
+export function createStoryPageStory(invite: StoryInvite, s: StoryPageInput): Promise<string> {
+  return insertStory(q, invite, s);
 }

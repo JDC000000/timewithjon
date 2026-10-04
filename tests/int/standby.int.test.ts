@@ -15,7 +15,7 @@ import { engineInput, loadEngineData } from '@/features/availability/load';
 import { openWindows } from '@/features/availability/openWindows';
 import { runTick } from '@/features/jobs';
 import { createRequestTx } from '@/features/requests/create';
-import { lockRequest } from '@/features/requests/lock';
+import { lockRequest, lockWeeksOf } from '@/features/requests/lock';
 import { stillOpen } from '@/features/requests/take-offer';
 import { RequestBody } from '@/features/requests/schema';
 import { OfferLinkGoneError, resolveLinkVars, takeLink } from '@/features/email/link-vars';
@@ -366,6 +366,51 @@ describe('T2.4.04 Offer a freed window to one stand-by guest → E7', () => {
         [slot],
       ),
     ).toHaveLength(1);
+  });
+
+  // Sun Jun 20 into Mon Jun 21 crosses from the week of Jun 14 into the week of Jun 21 (an overnight range).
+  const sunToMon = () => ({
+    startsAt: vancouverInstant('2027-06-20', '20:00'),
+    endsAt: vancouverInstant('2027-06-21', '10:00'),
+    where: null,
+  });
+  const monMorning = () => ({
+    startsAt: vancouverInstant('2027-06-21', '08:00'),
+    endsAt: vancouverInstant('2027-06-21', '12:00'),
+    where: null,
+  });
+
+  it('a range across Sunday night holds both weeks: an offer in the second week waits for it', async () => {
+    const guest = await standbyGuest('the-encore');
+    const held = await pool().connect();
+    let settled = false;
+    try {
+      await held.query('begin');
+      await lockWeeksOf(held, sunToMon());
+      const pending = offerStandbyWindow(guest.id, monMorning(), false, NOW).finally(() => (settled = true));
+      await new Promise((r) => setTimeout(r, 400));
+      expect(settled).toBe(false); // waiting on the week of Jun 21, which the Sunday range holds
+      await held.query('commit');
+      expect((await pending).ok).toBe(true);
+    } finally {
+      held.release();
+    }
+    await q(`update offer set released_at = now() where request_id = $1 and released_at is null`, [guest.id]);
+  });
+
+  it('AC2 across weeks: two stand-by offers whose ranges overlap over Sunday night, at the same moment: one holds', async () => {
+    const a = await standbyGuest('the-encore');
+    const b = await standbyGuest('the-encore');
+    const both = await Promise.all([
+      offerStandbyWindow(a.id, sunToMon(), false, NOW),
+      offerStandbyWindow(b.id, monMorning(), false, NOW),
+    ]);
+    expect(both.filter((r) => r.ok)).toHaveLength(1);
+    expect(both.find((r) => !r.ok)).toMatchObject({ status: 409, reason: 'held_by_offer' });
+    await q(
+      `update offer set released_at = now() where request_id = any($1::uuid[]) and released_at is null`,
+      [[a.id, b.id]],
+    );
   });
 
   it('refuses a request not on stand-by, a booked window, an unknown slot; the admin route maps the codes', async () => {

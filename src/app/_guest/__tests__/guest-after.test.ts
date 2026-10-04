@@ -106,6 +106,17 @@ describe('storyBody', () => {
     expect(storyBody({ body: ' ', consent: false, before60Answer: ' ', hp: '' })).toEqual({ consent: false });
     expect(storyBody({ body: '', consent: false, hp: 'bot' })).toEqual({ consent: false, hp: 'bot' });
   });
+  it('S19 general link: a typed name goes trimmed; a blank one is left out (QA r2 M4)', () => {
+    expect(storyBody({ name: ' Gina ', body: 'hi', consent: false, hp: '' })).toEqual({
+      consent: false,
+      name: 'Gina',
+      body: 'hi',
+    });
+    expect(storyBody({ name: '  ', body: 'hi', consent: false, hp: '' })).toEqual({
+      consent: false,
+      body: 'hi',
+    });
+  });
 });
 
 describe('guest time style (gen.py tile(), G1 #14/#19)', () => {

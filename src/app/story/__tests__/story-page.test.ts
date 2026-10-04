@@ -1,9 +1,10 @@
 // T3.12.U1 S19: the server-rendered HTML. AC2 (no invite or a stale one → the S16 stale page, never the form); a
 // valid invite → the S11 story form, whose Send posts to /api/story-page (source 'story_page', AC1) and whose
 // photos ask /api/photos/sign?for=story_page. The before-60 field follows the setting (T1.8 AC4).
+import '../../../../tests/fixtures/unit-env';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AFTER_SEND, SEND_A_STORY } from '@/content';
+import { AFTER_SEND, FLOW, SEND_A_STORY } from '@/content';
 import { STALE, STORY_FORM } from '@/content/ui/guest-after';
 
 const m = vi.hoisted(() => ({ session: { state: 'none' } as unknown, before60: false }));
@@ -20,6 +21,7 @@ async function html(session: unknown, before60 = false): Promise<string> {
 }
 
 const VALID = { state: 'valid', invite: { id: 'inv-1', kind: 'personal' } };
+const GENERAL = { state: 'valid', invite: { id: 'inv-g', kind: 'general' } };
 
 describe('S19 /story', () => {
   beforeEach(() => vi.resetModules());
@@ -48,5 +50,13 @@ describe('S19 /story', () => {
   it('the before-60 field is in the DOM only when the setting is on', async () => {
     expect(await html(VALID)).not.toContain(AFTER_SEND.before60.slice(0, 20));
     expect(await html(VALID, true)).toContain(AFTER_SEND.before60.slice(0, 20));
+  });
+
+  it('QA r2 M4: the general link asks for a name (optional, 80 at most); a personal link does not', async () => {
+    const g = await html(GENERAL);
+    expect(g).toContain(`>${FLOW.nameLabel}<`);
+    expect(g).toMatch(/<input[^>]*name="name"[^>]*maxLength="80"|<input[^>]*maxLength="80"[^>]*name="name"/i);
+    expect(g).not.toMatch(/<input[^>]*name="name"[^>]*required/);
+    expect(await html(VALID)).not.toContain(`>${FLOW.nameLabel}<`);
   });
 });

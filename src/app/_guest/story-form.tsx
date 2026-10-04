@@ -5,10 +5,12 @@
 // but an empty Send is held (R7-01); a photo still uploading makes Send wait, then it sends by itself.
 // POST only on submit; the capability rides in a header or cookie, never in the body (T1.8 AC2).
 // S19 (`storyPage`): the first save creates the story, so a photo picked before Send first saves the story as it
-// stands (nothing typed yet), and only that first save carries the general invite's Turnstile token (AD-9).
+// stands (nothing typed yet), and only that first save carries the general invite's Turnstile token (AD-9). Later
+// saves in the same page view update that story; a fresh visit starts a new one (QA r2 H1). On the general link S19
+// also asks for the guest's name (optional, the booking form's label and length; M4).
 import Link from 'next/link';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AFTER_SEND, ERRORS } from '@/content';
+import { AFTER_SEND, ERRORS, FLOW } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
 import { Button, Field } from '@/ui';
@@ -27,8 +29,11 @@ export interface StoryFormProps {
   before60: boolean;
   /** Where "Skip for now" goes. */
   skipHref: string;
-  /** S19 only: the story is created by its first save; `siteKey` is set for the general invite (Turnstile). */
-  storyPage?: { siteKey?: string };
+  /**
+   * S19 only: the story is created by its first save. For the general invite, `siteKey` (Turnstile) and `askName`
+   * (an optional name box: a personal invite already names its guest).
+   */
+  storyPage?: { siteKey?: string; askName?: boolean };
 }
 
 type Phase = 'idle' | 'waiting' | 'sending' | 'sent';
@@ -41,7 +46,14 @@ const QUESTION_STYLE = {
 } as const;
 
 export function StoryForm(p: StoryFormProps) {
-  const ids = { story: useId(), storyErr: useId(), b60: useId(), thanks: useId(), hp: useId() };
+  const ids = {
+    name: useId(),
+    story: useId(),
+    storyErr: useId(),
+    b60: useId(),
+    thanks: useId(),
+    hp: useId(),
+  };
   const turnstile = useGuestTurnstile(p.storyPage?.siteKey);
   const { takeToken, reset } = turnstile;
   const isStoryPage = Boolean(p.storyPage);
@@ -61,6 +73,7 @@ export function StoryForm(p: StoryFormProps) {
     [p.target, isStoryPage, saver],
   );
   const photos = usePhotos(p.maxPhotos, uploader);
+  const [name, setName] = useState('');
   const [text, setText] = useState('');
   const [consent, setConsent] = useState(false);
   const [before60, setBefore60] = useState('');
@@ -95,7 +108,13 @@ export function StoryForm(p: StoryFormProps) {
   }
 
   // The one POST, on submit only. A re-run effect (React dev) aborts the first call.
-  const body = storyBody({ body: text, consent, before60Answer: before60, hp });
+  const body = storyBody({
+    name: p.storyPage?.askName ? name : undefined,
+    body: text,
+    consent,
+    before60Answer: before60,
+    hp,
+  });
   useEffect(() => {
     if (phase !== 'sending') return;
     const ac = new AbortController();
@@ -141,6 +160,17 @@ export function StoryForm(p: StoryFormProps) {
       onSubmit={onSubmit}
     >
       <p className="cap muted">{AFTER_SEND.askTitle}</p>
+      {p.storyPage?.askName && (
+        <Field
+          id={ids.name}
+          name="name"
+          label={FLOW.nameLabel}
+          maxLength={80}
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.currentTarget.value)}
+        />
+      )}
       <div className={empty ? 'field bad' : 'field'} style={{ maxWidth: 'none' }}>
         <label htmlFor={ids.story} id={`${ids.story}-q`} className="h2" style={QUESTION_STYLE}>
           {AFTER_SEND.question}

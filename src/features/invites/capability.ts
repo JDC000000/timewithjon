@@ -37,8 +37,9 @@ export async function readStoryCapability(req: NextRequest): Promise<string | nu
   return manage === null ? readRequestCapability() : manageGrant(manage);
 }
 
-// T3.12.01: the story-page capability, twj_story = HMAC(story_id, exp). Issued only after requireInvite on the
-// first story-page save; later saves and the story's photo endpoints take the story id ONLY from it.
+// T3.12.01: the story-page capability, twj_story = HMAC(story_id, exp). Issued only after requireInvite when a
+// story-page save creates a story; that page view's later saves (marked `edit`, QA r2 H1) and the story's photo
+// endpoints take the story id ONLY from it.
 export const STORY_COOKIE = 'twj_story';
 export const STORY_TTL_SECONDS = 2 * 3600;
 export function setStoryCapability(res: NextResponse, storyId: string) {

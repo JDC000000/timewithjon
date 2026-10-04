@@ -449,6 +449,29 @@ describe('pr59 M1: an offered time inside a block is refused (409 in_block)', ()
   });
 });
 
+describe('the block-confirm check is the engine block rule (blockedBy, as canLock and Suggest ask it)', () => {
+  it('a range over midnight into a new single-window block is refused; the same night ending at its start is not', async () => {
+    const lunch = { startDate: '2027-06-17', endDate: '2027-06-17', kind: 'blocked', window: 'lunch' };
+    const id = await booked('Block Window Rule', '2027-06-17', 'lunch');
+    const res = await confirm({
+      block: lunch,
+      bookings: [
+        { requestId: id, ranges: [{ date: '2027-06-16', start: '23:00', lengthMinutes: 13 * 60 + 30 }] },
+      ],
+    });
+    expect(res.status).toBe(409);
+    expect((await json<{ code: string }>(res)).code).toBe('in_block');
+    expect(await blockRows('2027-06-17', '2027-06-17')).toEqual([]);
+    const clear = await confirm({
+      block: lunch,
+      bookings: [{ requestId: id, ranges: [{ date: '2027-06-16', start: '23:00', lengthMinutes: 13 * 60 }] }],
+    });
+    expect(clear.status).toBe(201);
+    await q(`delete from availability_block where start_date = '2027-06-17'`);
+    await cancel([id]);
+  });
+});
+
 describe('pr59 L2: a double tap adds one block', () => {
   it('confirm with no bookings, and POST /blocks, return the same row the second time', async () => {
     const day = { startDate: '2027-06-01', endDate: '2027-06-01', kind: 'blocked' };

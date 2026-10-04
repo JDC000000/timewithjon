@@ -7,7 +7,7 @@ import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { completeSignIn } from '@/features/admin/verify';
 import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
-import { check, type LimitVerdict } from '@/lib/ratelimit';
+import { check, peek, type LimitVerdict } from '@/lib/ratelimit';
 import { SIGN_IN } from '@/content/ui/admin-requests';
 
 export const runtime = 'nodejs';
@@ -37,8 +37,12 @@ async function verifyCode(req: NextRequest): Promise<NextResponse> {
   const verdict: LimitVerdict = await check('adminSignInVerify', clientIp(req));
   if (verdict === 'unavailable') return jsonError(503, 'unavailable', SIGN_IN.unavailable);
   if (verdict === 'limited') return jsonError(429, 'rate_limited', ERRORS.rateLimited);
-  // Per address: only WRONG codes count, after the check, so other people's attempts at the address never refuse
-  // the admin's correct code. Over it, a wrong code answers 429.
+  // Per address: only WRONG codes count (below), so a few stray attempts never refuse the admin's code. Once the
+  // address has had LIMITS.adminSignInVerifyEmail wrong codes this hour, no typed code is checked for it until the
+  // hour ends (so the code can't be guessed from many IPs); the emailed link still signs in.
+  const address = await peek('adminSignInVerifyEmail', emailKey(parsed.data.email));
+  if (address === 'unavailable') return jsonError(503, 'unavailable', SIGN_IN.unavailable);
+  if (address === 'limited') return jsonError(429, 'rate_limited', ERRORS.rateLimited);
   const result = await completeSignIn(parsed.data);
   if (!result.ok) {
     // Review guarantee 5: a verified user who is off the allowlist gets 401 (their session is already dropped).
