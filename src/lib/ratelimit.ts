@@ -25,7 +25,10 @@ export const LIMITS = {
   devLogin: { limit: 10, windowSec: 3600 }, // T1.10.10: slows passphrase guessing on /dev/login
   adminSignInStart: { limit: 5, windowSec: 3600 }, // T2.1.08: every address alike; over it, the same 200
   adminSignInVerify: { limit: 10, windowSec: 3600 }, // T2.1.04: codes + link opens per IP (the callback shares it)
-  adminSignInVerifyEmail: { limit: 10, windowSec: 3600 }, // per address, WRONG codes only (a right one always passes)
+  // Per address: counts WRONG codes only; at the limit, typed codes for that address wait out the hour (the emailed
+  // link, which has its own per-IP bucket, still signs in). High enough that strangers rarely reach it, low enough
+  // that a 6-digit code can't be guessed.
+  adminSignInVerifyEmail: { limit: 30, windowSec: 3600 },
 } as const;
 
 export type LimitScope = keyof typeof LIMITS;
@@ -57,6 +60,27 @@ export async function check(scope: LimitScope, key: string): Promise<LimitVerdic
       [scope, key, windowSec],
     );
     return (rows[0]?.count ?? 0) <= limit ? 'allowed' : 'limited';
+  } catch (e) {
+    const closed = FAIL_CLOSED.has(scope);
+    report(e, { area: 'ratelimit', scope, ...(closed ? { mode: 'fail_closed' } : {}) });
+    return closed ? 'unavailable' : 'allowed';
+  }
+}
+
+/**
+ * Reads a scope's count for the current window without adding to it: 'limited' once it has reached the limit.
+ * For buckets that count only some outcomes (wrong sign-in codes) but must still stop the next try.
+ */
+export async function peek(scope: LimitScope, key: string): Promise<LimitVerdict> {
+  const { limit, windowSec } = LIMITS[scope];
+  try {
+    const rows = await q<{ count: number }>(
+      `select count from rate_limit
+        where scope = $1 and key = $2
+          and window_start = date_bin(make_interval(secs => $3), now(), timestamptz 'epoch')`,
+      [scope, key, windowSec],
+    );
+    return (rows[0]?.count ?? 0) >= limit ? 'limited' : 'allowed';
   } catch (e) {
     const closed = FAIL_CLOSED.has(scope);
     report(e, { area: 'ratelimit', scope, ...(closed ? { mode: 'fail_closed' } : {}) });
