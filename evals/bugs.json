@@ -247,5 +247,14 @@
     "summary": "/dev POSTs authenticated by cookie had no Origin check (AD-7).",
     "fix": "devGuard refuses a cookie-authenticated non-GET from another origin.",
     "test": "tests/int/dev-access.int.test.ts"
+  },
+  {
+    "id": "signin-address-cap",
+    "date": "2026-10-04",
+    "task": "T2.1.04",
+    "area": "admin-auth",
+    "summary": "Once only wrong codes counted per address, the count never stopped the next try, so codes for one address could be tried without end from many IPs.",
+    "fix": "Before checking a typed code, the per-address count of wrong codes this hour is read; at 30 no typed code is checked for that address until the hour ends. The emailed link still signs in.",
+    "test": "tests/int/admin-verify.int.test.ts"
   }
 ]
