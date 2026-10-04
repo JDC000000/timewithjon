@@ -12,7 +12,7 @@ import type { TemplateId } from '@/content/emails';
 import { dishBySlug } from '@/content/menu-helpers';
 import type { EmailVar } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
-import { extendManageTokens } from '@/features/invites/action-tokens';
+import { extendManageTokens, reopenManageTokens } from '@/features/invites/action-tokens';
 import { queuedId } from './side-effects';
 
 export interface JoinedGuest {
@@ -106,12 +106,29 @@ export async function cascadeToJoined(c: PoolClient, hostId: string, o: CascadeO
  * gets E5j, once: its event key is the host's audit row. Nobody else is cancelled. joined_to_request_id is kept:
  * it names the old host, and the copy of its range is what Promote to host locks (T2.10.04).
  */
-export function hostLeft(c: PoolClient, hostId: string, now: Date, hostAuditId: string): Promise<string[]> {
-  return cascadeToJoined(c, hostId, {
+export async function hostLeft(
+  c: PoolClient,
+  hostId: string,
+  now: Date,
+  hostAuditId: string,
+): Promise<string[]> {
+  const { rows } = await c.query<{ id: string }>(
+    `select j.id from request j where j.joined_to_request_id = $1 and j.status = 'locked'`,
+    [hostId],
+  );
+  const emailIds = await cascadeToJoined(c, hostId, {
     template: 'E5j',
     eventKey: hostAuditId,
     now,
     toStatus: { status: 'needs_new_time', auditAction: 'host_left' },
     vars: (j) => ({ dish: dishName(j.dish) }),
   });
+  // Their manage links ran to the host's end + 7 days; now waiting on Jon, they get the unlocked lifetime (§6).
+  // After the cascade, so the request rows are locked before their tokens (the request → action_token order).
+  await reopenManageTokens(
+    c,
+    rows.map((j) => j.id),
+    now,
+  );
+  return emailIds;
 }

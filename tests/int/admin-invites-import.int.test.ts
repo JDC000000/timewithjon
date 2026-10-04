@@ -65,6 +65,22 @@ describe('POST /api/admin/invites/import (T5.1 AC2)', () => {
     expect(await mine()).toEqual([]);
   });
 
+  it('a write that fails part way: nothing is written, so a re-upload never duplicates (B003)', async () => {
+    // The 2nd row's insert fails in the database (as a timeout or an outage would, after row 1 went in).
+    await q(`create or replace function twj_test_fail_invite() returns trigger language plpgsql as $f$
+             begin if new.display_name = '${TAG} Boom' then raise exception 'boom'; end if; return new; end $f$`);
+    await q(
+      `create trigger fail_invite before insert on invite for each row execute function twj_test_fail_invite()`,
+    );
+    try {
+      await expect(post(`name\n${TAG} First\n${TAG} Boom\n${TAG} Third\n`)).rejects.toThrow('boom');
+    } finally {
+      await q(`drop trigger fail_invite on invite`);
+      await q(`drop function twj_test_fail_invite()`);
+    }
+    expect(await mine()).toEqual([]);
+  });
+
   it('a body that is not text/csv: 415', async () => {
     expect((await post(`name\n${TAG} Json\n`, 'application/json')).status).toBe(415);
     expect(await mine()).toEqual([]);

@@ -13,6 +13,7 @@ import { createRequestTx } from '@/features/requests/create';
 import { lockRequest } from '@/features/requests/lock';
 import { VALIDATION_MESSAGE } from '@/features/requests/messages';
 import { createOffer, releaseLiveOffers } from '@/features/requests/offers';
+import { weatherCall } from '@/features/requests/pitch-weather';
 import { PROPOSE_ACTION, proposeTimes } from '@/features/requests/propose';
 import { RequestBody } from '@/features/requests/schema';
 import { suggestTimes } from '@/features/requests/suggest';
@@ -299,6 +300,58 @@ describe('T2.4.08 the guest proposes new times → the same row, E16', () => {
     const b = { token, slotIds: [next!], dates: [], overnight: false, clientKey: randomUUID() };
     expect(await heldCancel(id, () => proposeTimes(b))).toBe('spent');
     expect(await e16(id)).toHaveLength(0);
+  });
+
+  it('a weather-called joined guest proposing while Jon promotes a sibling: host first, no deadlock (B002)', async () => {
+    const [hostSlot, next] = await freeLunches(2);
+    const { id: host } = await newRequest([hostSlot!]);
+    expect(
+      (await lockRequest({ requestId: host, target: { slotId: hostSlot! }, mode: 'lock', now: NOW })).ok,
+    ).toBe(true);
+    await q(`update request set counts_toward = 'big_day' where id = $1`, [host]); // a Weather call needs a Big Day
+    const { id: guestA } = await newRequest();
+    const { id: guestB } = await newRequest();
+    await q(
+      `update request set status = 'locked', joined_to_request_id = $2, counts_toward = 'none' where id = any($1)`,
+      [[guestA, guestB], host],
+    );
+    expect((await weatherCall(host, NOW)).ok).toBe(true);
+    expect(await row(guestA)).toMatchObject({ status: 'needs_new_time' }); // still joined to the host
+    const token = await withTx((c) =>
+      issueToken(c, {
+        purpose: 'pick_new_date',
+        requestId: guestA,
+        expiresAt: new Date(NOW.getTime() + 864e5),
+      }),
+    );
+    // Promote to host on guest B, held at the sibling lock: the host row, then B's row, then (soon) the siblings.
+    const a = await pool().connect();
+    try {
+      await a.query('begin');
+      await a.query(`select id from request where id = $1 for update`, [host]);
+      await a.query(`select id from request where id = $1 for update`, [guestB]);
+      const racing = proposeTimes({
+        token,
+        slotIds: [next!],
+        dates: [],
+        overnight: false,
+        clientKey: randomUUID(),
+      });
+      racing.catch(() => undefined); // awaited below; no unhandled rejection meanwhile
+      await new Promise((r) => setTimeout(r, 300));
+      await a.query(`select id from request where joined_to_request_id = $1 and id <> $2 for update`, [
+        host,
+        guestB,
+      ]);
+      await a.query('commit');
+      expect(await racing).toEqual({ ok: true });
+    } catch (e) {
+      await a.query('rollback').catch(() => undefined);
+      throw e;
+    } finally {
+      a.release();
+    }
+    expect(await row(guestA)).toMatchObject({ status: 'requested' });
   });
 
   it('pr56-review F1: a live link on a LOCKED booking never unlocks it (only its manage page can)', async () => {

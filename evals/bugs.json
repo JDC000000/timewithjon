@@ -58,5 +58,41 @@
     "summary": "One 401 on a cached access token recorded last_error 'unauthorized' and sent Jon the reconnect email, even when a fresh refresh would have worked.",
     "fix": "On a 401 the gateway drops the cached token, refreshes and retries once; only a second 401 or a failed refresh reaches the alert.",
     "tests": ["src/lib/adapters/__tests__/google-calendar.test.ts", "tests/int/calendar-gateway.int.test.ts"]
+  },
+  {
+    "id": "B001",
+    "date": "2026-10-04",
+    "area": "requests/manage",
+    "title": "Manage link ran out while a re-requested booking was still open",
+    "symptom": "After Ask for another time on a locked booking (or its host leaving, for joined guests), every live manage link kept the old end + 7 days, so the guest saw Link expired while still waiting on Jon.",
+    "fix": "A locked booking that goes back to waiting on Jon gives its live manage links at least the unlocked lifetime (120 days from now); joined guests get the same when their host leaves.",
+    "test": "tests/int/manage.int.test.ts (B001)"
+  },
+  {
+    "id": "B002",
+    "date": "2026-10-04",
+    "area": "requests/propose",
+    "title": "Proposing new times locked the request before its host",
+    "symptom": "A weather-called joined guest proposing new times while Jon promoted a sibling to host could end in a deadlock (40P01) and a 500 on one side.",
+    "fix": "proposeTimes locks the host row first (lockHostOf), then the request, as every other joined-guest action does.",
+    "test": "tests/int/propose.int.test.ts (B002)"
+  },
+  {
+    "id": "B003",
+    "date": "2026-10-04",
+    "area": "admin/invites",
+    "title": "CSV invite import could write part of the file",
+    "symptom": "Each row was its own transaction, so a failure at row N left N-1 invites; a re-upload then made duplicates.",
+    "fix": "All rows are written in one transaction (createInvite takes the caller's client).",
+    "test": "tests/int/admin-invites-import.int.test.ts (B003)"
+  },
+  {
+    "id": "B004",
+    "date": "2026-10-04",
+    "area": "db/story",
+    "title": "story.invite_id foreign key had no index",
+    "symptom": "Removing an invite (on delete set null) and purging stories by invite scanned the story table.",
+    "fix": "Migration 20261102000740_story_invite_index.sql adds story_invite_id_idx.",
+    "test": "tests/int/schema.int.test.ts (story.invite_id has an index)"
   }
 ]

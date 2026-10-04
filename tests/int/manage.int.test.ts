@@ -28,6 +28,7 @@ import {
   findToken,
   issueManageToken,
   issueToken,
+  manageGrant,
   MANAGE_HEADER,
 } from '@/features/invites/action-tokens';
 import { loadManageModel, loadNewDateModel, loadOfferModel } from '@/features/invites/manage-model';
@@ -55,6 +56,8 @@ const DAYS = [
   '2027-05-07',
   '2027-05-13',
   '2027-05-14',
+  '2027-05-20',
+  '2027-05-21',
   '2027-06-03',
   '2027-06-04',
   '2027-06-10',
@@ -618,6 +621,34 @@ describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6
     expect(await templates(joined)).toEqual(['E5j']);
     await cancelRoute(post('/api/manage/cancel', await manageToken(host))); // the host leaves for good: no second E5j
     expect(await templates(joined)).toEqual(['E5j']);
+  });
+
+  it('a re-requested booking keeps its manage link past the old end + 7 days (B001)', async () => {
+    const { id } = await lockedRequest('2027-05-20');
+    const raw = await manageToken(id); // issued after the lock: lasts to the booking's end + 7 days
+    const target = await slotId('2027-05-21', 'lunch');
+    expect(
+      await rerequest(id, { slotIds: [target], dates: [], overnight: false }, NOW, {
+        clientKey: randomUUID(),
+      }),
+    ).toEqual({ ok: true });
+    expect((await row(id)).status).toBe('requested');
+    // Jon hasn't answered 10 days after the old end: the request is still open, so the link still works.
+    expect(await manageGrant(raw, new Date('2027-05-30T18:00:00Z'))).toBe(id);
+  });
+
+  it("a host leaving keeps the joined guest's manage link past the host's old end + 7 days (B001)", async () => {
+    const { id: host } = await lockedRequest('2027-06-10', 'evening');
+    const joined = await joinTo(host);
+    const raw = await manageToken(joined); // the host's end + 7 days
+    const target = await slotId('2027-06-11', 'lunch');
+    expect(
+      await rerequest(host, { slotIds: [target], dates: [], overnight: false }, NOW, {
+        clientKey: randomUUID(),
+      }),
+    ).toEqual({ ok: true });
+    expect((await row(joined)).status).toBe('needs_new_time');
+    expect(await manageGrant(raw, new Date('2027-06-27T18:00:00Z'))).toBe(joined);
   });
 
   it('a bad manage header never falls back to a valid invite cookie; the manage routes are rate limited per IP', async () => {
