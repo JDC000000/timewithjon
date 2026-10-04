@@ -247,5 +247,27 @@
     "summary": "/dev POSTs authenticated by cookie had no Origin check (AD-7).",
     "fix": "devGuard refuses a cookie-authenticated non-GET from another origin.",
     "test": "tests/int/dev-access.int.test.ts"
+  },
+  {
+    "id": "lock-week-of-start-only",
+    "date": "2026-10-04",
+    "task": "T2.3",
+    "area": "requests",
+    "summary": "Locks and stand-by offers took only the week of a range's start, so a range running from Sunday into Monday was not serialised with a lock or stand-by offer in the second week; two live stand-by offers could hold overlapping cross-week windows.",
+    "fix": "lockWeeksOf locks every week the range touches, in date order (lock.ts, standby.ts).",
+    "tests": ["tests/int/standby.int.test.ts"]
+  },
+  {
+    "id": "block-rule-outside-engine",
+    "date": "2026-10-04",
+    "task": "T2.3",
+    "area": "availability",
+    "summary": "The block-confirm move re-implemented the block rule in SQL, and Suggest another time checked neither blocks nor the season, so a blocked or out-of-season time could be offered and the guest's take then failed.",
+    "fix": "One engine rule, blockedBy (rules.ts), used by canLock, the block-confirm check and Suggest; Suggest refuses a blocked (in_block) or out-of-season time.",
+    "tests": [
+      "src/features/availability/__tests__/block-rule.test.ts",
+      "tests/int/admin-block-confirm.int.test.ts",
+      "tests/int/offers.int.test.ts"
+    ]
   }
 ]
