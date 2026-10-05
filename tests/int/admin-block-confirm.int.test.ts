@@ -11,6 +11,8 @@ import { E5B_PARTS } from '@/content/emails';
 import { engineInput, loadEngineData } from '@/features/availability/load';
 import { openWindows } from '@/features/availability';
 import { confirmBlock } from '@/features/admin/block-confirm';
+import { findToken, issueManageToken, manageExpiry } from '@/features/invites/action-tokens';
+import { withTx } from '@/lib/db';
 import { block, previewBlock } from '@/features/admin/season';
 import { vancouverInstant } from '@/lib/time';
 import { cancelMade, joinDirect, lockDirect, newRequest, slotId } from '../fixtures/requests-db';
@@ -22,6 +24,37 @@ const SITE = 'http://localhost:3000';
 const WEEK = { startDate: '2027-06-07', endDate: '2027-06-13', kind: 'blocked' } as const;
 const blocks: string[] = [];
 /** Blocks this file adds, by date (a run that failed half-way leaves no ids behind). */
+describe('a block that sends a booking back to a new time keeps its manage links alive', () => {
+  it('the host and its joined guest: live manage links last the unlocked lifetime, not the old end + 7 days', async () => {
+    const now = new Date('2027-06-01T18:00:00Z');
+    const host = await booked('Block Links', '2027-06-25', 'lunch');
+    const joiner = await newRequest({ name: 'Block Links Joiner' });
+    await joinDirect(joiner, host);
+    const links = await withTx(async (c) =>
+      Promise.all([host, joiner].map((id) => issueManageToken(c, id, now))),
+    );
+    const [end] = await q<{ e: Date }>(`select locked_ends_at e from request where id = $1`, [host]);
+    expect((await findToken(links[0]!))!.expires_at).toEqual(manageExpiry(end!.e, now));
+    const res = await confirmBlock(
+      {
+        block: {
+          startDate: '2027-06-21',
+          endDate: '2027-06-27',
+          kind: 'blocked',
+          confirmBy: null,
+          note: null,
+        },
+        bookings: [{ requestId: host }],
+      },
+      now,
+    );
+    expect(res).toMatchObject({ ok: true, moved: [host] });
+    for (const raw of links) expect((await findToken(raw))!.expires_at).toEqual(manageExpiry(null, now));
+    await cancel([host, joiner]);
+    if (res.ok) await q(`delete from availability_block where id = $1`, [res.id]);
+  });
+});
+
 const clearBlocks = () =>
   q(
     `delete from availability_block where start_date between '2027-05-31' and '2027-06-27' or id = any($1::uuid[])`,

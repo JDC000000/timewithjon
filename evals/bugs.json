@@ -305,5 +305,23 @@
     "summary": "An edit whose story had been deleted fell through to an insert with no bot check, no daily limit and no new capability.",
     "fix": "An edit never creates: saveStoryPageStory only updates, and the route answers the stale line (403 capability_expired).",
     "tests": ["tests/int/story-page-limits.int.test.ts", "tests/int/stories.int.test.ts"]
+  },
+  {
+    "id": "manage-links-expire-after-weather-or-block",
+    "date": "2026-10-04",
+    "task": "T2.7.05",
+    "area": "requests",
+    "summary": "A Weather call, or a block/away change that sent a locked booking back to needing a new time, left its manage links (and its joined guests') expiring at the old end + 7 days while the request was still open.",
+    "fix": "Both paths reopen the live manage links of the request and its joined guests for the unlocked lifetime (reopenManageTokens, the same rule as Ask for another time).",
+    "tests": ["tests/int/pitch-weather.int.test.ts", "tests/int/admin-block-confirm.int.test.ts"]
+  },
+  {
+    "id": "photo-finalise-full-story-decodes",
+    "date": "2026-10-04",
+    "task": "T3.6.03",
+    "area": "photos",
+    "summary": "Finalising an upload for a story that already had its photos downloaded and decoded the image before refusing it, and kept the raw upload (which may carry GPS).",
+    "fix": "A full story is refused before the raw file is read; the upload is marked refused and its raw file deleted, also when the story fills up during the finalise.",
+    "tests": ["tests/int/photos.int.test.ts"]
   }
 ]
