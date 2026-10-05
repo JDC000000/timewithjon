@@ -93,14 +93,24 @@ test('the toggle: a 44 px target at the photo’s bottom-right, on a solid chip,
   page,
 }) => {
   await page.goto(BENCH);
+  // the site scrolls smoothly: measure only once a scroll has landed
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
   for (const [fig, btn] of [
     [show(page), show(page).getByRole('button', { name: 'Pause' })],
     [card(page).locator('figure'), card(page).getByRole('button', { name: 'Pause' })],
   ] as const) {
     await expect(btn).toBeVisible();
     await btn.scrollIntoViewIfNeeded();
-    const f = (await fig.boundingBox())!;
-    const b = (await btn.boundingBox())!;
+    const [f, b] = await btn.evaluate(
+      (e, figure) => {
+        const box = (n: Element) => {
+          const r = n.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height };
+        };
+        return [box(figure as Element), box(e)];
+      },
+      await fig.elementHandle(),
+    );
     expect(b.width).toBeGreaterThanOrEqual(44);
     expect(b.height).toBeGreaterThanOrEqual(44);
     // inside the photo, in its bottom-right corner
@@ -111,8 +121,11 @@ test('the toggle: a 44 px target at the photo’s bottom-right, on a solid chip,
     expect(await btn.evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
     // the topmost element at the button's centre is the button (not the photo's grain layer)
     expect(
-      await btn.evaluate((e) => {
-        e.scrollIntoView({ block: 'center' });
+      await btn.evaluate(async (e) => {
+        // nothing focused (the focus helper keeps a focused control in view), no smooth scroll, then let it settle
+        (document.activeElement as HTMLElement | null)?.blur();
+        e.scrollIntoView({ block: 'center', behavior: 'instant' });
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         const r = e.getBoundingClientRect();
         const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
         return hit === e ? true : `${hit?.tagName}.${hit?.className} at ${r.x},${r.y}`;
