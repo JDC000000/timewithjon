@@ -3,11 +3,14 @@
 // dropped losslessly so they meet the dec-48 "no metadata at all" rule). Jon's own photos never enter git: a private
 // build overwrites these files via scripts/fetch-real-photos.mjs (docs/PHOTOS.md). Any new or changed image fails here:
 // adding one is a reviewed edit of this list.
+// A slideshow's photos 2..n (<file>-<n>-<w>.webp) exist only after a private build: they pass only when that build
+// also wrote the slot's `slides` count, and are never in git.
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PHOTO_DIR, PHOTO_SLOTS } from '@/ui/photo-slots';
+import { PHOTO_DIR, PHOTO_SLOTS, photoSlides } from '@/ui/photo-slots';
 
 const PUBLIC = join(process.cwd(), 'public');
 const IMAGE = /\.(webp|jpe?g|png|gif|avif|heic|heif|tiff?|bmp|svg|ico)$/i;
@@ -102,9 +105,30 @@ function walk(dir: string): string[] {
   });
 }
 
+/** the slide files the slot registry asks for (none in this repo's photo-slots.ts; a private build writes `slides`) */
+const SLIDE_FILES = new Set(
+  Object.keys(PHOTO_SLOTS).flatMap((slot) =>
+    photoSlides(slot).flatMap((s) => s.srcSet.split(', ').map((e) => e.split(' ')[0]!.slice(1))),
+  ),
+);
+const SLIDE_NAME = /^img\/[a-z0-9-]+-[2-6]-\d+\.webp$/;
+
+/** public/ files git tracks, or null outside a git checkout */
+function tracked(): string[] | null {
+  const r = spawnSync('git', ['ls-files', '-z', '--', 'public'], { cwd: process.cwd(), encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  return r.stdout
+    .split('\0')
+    .filter(Boolean)
+    .map((f) => f.replace(/^public\//, ''));
+}
+
 describe('public/ images (pr89 F3)', () => {
   const files = walk(PUBLIC).map((p) => relative(PUBLIC, p).split('\\').join('/'));
-  const images = files.filter((f) => IMAGE.test(f) || f.startsWith('img/'));
+  const all = files.filter((f) => IMAGE.test(f) || f.startsWith('img/'));
+  // a private build's slideshow photos: only the ones its `slides` counts name (checked for metadata elsewhere)
+  const slides = all.filter((f) => SLIDE_NAME.test(f) && SLIDE_FILES.has(f));
+  const images = all.filter((f) => !slides.includes(f));
 
   it('holds only the allowlisted stand-ins, byte for byte', () => {
     for (const f of images) {
@@ -114,6 +138,18 @@ describe('public/ images (pr89 F3)', () => {
       expect({ f, sha }).toEqual({ f, sha: ALLOWED[f] ?? 'not on the allowlist' });
     }
     expect(images.sort()).toEqual(Object.keys(ALLOWED).sort());
+  });
+
+  it('git holds only the allowlisted stand-ins: never a slideshow photo', () => {
+    const inGit = tracked();
+    if (inGit === null) return; // not a git checkout
+    expect(inGit.filter((f) => IMAGE.test(f) || f.startsWith('img/')).sort()).toEqual(
+      Object.keys(ALLOWED).sort(),
+    );
+  });
+
+  it('a slot with `slides` (a private build) has every photo file on disk', () => {
+    for (const f of SLIDE_FILES) expect(slides, f).toContain(f);
   });
 
   it('every file a slot points at is allowlisted; stand-ins are credited, Jon’s own (dec 48) are not', () => {

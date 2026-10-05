@@ -3568,3 +3568,69 @@ li[hidden] {
 .story-block .body + .body {
   margin-top: var(--s4);
 }
+
+/* Photo slideshows (src/ui/Slideshow.tsx; a slot's `slides` > 1, private builds only): photos 2..n stack over photo 1
+   in the same box and fade in turn. Reduced motion renders photo 1 only (no extra photos, no toggle). */
+.ph img.ph-slide {
+  opacity: 0;
+  transition:
+    opacity 1.2s var(--ease-out),
+    transform var(--dur-3, 0.6s) var(--ease-out);
+}
+.ph img.ph-slide.is-on {
+  opacity: 1;
+}
+/* the Pause/Play toggle: bottom-right on a solid paper chip (as .photo-chip), a 44 px target; the focus ring sits on a
+   paper halo so it reads on any photo. Above the photo and its grain (.ph::after). */
+.ph-play {
+  position: absolute;
+  right: var(--s2);
+  bottom: var(--s2);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-family: var(--font-ui);
+  font-size: var(--fs-ui);
+  line-height: var(--lh-ui-s);
+  cursor: pointer;
+}
+.ph-play:focus-visible {
+  box-shadow: 0 0 0 calc(var(--focus-offset) + var(--focus-w) + 2px) var(--c-paper);
+}
+/* a menu card's toggle sits outside its link (DishPhotoScope), in a box laid over the card's photo */
+.dish:has(> .ph-ctl) {
+  position: relative;
+}
+.ph-ctl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  aspect-ratio: var(--ph-ratio-dish, 4 / 3);
+  pointer-events: none;
+}
+.ph-ctl .ph-play {
+  pointer-events: auto;
+}
+/* a small line under a dish photo (Surprise Me), on the card and in the sheet */
+.photo-led .ph--dish:has(+ .ph-cap) {
+  margin-bottom: 0;
+}
+.photo-led .dish-row .ph-cap {
+  order: -1;
+  margin-bottom: var(--s3);
+}
+dialog.sheet .ph--sheet:has(+ .ph-cap) {
+  margin-bottom: var(--s2);
+}
+dialog.sheet .ph-cap {
+  margin-bottom: var(--s4);
+}

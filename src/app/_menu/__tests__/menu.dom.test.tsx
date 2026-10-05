@@ -144,4 +144,24 @@ describe('S04 /menu', () => {
     expect(rows[0]).toEqual(['eager', 'high']);
     expect(rows.slice(1).every(([loading, priority]) => loading === 'lazy' && priority === null)).toBe(true);
   });
+
+  it('Surprise Me: Jon’s line under its photo, on the card and in its sheet, in the small caption style', () => {
+    const { container } = render(<Menu model={model} gate={{ kind: 'book' }} />);
+    const caps = [...container.querySelectorAll('.ph-cap')];
+    expect(caps.map((c) => c.textContent)).toEqual([
+      'No snowboard lessons offered',
+      'No snowboard lessons offered',
+    ]);
+    const [row, sheet] = caps as [HTMLElement, HTMLElement];
+    expect(row.className).toBe('detail ph-cap');
+    expect(row.previousElementSibling?.getAttribute('data-slot')).toBe('surprise-me'); // right under the photo
+    expect(row.closest('li.dish')?.querySelector('a')?.getAttribute('href')).toBe('/book/surprise-me');
+    expect(sheet.closest('dialog')?.id).toBe('d-surprise-me');
+    expect(sheet.previousElementSibling?.getAttribute('data-slot')).toBe('surprise-me');
+  });
+
+  it('a public build has no slideshow: every photo is a still, no Pause/Play anywhere', () => {
+    const { container } = render(<Menu model={model} gate={{ kind: 'book' }} />);
+    expect(container.querySelectorAll('figure[data-slides], .ph-ctl, .ph-play')).toHaveLength(0);
+  });
 });

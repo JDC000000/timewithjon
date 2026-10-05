@@ -3,7 +3,8 @@
 // can't be booked would be a plain row. The course nav links to each course (`/menu#<section>`). Jon (2026-10-05):
 // no menu foot (its lines and the closing line are gone).
 import { MENU_CAP, MENU_LABELS, MENU_SUBHEAD, MENU_TITLE } from '@/content';
-import { KeepWhole, PhotoSlot } from '@/ui';
+import type { ReactNode } from 'react';
+import { KeepWhole, PhotoSlot, SlideshowScope, SlideshowToggle, slideCount, type PhotoSlots } from '@/ui';
 import type { BookGate } from '@/app/_landing/book-gate';
 import { DishLink, DishSheets } from './DishSheets';
 import type { DishRowModel, MenuModel } from './menu-model';
@@ -15,7 +16,14 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
   return (
     <>
       <h3 className="dish-name">{d.name}</h3>
-      <PhotoSlot slot={d.slot} kind="dish" sizes={DISH_SIZES} priority={first ? 'hero' : undefined} />
+      <PhotoSlot
+        slot={d.slot}
+        kind="dish"
+        sizes={DISH_SIZES}
+        priority={first ? 'hero' : undefined}
+        controls={slideCount(d.slot) > 1 ? 'outside' : 'inside'}
+      />
+      {d.caption ? <p className="detail ph-cap">{d.caption}</p> : null}
       <p className="dish-desc">{d.line}</p>
       <p className="dish-detail detail">
         {d.detail.map((l) => (
@@ -25,6 +33,32 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
         ))}
       </p>
     </>
+  );
+}
+
+/**
+ * A card whose photo is a slideshow: the photo sits inside the card's link, and a button can't nest in an <a>, so its
+ * Pause/Play toggle is the link's sibling, laid over the photo's bottom-right (.ph-ctl: the photo's box). A still
+ * photo: the card as it was.
+ */
+export function DishPhotoScope({
+  slot,
+  slots,
+  children,
+}: {
+  slot: string;
+  slots?: PhotoSlots;
+  children: ReactNode;
+}) {
+  const count = slideCount(slot, slots);
+  if (count < 2) return children;
+  return (
+    <SlideshowScope count={count}>
+      {children}
+      <div className="ph-ctl">
+        <SlideshowToggle />
+      </div>
+    </SlideshowScope>
   );
 }
 
@@ -62,15 +96,19 @@ export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
                 {c.dishes.map((d) =>
                   d.href ? (
                     <li className="dish" key={d.slug}>
-                      <DishLink slug={d.slug} href={d.href}>
-                        <DishInner d={d} first={d.slug === firstSlug} />
-                      </DishLink>
+                      <DishPhotoScope slot={d.slot}>
+                        <DishLink slug={d.slug} href={d.href}>
+                          <DishInner d={d} first={d.slug === firstSlug} />
+                        </DishLink>
+                      </DishPhotoScope>
                     </li>
                   ) : (
                     <li className="dish dish--off" key={d.slug}>
-                      <div className="dish-row">
-                        <DishInner d={d} first={d.slug === firstSlug} />
-                      </div>
+                      <DishPhotoScope slot={d.slot}>
+                        <div className="dish-row">
+                          <DishInner d={d} first={d.slug === firstSlug} />
+                        </div>
+                      </DishPhotoScope>
                     </li>
                   ),
                 )}

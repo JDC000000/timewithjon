@@ -25,3 +25,6 @@ export const STAGING_BANNER = 'Staging. Test data only.'; // approved: Jon (2026
 
 /** The 404 page title (the line and the link are NOT_FOUND in src/content/site.ts). */
 export const NOT_FOUND_TITLE = 'Page not found · Time with Jon'; // PACK v1.12 wireframe 01 state D
+
+/** The toggle on a photo slideshow (src/ui/Slideshow.tsx): the word shown is what a press does. */
+export const SLIDESHOW = { pause: 'Pause', play: 'Play' } as const; // approved: Jon (2026-10-05)

@@ -292,6 +292,8 @@ export interface DishCard {
   facts: readonly (readonly [string, string])[];
   /** the sheet's "what happens next" line */
   next: string | null;
+  /** a small line under the photo, on the row and in the sheet */
+  caption?: string;
 }
 
 export const DISH_CARDS: Readonly<Record<DishSlug, DishCard>> = {
@@ -416,6 +418,7 @@ export const DISH_CARDS: Readonly<Record<DishSlug, DishCard>> = {
   }, // PACK v2.2 s04/s05
   'surprise-me': {
     slot: 'surprise-me',
+    caption: 'No snowboard lessons offered', // approved: Jon (2026-10-05)
     detail: ['any open time', 'serves up to 15'],
     facts: [
       ['When', 'any open time'],

@@ -12,6 +12,9 @@ export type Photo = {
   w: readonly number[];
   /** CSS object-position (the focal point) */
   pos?: string;
+  /** how many photos the slot shows in turn (absent or 1 = a still photo). Written only by a private build
+   *  (scripts/fetch-real-photos.mjs); photo n >= 2 is public/img/{file}-{n}-{w}.webp, at the same widths. */
+  slides?: number;
   /** the default alt; '' = decorative (the words next to the photo say the same) */
   alt: string;
   /** a stand-in's licence record (kept as provenance; not shown since Jon's menu polish: the Unsplash License asks for
@@ -120,10 +123,38 @@ export const PHOTO_SLOTS: Readonly<Record<string, Photo>> = {
   },
 };
 
+/** A registry of slots: PHOTO_SLOTS, or a test fixture. */
+export type PhotoSlots = Readonly<Record<string, Photo>>;
+
 /** The src + srcset of a slot's photo, or null when the slot has none yet. */
-export function photoSources(slot: string): { src: string; srcSet: string; photo: Photo } | null {
-  const photo = PHOTO_SLOTS[slot];
+export function photoSources(
+  slot: string,
+  slots: PhotoSlots = PHOTO_SLOTS,
+): { src: string; srcSet: string; photo: Photo } | null {
+  const photo = slots[slot];
   if (!photo || photo.w.length === 0) return null;
   const url = (w: number) => `${PHOTO_DIR}/${photo.file}-${w}.webp`;
   return { src: url(photo.w[0]!), srcSet: photo.w.map((w) => `${url(w)} ${w}w`).join(', '), photo };
+}
+
+/** The most photos one slot shows in turn (scripts/build-real-photos.mjs MAX_SLIDES). */
+export const MAX_SLIDES = 6;
+
+/** The src + srcset of a slot's photos 2..n (empty for a still photo or an empty slot). */
+export function photoSlides(
+  slot: string,
+  slots: PhotoSlots = PHOTO_SLOTS,
+): { src: string; srcSet: string }[] {
+  const photo = slots[slot];
+  if (!photo || photo.w.length === 0) return [];
+  const n = Math.min(MAX_SLIDES, Math.max(1, Math.floor(photo.slides ?? 1)));
+  return Array.from({ length: n - 1 }, (_, i) => {
+    const url = (w: number) => `${PHOTO_DIR}/${photo.file}-${i + 2}-${w}.webp`;
+    return { src: url(photo.w[0]!), srcSet: photo.w.map((w) => `${url(w)} ${w}w`).join(', ') };
+  });
+}
+
+/** How many photos a slot shows in turn (1 = a still photo, or an empty slot). */
+export function slideCount(slot: string, slots: PhotoSlots = PHOTO_SLOTS): number {
+  return photoSlides(slot, slots).length + 1;
 }

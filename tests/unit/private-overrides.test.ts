@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   applyPosOverrides,
+  applySlidesOverrides,
   applyTextOverrides,
   DEFAULT_TEXT_FILE,
   parsePosOverrides,
@@ -201,5 +202,38 @@ describe('focal-point (pos) overrides', () => {
     const all = Object.keys(PHOTO_SLOTS).map((s) => [s, '50% 50%'] as const);
     const out = applyPosOverrides(SLOTS_SRC, all);
     expect(out.match(/^ {4}pos: '50% 50%',$/gm)).toHaveLength(all.length);
+  });
+});
+
+describe('slides overrides (a slot rendered from a list of sources)', () => {
+  const block = (src: string, slot: string) => {
+    const at = src.indexOf(`\n  ${slot}: {\n`);
+    return src.slice(at, src.indexOf('\n  },', at));
+  };
+
+  it('writes the count into the slot’s entry, after its file line; nothing else changes', () => {
+    const out = applySlidesOverrides(SLOTS_SRC, [['hero', 6]]);
+    expect(block(out, 'hero')).toContain("    file: 'hero',\n    slides: 6,\n");
+    expect(out.replace('    slides: 6,\n', '')).toBe(SLOTS_SRC);
+    expect(PHOTO_SLOTS.hero!.slides).toBeUndefined(); // the committed registry has no slideshow
+  });
+
+  it('replaces an existing count, quoted slot keys too, and leaves a count of 1 as a still photo', () => {
+    const once = applySlidesOverrides(SLOTS_SRC, [['grind', 3]]);
+    expect(applySlidesOverrides(once, [['grind', 2]])).toBe(once.replace('slides: 3,', 'slides: 2,'));
+    const quoted = applySlidesOverrides(SLOTS_SRC, [['catch-release', 4]]);
+    expect(quoted).toContain("  'catch-release': {\n    file: 'catch-release',\n    slides: 4,\n");
+    expect(applySlidesOverrides(SLOTS_SRC, [['hero', 1]])).toBe(SLOTS_SRC);
+  });
+
+  it('works alongside a focal-point override on the same slot', () => {
+    const out = applySlidesOverrides(applyPosOverrides(SLOTS_SRC, [['why', '50% 20%']]), [['why', 2]]);
+    expect(block(out, 'why')).toContain("    file: 'why',\n    slides: 2,\n    pos: '50% 20%',\n");
+  });
+
+  it('fails on an unknown slot or a count outside 1-6', () => {
+    expect(() => applySlidesOverrides(SLOTS_SRC, [['no-such-slot', 2]])).toThrow(/no such slot/);
+    expect(() => applySlidesOverrides(SLOTS_SRC, [['hero', 7]])).toThrow(/1-6/);
+    expect(() => applySlidesOverrides(SLOTS_SRC, [['hero', 0]])).toThrow(/1-6/);
   });
 });

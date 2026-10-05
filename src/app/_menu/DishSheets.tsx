@@ -105,7 +105,12 @@ export function DishSheets({
           cap={d.sheet.cap}
           title={d.name}
           closeLabel={MENU_LABELS.close(d.name)}
-          media={<PhotoSlot slot={d.slot} kind="sheet" sizes="(min-width: 1024px) 520px, 100vw" />}
+          media={
+            <>
+              <PhotoSlot slot={d.slot} kind="sheet" sizes="(min-width: 1024px) 520px, 100vw" />
+              {d.caption ? <p className="detail ph-cap">{d.caption}</p> : null}
+            </>
+          }
         >
           <SheetBody line={d.line} sheet={d.sheet} gate={gate} />
         </Sheet>
