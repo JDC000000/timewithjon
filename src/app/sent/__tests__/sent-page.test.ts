@@ -109,7 +109,7 @@ describe('S11 /sent', () => {
     expect(h).not.toContain('rel="preload"');
   });
 
-  it('the pack chrome: the ‹ Home back link above, and no footer (Jon, 2026-10-05), on the stale page too', async () => {
+  it('the pack chrome: the ‹ Home back link above, the one-line footer below, on the stale page too', async () => {
     for (const m of [sent(), { kind: 'stale' } as const]) {
       const h = await html(m);
       expect(h).toMatch(
@@ -117,7 +117,10 @@ describe('S11 /sent', () => {
           `^(?:<link rel="preload"[^>]*>)?<header class="site-h">.*<a class="back" href="${ROUTES.home}">.*${SENT_UI.backHome}</a>`,
         ),
       );
-      expect(h).not.toMatch(/<footer/);
+      expect(h).toMatch(
+        /<\/main><footer class="site-f"><div class="wrap"><p>Questions\? Text me\. You’ve got the number\.<\/p><\/div><\/footer>/,
+      );
+      expect(h).not.toContain('North Shore');
     }
   });
 });

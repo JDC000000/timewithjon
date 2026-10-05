@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { MANAGE_UI } from '@/content/manage';
 import { SENT_UI } from '@/content/ui/guest-after';
 import type { RequestView } from '@/features/invites/manage-model';
-import { ROUTES, SiteHeader } from '@/ui';
+import { ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { loadRequestLines } from '../sent/model';
 import { NARROW } from '../_guest/layout';
 import { SentReceipt } from '../_guest/sent-receipt';
@@ -18,6 +18,7 @@ export function S18Shell({ children }: { children: ReactNode }) {
     <>
       <SiteHeader back={{ href: ROUTES.home, label: SENT_UI.backHome }} />
       {children}
+      <SiteFooter />
     </>
   );
 }

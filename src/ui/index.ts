@@ -7,7 +7,7 @@ export { List, type ListProps } from './List';
 export { Sheet, type SheetProps } from './Sheet';
 export { Menu, type MenuItem, type MenuProps } from './Menu';
 export { Toast, type ToastProps } from './Toast';
-export { SiteHeader, AdminSolo } from './SiteChrome';
+export { SiteHeader, SiteFooter, AdminSolo } from './SiteChrome';
 export { PhotoSlot, Vh, type PhotoKind, type PhotoSlotProps } from './PhotoSlot';
 export { PHOTO_SLOTS, slideCount, type Photo, type PhotoCredit, type PhotoSlots } from './photo-slots';
 export { SlideshowScope, SlideshowToggle } from './Slideshow';

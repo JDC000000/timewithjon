@@ -9,6 +9,7 @@ import {
   Menu,
   PhotoSlot,
   Sheet,
+  SiteFooter,
   SiteHeader,
   Stack,
   TextButton,
@@ -141,6 +142,7 @@ export function AxeSamples() {
           />
         )}
       </main>
+      <SiteFooter />
     </>
   );
 }

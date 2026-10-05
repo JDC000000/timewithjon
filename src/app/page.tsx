@@ -5,7 +5,7 @@ import { Closing, StoryBlock, Why } from './_landing/Why';
 import { Hero } from './_landing/Hero';
 import { loadLanding } from './_landing/landing-data';
 import { PersonalHero } from './_landing/PersonalHero';
-import { SiteHeader } from '@/ui';
+import { SiteFooter, SiteHeader } from '@/ui';
 
 export default async function HomePage() {
   const { model, dish, gate } = await loadLanding();
@@ -22,6 +22,7 @@ export default async function HomePage() {
         <StoryBlock />
         <Closing />
       </main>
+      <SiteFooter />
     </div>
   );
 }
