@@ -336,5 +336,32 @@
       "src/app/admin/_requests/DetailPane.dom.test.tsx",
       "tests/e2e/admin/standby-actions.spec.ts"
     ]
+  },
+  {
+    "id": "new-date-grid-ignores-engine-off-dates",
+    "date": "2026-10-05",
+    "task": "T2.4",
+    "area": "booking",
+    "summary": "The weather-call /new-date grid offered every season day, including Thu Apr 1 (the household hold) and blocked days, so Send was refused with 'One of those times just went'; /book already greyed them.",
+    "fix": "/new-date greys the engine's off dates for the request's dish and invite, the same call as /book (rule 11, with the hold).",
+    "tests": ["src/app/new-date/__tests__/form.dom.test.tsx", "tests/e2e/guest-after/offer.spec.ts"]
+  },
+  {
+    "id": "admin-locked-banner-outlives-lock",
+    "date": "2026-10-05",
+    "task": "T2.9",
+    "area": "admin",
+    "summary": "After Cancel for the guest or a Weather call in the same page view, the request detail still showed 'Locked in. Invite sent.' above the new state.",
+    "fix": "The lock's line is kept only while the page reads the request as locked; once it reads otherwise it goes.",
+    "tests": ["src/app/admin/_requests/DetailPane.dom.test.tsx"]
+  },
+  {
+    "id": "photo-tile-words-on-photo",
+    "date": "2026-10-05",
+    "task": "T3.6",
+    "area": "guest",
+    "summary": "On /sent and /story the photo tile's 'Added' and 'Remove' were dark text drawn straight on the photo, unreadable on a dark photo.",
+    "fix": "The tile's words sit on a solid paper chip with ink text (.photo-chip), whatever the photo.",
+    "tests": ["src/app/_guest/__tests__/photo-picker.dom.test.tsx", "tests/unit/tokens-contrast.test.ts"]
   }
 ]

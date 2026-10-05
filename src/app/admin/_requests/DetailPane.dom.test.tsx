@@ -143,6 +143,20 @@ describe('A3b: the lock is never silent (PR-G)', () => {
     expect(line.closest('[role="status"]')).toBeTruthy();
   });
 
+  it('QA r3 L1: the line goes once the page has read it locked and then reads it otherwise (cancel, weather)', async () => {
+    for (const after of ['cancelled', 'waiting'] as const) {
+      const { rerender, unmount } = await lockIn();
+      await wait(11_000);
+      expect(await screen.findByText(LOCK.sent)).toBeTruthy();
+      const locked = { ...view, filter: 'locked' as const, open: false };
+      rerender(<DetailPane {...props} view={locked} />);
+      expect(screen.getByText(LOCK.sent)).toBeTruthy(); // still Jon's confirmation while it reads locked
+      rerender(<DetailPane {...props} view={{ ...view, filter: after, open: after === 'waiting' }} />);
+      expect(screen.queryByText(LOCK.sent)).toBeNull();
+      unmount();
+    }
+  });
+
   it('a refused lock is an alert with the reason, and takes focus', async () => {
     vi.mocked(sendLock).mockResolvedValueOnce({
       ok: false,

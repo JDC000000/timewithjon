@@ -62,6 +62,15 @@ export function DetailPane(p: DetailPaneProps) {
   // the page (a refusal is an alert and takes focus: never a silent no-op).
   const [phase, setPhase] = useState<'idle' | 'window' | 'sending' | 'locked' | 'undone' | 'refused'>('idle');
   const [lockedLine, setLockedLine] = useState<string | null>(null);
+  // QA r3 L1: "Locked in. Invite sent." belongs to this lock only. Once the page has read the request as locked and
+  // then reads it otherwise (Cancel for the guest, a Weather call), the line goes. Adjusted while rendering, as
+  // React advises for state that follows props, so no stale frame shows it.
+  const [sawLocked, setSawLocked] = useState(false);
+  if (lockedLine && view.filter === 'locked' && !sawLocked) setSawLocked(true);
+  if (lockedLine && sawLocked && view.filter !== 'locked') {
+    setLockedLine(null);
+    setSawLocked(false);
+  }
   const [pending, setPending] = useState<{ target: Target; label: string } | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const capRef = useRef<HTMLParagraphElement>(null);
