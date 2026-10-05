@@ -84,6 +84,14 @@ describe('PhotoPicker real upload (T3.6.U1)', () => {
     expect((fin.headers as Record<string, string>)['x-twj-manage']).toBe('tok');
   });
 
+  it('QA r3 L3: every word on a tile (Added, Remove) sits on its solid chip, never straight on the photo', async () => {
+    const tile = await pick();
+    await waitFor(() => expect(tile.textContent).toContain(PHOTO_PICKER.added));
+    const words = [...tile.querySelectorAll('p, button')];
+    expect(words.map((w) => w.textContent)).toEqual([PHOTO_PICKER.added, PHOTO_PICKER.remove]);
+    for (const w of words) expect(w.classList.contains('photo-chip'), w.textContent!).toBe(true);
+  });
+
   it('AC2: a PUT that fails twice succeeds on the 3rd try (one sign, 3 PUTs, one finalise) → Added', async () => {
     putFailures = 2;
     const tile = await pick();

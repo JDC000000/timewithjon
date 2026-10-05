@@ -171,7 +171,6 @@ export function PhotoPicker({ photos }: { photos: Photos }) {
 }
 
 /** The tile's words and button sit above its preview image. */
-const ON_TOP = { position: 'relative' } as const;
 const COVER = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' } as const;
 
 function PhotoTile({
@@ -197,7 +196,7 @@ function PhotoTile({
         // eslint-disable-next-line @next/next/no-img-element
         <img src={item.preview} alt="" style={COVER} />
       )}
-      <p style={ON_TOP}>
+      <p className="photo-chip">
         {item.status === 'uploading'
           ? PHOTO_PICKER.uploading
           : failed
@@ -206,16 +205,16 @@ function PhotoTile({
       </p>
       {failed ? (
         <>
-          <TextButton style={ON_TOP} onClick={() => onRetry(item.key)}>
+          <TextButton className="photo-chip" onClick={() => onRetry(item.key)}>
             {PHOTO_PICKER.tryAgain}
           </TextButton>
           {/* pr94 F1: a failed tile keeps its slot, so the guest can always take it out. */}
-          <TextButton style={ON_TOP} onClick={() => onRemove(item.key)}>
+          <TextButton className="photo-chip" onClick={() => onRemove(item.key)}>
             {PHOTO_PICKER.remove}
           </TextButton>
         </>
       ) : (
-        <TextButton style={ON_TOP} onClick={() => onRemove(item.key)}>
+        <TextButton className="photo-chip" onClick={() => onRemove(item.key)}>
           {item.status === 'uploading' ? PHOTO_PICKER.stop : PHOTO_PICKER.remove}
         </TextButton>
       )}

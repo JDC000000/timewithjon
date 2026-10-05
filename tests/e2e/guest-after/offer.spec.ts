@@ -313,6 +313,9 @@ test('QA r2 M1: after a good Send, /new-date shows "Sent" with what was sent, th
   const n = await seed({ dish: 'the-grind', mode: 'dates', purpose: 'pick_new_date' });
   await page.goto(newDateUrl(n.token));
   await page.waitForLoadState('networkidle'); // hydrated before typing
+  // QA r3 M2: the household hold's Thu Apr 1 is off here as on /book (the engine's rule 11), Fri Apr 2 is not.
+  await expect(page.locator('#d-2027-04-01')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('#d-2027-04-02')).not.toHaveAttribute('aria-disabled', 'true');
   const rough = page.getByRole('textbox', { name: FLOW.pitchWhenLabel });
   await rough.fill('any Saturday in June');
   await expect(rough).toHaveValue('any Saturday in June');

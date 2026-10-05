@@ -3,7 +3,8 @@
 // POST, Send → /api/offer/propose with the single-use token in the BODY (ProposeBody: token, clientKey, hp and the
 // choices), never the URL; strict-origin referrer. The pick_new_date token opens no availability feed, so the grid
 // shows the season (QA H2: from the page's span, so it opens on the season's first month and other days are off)
-// and the server validates the dates (its line is shown as is). After Send the page re-reads.
+// with the engine's off dates greyed, as /book does (QA r3 M2: the household hold, blocks); the server validates
+// the dates too (its line is shown as is). After Send the page re-reads.
 import { useRouter } from 'next/navigation';
 import { flushSync } from 'react-dom';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
@@ -24,12 +25,15 @@ export function NewDateForm(p: {
   form: 'dates' | 'pitch';
   /** newDateSpan(): the season from today; null when it is over (the rough window only). */
   span: Span | null;
+  /** The engine's off dates (rule 11: blocks, away, the household hold, pre-release, past), as /book greys them. */
+  unavailable: readonly string[];
 }) {
   const router = useRouter();
   const { start, end } = p.span ?? {};
   const cal = useMemo(
-    () => (p.form === 'dates' && start && end ? calMonths({ start, end }, [], p.dish.dateRule) : []),
-    [p.form, start, end, p.dish.dateRule],
+    () =>
+      p.form === 'dates' && start && end ? calMonths({ start, end }, p.unavailable, p.dish.dateRule) : [],
+    [p.form, start, end, p.dish.dateRule, p.unavailable],
   );
   const [order, setOrder] = useState<string[]>([]);
   const [shown, setShown] = useState(() => (cal.length ? initialCalMonth(cal, []) : ''));

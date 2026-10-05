@@ -154,3 +154,15 @@ describe('selected states never rely on colour alone (T1.1b.U4, AC4)', () => {
     }
   });
 });
+
+describe('QA r3 L3: words on a photo tile', () => {
+  it('sit on a solid paper chip with ink text, so they read on any photo (>= 4.5:1, whatever the photo)', () => {
+    const i = site.indexOf('.photo-chip {');
+    expect(i).toBeGreaterThanOrEqual(0);
+    const rule = site.slice(i, site.indexOf('}', i));
+    expect(rule).toMatch(/background:\s*var\(--c-paper\)/);
+    expect(rule).toMatch(/color:\s*var\(--c-ink\)/);
+    expect(rule).not.toMatch(/opacity|transparent|rgba/);
+    expect(contrast(C.ink!, C.paper!)).toBeGreaterThanOrEqual(4.5);
+  });
+});

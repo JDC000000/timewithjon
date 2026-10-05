@@ -5,11 +5,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { MANAGE_UI } from '@/content/manage';
+import type { Dish } from '@/content';
 import { dishBySlug } from '@/content/menu-helpers';
+import type { InviteKind } from '@/features/availability/types';
 import { loadNewDateModel } from '@/features/invites/manage-model';
+import { q } from '@/lib/db';
 import { loadSettings } from '@/lib/settings';
 import { vancouverDate } from '@/lib/time';
 import { dishView } from '../book/[dish]/_lib/flow-view';
+import { loadDishAvailability } from '../book/[dish]/_lib/load';
 import { S18Current, S18Expired, S18Page, S18Shell } from '../offer/frame';
 import { NewDateForm } from './form';
 import { newDateSpan } from './span';
@@ -39,7 +43,7 @@ export default async function NewDatePage({ searchParams }: { searchParams: Sear
     );
   const dish = dishBySlug(model.dish.slug);
   if (!dish) notFound();
-  const settings = await loadSettings();
+  const [settings, unavailable] = await Promise.all([loadSettings(), offDates(model.requestId, dish)]);
   const span = newDateSpan(
     { start: settings.season_start, end: settings.season_end },
     vancouverDate(new Date()),
@@ -52,8 +56,21 @@ export default async function NewDatePage({ searchParams }: { searchParams: Sear
           dish={dishView(dish)}
           form={dish.flow === 'pitch' ? 'pitch' : 'dates'}
           span={span}
+          unavailable={unavailable}
         />
       </S18Page>
     </S18Shell>
   );
+}
+
+/**
+ * QA r3 M2: the dates the engine has off for this request's dish and invite (rule 11: blocks, away, the household
+ * hold, pre-release, past), computed exactly as /book computes them, so the grid never offers a day Send refuses.
+ */
+async function offDates(requestId: string, dish: Dish): Promise<string[]> {
+  const [r] = await q<{ kind: InviteKind }>(
+    `select i.kind from request r join invite i on i.id = r.invite_id where r.id = $1`,
+    [requestId],
+  );
+  return (await loadDishAvailability(dish, r?.kind ?? 'general')).engine.unavailableDates;
 }

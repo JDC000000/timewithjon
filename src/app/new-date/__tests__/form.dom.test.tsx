@@ -27,7 +27,13 @@ const shownMonth = () =>
 describe('S18 new-date grid (QA H2)', () => {
   it('opens on the first season month, with only season months in the grid', () => {
     render(
-      <NewDateForm token="t" dish={grind} form="dates" span={{ start: '2027-04-01', end: '2027-06-30' }} />,
+      <NewDateForm
+        token="t"
+        dish={grind}
+        form="dates"
+        span={{ start: '2027-04-01', end: '2027-06-30' }}
+        unavailable={[]}
+      />,
     );
     expect(shownMonth().map((m) => m.getAttribute('data-name'))).toEqual(['April 2027']);
     expect([...document.querySelectorAll('.cal-month')].map((m) => m.getAttribute('data-name'))).toEqual([
@@ -40,7 +46,13 @@ describe('S18 new-date grid (QA H2)', () => {
   it('days before the span start are off and do nothing when tapped', async () => {
     const user = userEvent.setup();
     render(
-      <NewDateForm token="t" dish={grind} form="dates" span={{ start: '2027-05-12', end: '2027-06-30' }} />,
+      <NewDateForm
+        token="t"
+        dish={grind}
+        form="dates"
+        span={{ start: '2027-05-12', end: '2027-06-30' }}
+        unavailable={[]}
+      />,
     );
     expect(shownMonth().map((m) => m.getAttribute('data-name'))).toEqual(['May 2027']);
     const before = document.getElementById('d-2027-05-08')!;
@@ -54,17 +66,43 @@ describe('S18 new-date grid (QA H2)', () => {
   });
 
   it('after the season: no grid, the rough window only', () => {
-    render(<NewDateForm token="t" dish={grind} form="dates" span={null} />);
+    render(<NewDateForm token="t" dish={grind} form="dates" span={null} unavailable={[]} />);
     expect(document.querySelector('.cal-month')).toBeNull();
     expect(document.getElementById('s18-rough')).toBeTruthy();
   });
 
   it('the rough window starts empty, with no example inside it (QA L9: the hint above already gives one)', () => {
     render(
-      <NewDateForm token="t" dish={grind} form="dates" span={{ start: '2027-04-01', end: '2027-06-30' }} />,
+      <NewDateForm
+        token="t"
+        dish={grind}
+        form="dates"
+        span={{ start: '2027-04-01', end: '2027-06-30' }}
+        unavailable={[]}
+      />,
     );
     const rough = document.getElementById('s18-rough') as HTMLInputElement;
     expect(rough.value).toBe('');
     expect(rough.hasAttribute('placeholder')).toBe(false);
+  });
+
+  it('QA r3 M2: a date the engine has off (the household hold, a block) is off here too, as on /book', async () => {
+    const user = userEvent.setup();
+    render(
+      <NewDateForm
+        token="t"
+        dish={grind}
+        form="dates"
+        span={{ start: '2027-04-01', end: '2027-06-30' }}
+        unavailable={['2027-04-01', '2027-04-16']}
+      />,
+    );
+    for (const off of ['d-2027-04-01', 'd-2027-04-16']) {
+      const day = document.getElementById(off)!;
+      expect(day.getAttribute('aria-disabled'), off).toBe('true');
+      await user.click(day);
+      expect(day.getAttribute('aria-pressed'), off).toBeNull();
+    }
+    expect(document.getElementById('d-2027-04-02')!.getAttribute('aria-disabled')).toBeNull();
   });
 });

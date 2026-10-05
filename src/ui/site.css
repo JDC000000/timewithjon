@@ -3533,3 +3533,13 @@ li[hidden] {
   flex-basis: 100%;
   margin-top: 0;
 }
+
+/* QA r3 L3: the words on a photo tile (Added, Uploading, Remove, Try again) sit on a solid paper chip with ink
+   text, so they read on any photo, dark or light (ink on paper: 13:1). Above the photo, which is absolute. */
+.photo-chip {
+  position: relative;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  padding: 0 var(--s1);
+  border-radius: var(--r-control);
+}
