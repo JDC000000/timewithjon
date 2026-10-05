@@ -1,5 +1,6 @@
 // src/ui/SiteChrome.tsx (T1.1a.U1): the guest header and footer (pack s01 header() / FOOT).
 import Link from 'next/link';
+import { FOOTER_LINE } from '@/content';
 import { ADMIN_SHELL, MARK, SITE_NAV } from '@/content/ui/foundation';
 import type { ReactNode } from 'react';
 import { ROUTES } from './routes';
@@ -33,6 +34,17 @@ export function SiteHeader({ back }: { back?: { href: string; label: string } })
         )}
       </div>
     </header>
+  );
+}
+
+/** The footer under every guest page: one line (Jon, 2026-10-05). */
+export function SiteFooter() {
+  return (
+    <footer className="site-f">
+      <div className="wrap">
+        <p>{FOOTER_LINE}</p>
+      </div>
+    </footer>
   );
 }
 

@@ -27,6 +27,8 @@ export const STORY_BLOCK = {
   lead: 'Can’t make a date? How about you email me a photo from way back and a few lines. Any story, any length, I’d love to hear from you.', // approved: Jon (2026-10-05)
   signOff: 'As always, looking forward to whatever is next! - Jon', // approved: Jon (2026-10-05)
 };
+/** The one footer line under every guest page (Jon, 2026-10-05: kept; the place line stays gone). */
+export const FOOTER_LINE = 'Questions? Text me. You’ve got the number.'; // approved: Jon (2026-10-05)
 export const NOT_FOUND = { line: 'This page took the day off.', back: 'Back to the activity menu' }; // v2.1 COPY (decision 37d)
 /**
  * Jon decisions 45 + 47a: "No gifts. Really." left the front of the site (the landing section, the nav link and the

@@ -11,7 +11,7 @@ import { AFTER_SEND, GUEST_LABEL, NO_GIFTS_PS } from '@/content';
 import { AFTER_SEND_STANDBY, SENT_UI } from '@/content/ui/guest-after';
 import { readRequestCapability } from '@/features/invites/capability';
 import { MAX_PHOTOS } from '@/features/photos/limits';
-import { KeepWhole, PhotoSlot, ROUTES, SiteHeader } from '@/ui';
+import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { StaleState } from '../_guest/stale';
 import { StoryForm } from '../_guest/story-form';
@@ -29,6 +29,7 @@ export default async function SentPage() {
     <>
       <SiteHeader back={{ href: ROUTES.home, label: SENT_UI.backHome }} />
       {model.kind === 'stale' ? <StaleState /> : <Sent model={model} />}
+      <SiteFooter />
     </>
   );
 }

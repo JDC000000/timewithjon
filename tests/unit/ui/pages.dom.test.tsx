@@ -8,13 +8,13 @@ import { StagingBanner, Tick } from '@/ui';
 afterEach(cleanup);
 
 describe('404 (S15)', () => {
-  it('one h1 line, a link back to the menu, header + main#main, no footer (Jon, 2026-10-05), the page title', () => {
+  it('one h1 line, a link back to the menu, header + main#main + the one-line footer, the page title', () => {
     render(<NotFound />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(NOT_FOUND.line);
     expect(screen.getByRole('link', { name: NOT_FOUND.back }).getAttribute('href')).toBe('/menu');
     expect(screen.getByRole('main').id).toBe('main');
     expect(screen.getByRole('banner')).toBeTruthy();
-    expect(screen.queryByRole('contentinfo')).toBeNull();
+    expect(screen.getByRole('contentinfo').textContent).toBe('Questions? Text me. You’ve got the number.');
     expect(metadata.title).toBe('Page not found · Time with Jon');
   });
 });

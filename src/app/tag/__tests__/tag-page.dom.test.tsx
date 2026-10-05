@@ -85,14 +85,14 @@ describe('S12b /tag', () => {
     expect(container.querySelector('img, figure, .ph')).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Site' })).toBeNull();
   });
-  it('keeps the pack markup: its classes and inline spacing; no footer (Jon, 2026-10-05)', () => {
+  it('keeps the pack markup: its classes, its inline spacing and the one-line footer (Jon, 2026-10-05)', () => {
     render(<TagPage />);
     expect(screen.getByRole('heading', { level: 1 }).className).toBe('h1');
     expect(screen.getByText(TAG_UI.intro).className).toBe('lead intro');
     expect(screen.getByRole('button', { name: TAG_UI.print }).parentElement?.className).toBe('send');
     expect(screen.getByRole('img', { name: TAG_UI.sheetLabel }).style.marginTop).toBe('var(--s7)');
     expect(document.getElementById('tag-words')?.style.marginTop).toBe('var(--s3)');
-    expect(screen.queryByRole('contentinfo')).toBeNull();
-    expect(screen.queryByText(/Questions\? Text me|North Shore/)).toBeNull();
+    expect(screen.getByRole('contentinfo').textContent).toBe('Questions? Text me. You’ve got the number.');
+    expect(screen.queryByText(/North Shore/)).toBeNull();
   });
 });

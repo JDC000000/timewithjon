@@ -3,7 +3,7 @@
 // Me (S8), the S7 month grid (dates dishes, the Old Haunt on weekends), or Pitch Me (T1.6).
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ROUTES, SiteHeader } from '@/ui';
+import { ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { ERRORS, FLOW, type Dish } from '@/content';
 import { bookHref, dishBySlug, isBookable } from '@/content/menu-helpers';
 import { DATES, FLOW_UI, OLD_HAUNT, PITCH, SURPRISE } from '@/content/ui/booking';
@@ -115,6 +115,7 @@ export default async function BookPage({ params, searchParams }: Params) {
     <>
       <SiteHeader back={{ href: ROUTES.menu, label: FLOW_UI.backToMenu }} />
       <main id="main">{body}</main>
+      <SiteFooter />
     </>
   );
 }

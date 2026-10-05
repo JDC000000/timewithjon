@@ -1,12 +1,13 @@
 // tests/unit/ui/primitives.dom.test.tsx (U1): the shared components' markup contract and their non-layout
 // behaviour, driven by user-event. Sheet, Menu placement and Toast-in-view run in real browsers
 // (tests/e2e/ui/primitives.spec.ts).
+import { readFileSync } from 'node:fs';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFocusGuard } from '@/ui/focus';
 import * as ui from '@/ui';
-import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, Toast } from '@/ui';
+import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, SiteFooter, Toast } from '@/ui';
 import { AdminNav } from '@/ui/AdminNav';
 import { PHOTO_SLOTS, type Photo } from '@/ui/photo-slots';
 
@@ -374,8 +375,28 @@ describe('Toast (jsdom: always in view)', () => {
   });
 });
 
-describe('the site footer is gone (Jon, 2026-10-05)', () => {
-  it('no SiteFooter is exported: its lines left every page', () => {
-    expect('SiteFooter' in ui).toBe(false);
+describe('SiteFooter (Jon, 2026-10-05)', () => {
+  it('is one line: "Questions? Text me." stays; the place line and the photo credits are gone', () => {
+    const { container } = render(<SiteFooter />);
+    expect([...container.querySelectorAll('footer.site-f p')].map((p) => p.textContent)).toEqual([
+      'Questions? Text me. You’ve got the number.',
+    ]);
+    expect(container.textContent).not.toMatch(/North Shore|Stand-in|Unsplash|Photos: Jon/);
+    expect('SiteFooter' in ui).toBe(true);
+  });
+
+  it('closes every guest page, /menu included', () => {
+    const pages = [
+      'src/app/page.tsx',
+      'src/app/menu/page.tsx',
+      'src/app/book/[dish]/page.tsx',
+      'src/app/sent/page.tsx',
+      'src/app/manage/page.tsx',
+      'src/app/offer/frame.tsx',
+      'src/app/story/page.tsx',
+      'src/app/tag/page.tsx',
+      'src/app/not-found.tsx',
+    ];
+    for (const f of pages) expect(readFileSync(f, 'utf8'), f).toContain('<SiteFooter />');
   });
 });
