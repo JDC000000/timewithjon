@@ -74,7 +74,7 @@ describe('S12b /tag', () => {
     expect(container.querySelector('.flow-top.no-print')?.contains(btn)).toBe(true);
   });
 
-  it('links nowhere but the back link, the wordmark and the footer; no gifts nav, no photo', () => {
+  it('links nowhere but the back link and the wordmark; no gifts nav, no photo', () => {
     const { container } = render(<TagPage />);
     const hrefs = within(container)
       .getAllByRole('link')
@@ -85,16 +85,14 @@ describe('S12b /tag', () => {
     expect(container.querySelector('img, figure, .ph')).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Site' })).toBeNull();
   });
-  it('keeps the pack markup: its classes, its inline spacing and the site footer', () => {
+  it('keeps the pack markup: its classes and inline spacing; no footer (Jon, 2026-10-05)', () => {
     render(<TagPage />);
     expect(screen.getByRole('heading', { level: 1 }).className).toBe('h1');
     expect(screen.getByText(TAG_UI.intro).className).toBe('lead intro');
     expect(screen.getByRole('button', { name: TAG_UI.print }).parentElement?.className).toBe('send');
     expect(screen.getByRole('img', { name: TAG_UI.sheetLabel }).style.marginTop).toBe('var(--s7)');
     expect(document.getElementById('tag-words')?.style.marginTop).toBe('var(--s3)');
-    expect(
-      within(screen.getByRole('contentinfo')).getByText('Questions? Text me. You’ve got the number.'),
-    ).toBeTruthy();
-    expect(within(screen.getByRole('contentinfo')).queryByText(/North Shore/)).toBeNull(); // Jon, 2026-10-05
+    expect(screen.queryByRole('contentinfo')).toBeNull();
+    expect(screen.queryByText(/Questions\? Text me|North Shore/)).toBeNull();
   });
 });

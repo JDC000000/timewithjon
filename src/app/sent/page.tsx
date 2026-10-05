@@ -11,7 +11,7 @@ import { AFTER_SEND, GUEST_LABEL, NO_GIFTS_PS } from '@/content';
 import { AFTER_SEND_STANDBY, SENT_UI } from '@/content/ui/guest-after';
 import { readRequestCapability } from '@/features/invites/capability';
 import { MAX_PHOTOS } from '@/features/photos/limits';
-import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
+import { KeepWhole, PhotoSlot, ROUTES, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { StaleState } from '../_guest/stale';
 import { StoryForm } from '../_guest/story-form';
@@ -21,8 +21,6 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Sent · Time with Jon' };
 
 const NO_TARGET = {};
-/** v2.2 pack s11: the hero photo between the stamp and the receipt (736 px column from 768 px), credited below. */
-const SENT_PHOTOS = ['hero'] as const;
 const SENT_PHOTO_SIZES = '(min-width: 768px) 736px, 100vw';
 
 export default async function SentPage() {
@@ -31,7 +29,6 @@ export default async function SentPage() {
     <>
       <SiteHeader back={{ href: ROUTES.home, label: SENT_UI.backHome }} />
       {model.kind === 'stale' ? <StaleState /> : <Sent model={model} />}
-      <SiteFooter photos={model.kind === 'stale' ? [] : SENT_PHOTOS} />
     </>
   );
 }

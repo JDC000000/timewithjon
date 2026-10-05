@@ -174,7 +174,6 @@ export function InvitesList({ invites, dishes }: { invites: InviteListItem[]; di
                 <span className="who">{who}</span>
                 <span className="vh">, </span>
                 <Meta parts={inviteMeta(i)} />
-                {i.ourThings.length > 0 ? <p className="cap muted">{i.ourThings.join(' · ')}</p> : null}
                 <p className="ui a5-link">{i.link.replace(/^https?:\/\//, '')}</p>
                 {i.revoked ? null : (
                   <div className="a5-actions">

@@ -3,7 +3,7 @@
 // ROUTES.menu = '/menu'. The model decides, JSX renders.
 import type { Metadata } from 'next';
 import { MENU_TITLE } from '@/content';
-import { SiteFooter, SiteHeader } from '@/ui';
+import { SiteHeader } from '@/ui';
 import { Closing } from '../_landing/Why';
 import { Menu } from '../_menu/Menu';
 import { CourseBar } from './CourseBar';
@@ -24,7 +24,6 @@ export default async function MenuPage() {
         <CourseBar />
         <Closing />
       </main>
-      <SiteFooter photos={model.photos} bare />
     </div>
   );
 }

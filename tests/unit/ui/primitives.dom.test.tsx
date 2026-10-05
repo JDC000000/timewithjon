@@ -5,7 +5,8 @@ import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFocusGuard } from '@/ui/focus';
-import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, SiteFooter, Toast } from '@/ui';
+import * as ui from '@/ui';
+import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, Toast } from '@/ui';
 import { AdminNav } from '@/ui/AdminNav';
 import { PHOTO_SLOTS, type Photo } from '@/ui/photo-slots';
 
@@ -373,19 +374,8 @@ describe('Toast (jsdom: always in view)', () => {
   });
 });
 
-describe('SiteFooter', () => {
-  it('is the one footer line only: no photo credits, no "North Shore, BC" (Jon, 2026-10-05); bare renders nothing', () => {
-    expect(render(<SiteFooter bare />).container.innerHTML).toBe('');
-    cleanup();
-    for (const photos of [undefined, [], ['something-new'], ['flat-white', 'close']]) {
-      const { container } = render(<SiteFooter photos={photos} />);
-      expect([...container.querySelectorAll('.site-f p')].map((p) => p.textContent)).toEqual([
-        'Questions? Text me. You’ve got the number.',
-      ]);
-      expect(container.textContent).not.toMatch(/North Shore/);
-      expect(container.querySelector('.credits')).toBeNull();
-      expect(container.textContent).not.toMatch(/Stand-in|Unsplash|Photos: Jon/);
-      cleanup();
-    }
+describe('the site footer is gone (Jon, 2026-10-05)', () => {
+  it('no SiteFooter is exported: its lines left every page', () => {
+    expect('SiteFooter' in ui).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 // src/app/admin/(app)/invites/_a5/copy.ts — T2.6.U1: the A5 words. From wireframe 09 A5/A5c where it has them
-// ("Links", "New link", "General link", "Rotate", "Our things" + its help, "n/4 words", "Revoke this link",
+// ("Links", "New link", "General link", "Rotate", "Revoke this link",
 // "Email (optional)", "Dish"); the rest is plain admin copy (Jon-only screen, no guest sees it). No AI suggestions.
 export const A5 = {
   title: 'Links',
@@ -37,11 +37,6 @@ export const A5 = {
   willSee: (name: string) => `${name || 'They'} will see`,
   name: 'Name',
   nameHelp: 'As they’ll see it: “Dave.”',
-  things: 'Our things',
-  thingsHelp:
-    'Up to 3 things you keep saying you’ll do together, 4 words max each. Leave blank for the open line.',
-  thing: (n: number) => `${n}, our thing`,
-  words: (n: number) => `${n}/4 words`, // tasks.md T2.6.U1 contract: "n/4 words"
   dish: 'Dish',
   noDish: 'No dish (the whole menu)',
   email: 'Email (optional)',
@@ -53,11 +48,6 @@ export const A5 = {
   err: {
     name: 'Add their name (60 characters max).',
     bad_character: 'Only letters, numbers and spaces.',
-    thing_too_long: '40 characters max.',
-    no_commas: 'No commas. Use the next box.',
-    four_words_max: '4 words max.',
-    thing_empty: 'Add a thing or leave it blank.',
-    three_max: '3 things max.',
     not_bookable: 'That dish can’t be booked now.',
     email: 'Check the email.',
   },

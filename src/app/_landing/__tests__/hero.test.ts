@@ -45,7 +45,7 @@ describe('S1 open hero', () => {
   it('one h1: the fixed open line, then How about now?', () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html.match(/<h1.*<\/h1>/)![0])).toBe(
-      'We keep saying we should do lunch, that beer, a mountain bike lap, an epic trip or something new.How about now?',
+      'We keep saying we should get or do that epic trip.How about now?',
     );
   });
   it('the CTA goes to the activity menu (ROUTES.menu = /menu, the S04 page, decision 37b/c)', () => {
@@ -73,16 +73,16 @@ describe('S1 open hero', () => {
 });
 
 describe('S2 personal hero', () => {
-  it('AC2: "Dave." then their things, then How about now?', () => {
+  it('AC2: "Dave." then the one line everyone sees (Jon, 2026-10-05), then How about now?', () => {
     const h1 = text(personal().match(/<h1.*<\/h1>/)![0]);
-    expect(h1).toBe(
-      'Dave.We keep saying we should do the Seymour lap, Tofino again or that epic trip.How about now?',
-    );
+    expect(h1).toBe('Dave.We keep saying we should get or do that epic trip.How about now?');
   });
-  it('AC2: no things = the name plus the open-link line; phrases are escaped', () => {
-    expect(text(personal({ our_things: [] }))).toContain('Dave.We keep saying we should do lunch, that beer');
+  it('AC2: an invite’s things never show, with or without them (and nothing of theirs reaches the page)', () => {
+    expect(text(personal({ our_things: [] }))).toContain(
+      'Dave.We keep saying we should get or do that epic trip.',
+    );
     const html = personal({ our_things: ['<b>x</b> & co'] });
-    expect(html).toContain('&lt;b&gt;x&lt;/b&gt; &amp; co or that epic trip.');
+    expect(html).not.toContain('&lt;b&gt;x');
     expect(html).not.toContain('<b>x</b>');
   });
   it('Book {dish} skips the sheet (G0.5 #4); the dish name links to its course; See the whole activity menu', () => {

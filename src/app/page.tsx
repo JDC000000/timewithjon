@@ -5,10 +5,7 @@ import { Closing, StoryBlock, Why } from './_landing/Why';
 import { Hero } from './_landing/Hero';
 import { loadLanding } from './_landing/landing-data';
 import { PersonalHero } from './_landing/PersonalHero';
-import { SiteFooter, SiteHeader } from '@/ui';
-
-/** Every photo slot the landing shows (both hero variants). */
-const LANDING_PHOTOS = ['hero', 'why', 'close'] as const;
+import { SiteHeader } from '@/ui';
 
 export default async function HomePage() {
   const { model, dish, gate } = await loadLanding();
@@ -25,7 +22,6 @@ export default async function HomePage() {
         <StoryBlock />
         <Closing />
       </main>
-      <SiteFooter photos={LANDING_PHOTOS} />
     </div>
   );
 }

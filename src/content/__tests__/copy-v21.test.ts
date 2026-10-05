@@ -101,7 +101,7 @@ describe('v2.1 copy guard (decision 37)', () => {
 
   it('the v2.1 strings, word for word', () => {
     expect(content.OPEN_LINE).toBe(
-      'We keep saying we should do lunch, that beer, a mountain bike lap, an epic trip or something new.',
+      'We keep saying we should get or do that epic trip.', // Jon, 2026-10-05: one line for everyone
     );
     expect(content.SEE_THE_MENU).toBe('See the activity menu');
     expect(content.PERSONAL.seeWholeMenu).toBe('See the whole activity menu');

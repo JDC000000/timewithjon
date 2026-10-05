@@ -3,7 +3,7 @@
 import type { Metadata } from 'next';
 import { NOT_FOUND } from '@/content';
 import { NOT_FOUND_TITLE } from '@/content/ui/foundation';
-import { Button, ROUTES, SiteFooter, SiteHeader } from '@/ui';
+import { Button, ROUTES, SiteHeader } from '@/ui';
 
 export const metadata: Metadata = { title: NOT_FOUND_TITLE };
 
@@ -19,7 +19,6 @@ export default function NotFound() {
           </p>
         </div>
       </main>
-      <SiteFooter />
     </>
   );
 }

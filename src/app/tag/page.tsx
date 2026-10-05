@@ -5,7 +5,7 @@
 import type { Metadata } from 'next';
 import { WINE_TAG } from '@/content';
 import { TAG_UI } from '@/content/ui/tag';
-import { ROUTES, SiteFooter, SiteHeader } from '@/ui';
+import { ROUTES, SiteHeader } from '@/ui';
 import { noWidow } from '../_landing/text';
 import { PrintButton } from './print-button';
 
@@ -53,7 +53,6 @@ export default function TagPage() {
           </p>
         </div>
       </main>
-      <SiteFooter />
     </>
   );
 }

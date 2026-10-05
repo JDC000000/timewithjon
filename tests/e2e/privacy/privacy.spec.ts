@@ -15,7 +15,7 @@
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { Client } from 'pg';
 import { DISHES, ERRORS } from '../../../src/content';
-import { AFTER_SEND } from '../../../src/content/site';
+import { AFTER_SEND, OPEN_LINE } from '../../../src/content/site';
 import { isBookable } from '../../../src/content/menu-helpers';
 import { ROUTES } from '../../../src/ui/routes';
 import { expect, test, WEBKIT_RSC_ABORT } from '../support/fixtures';
@@ -163,7 +163,9 @@ test('control: the real personal session does show Dave (so the guesses above ca
   await signInAs(context, 'guest', baseURL!);
   await page.goto('/');
   await expect(page.getByText(DAVE.name).first()).toBeVisible();
-  await expect(page.getByText(DAVE.ourThings[0], { exact: false }).first()).toBeVisible();
+  // Jon (2026-10-05): an invite's things are never shown; the hero line is the one everyone sees.
+  await expect(page.getByText(OPEN_LINE)).toBeVisible();
+  await expect(page.getByText(DAVE.ourThings[0], { exact: false })).toHaveCount(0);
 });
 
 test('T2.6 AC3: the general link rotated mid-form -> Send refused (S16), old link S16, new link books', async ({

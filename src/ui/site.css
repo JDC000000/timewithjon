@@ -3375,6 +3375,18 @@ html:has(.menu-head + nav) {
   }
 }
 
+/* Jon (2026-10-05): no footer on any page. The page keeps the room the footer gave its end (its s9 margin, s6/s7
+   padding and its lines: two on a phone, where they wrapped, one from 768 px), so the last content (the book page's
+   Send, above the sticky picks bar) never sits flush on the bottom edge and every page scrolls as far as it did. */
+.site-h ~ main {
+  padding-bottom: calc(var(--s9) + var(--s6) + var(--s7) + var(--s3) + 2 * var(--lh-ui) * var(--fs-ui));
+}
+@media (min-width: 768px) {
+  .site-h ~ main {
+    padding-bottom: calc(var(--s9) + var(--s6) + var(--s7) + var(--lh-ui) * var(--fs-ui));
+  }
+}
+
 /* T1.1a.U2 (R1-21): under reduced motion nothing moves, whatever a later rule sets (the tokens already zero the durations) */
 @media (prefers-reduced-motion: reduce) {
   *,
