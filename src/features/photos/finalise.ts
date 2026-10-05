@@ -34,6 +34,12 @@ export async function finalisePhotoUpload(
   if (!row || row.refused || (callerStoryId !== null && row.story_id !== callerStoryId))
     return { ok: false, code: 'not_found' };
   if (row.photo_id) return { ok: true, photoId: row.photo_id, replay: true };
+  // A story that is already full: refused before the raw file is read or decoded, and the raw file (maybe with
+  // GPS) goes at once. The transaction below re-checks, for a photo that lands in between.
+  if (await storyFull(row.story_id)) {
+    await refuse(uploadId, store, row.incoming_path);
+    return { ok: false, code: 'too_many' };
+  }
 
   const raw = await store.download(row.incoming_path);
   // U10: a racing finalise may have committed and dropped the raw object since our read above (it drops it only
@@ -94,8 +100,18 @@ export async function finalisePhotoUpload(
       .remove([finalPath])
       .catch((e: unknown) => report(e, { area: 'photos', step: 'drop_duplicate' }));
   }
+  if (!outcome.ok) await refuse(uploadId, store, row.incoming_path); // filled up meanwhile: the raw file goes too
   if (outcome.ok) await dropIncoming(store, row.incoming_path);
   return outcome;
+}
+
+/** The story already holds as many photos as its source allows (MAX_PHOTOS). */
+async function storyFull(storyId: string): Promise<boolean> {
+  const [r] = await q<{ n: number; source: keyof typeof MAX_PHOTOS }>(
+    `select s.source, (select count(*)::int from photo p where p.story_id = s.id) as n from story s where s.id = $1`,
+    [storyId],
+  );
+  return !!r && r.n >= MAX_PHOTOS[r.source];
 }
 
 /** The photo a finalise of this upload already committed, answered as a replay; null while none has. */

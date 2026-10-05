@@ -11,7 +11,7 @@ import { POST as pitchRoute } from '@/app/api/admin/requests/[id]/pitch/route';
 import { POST as weatherRoute } from '@/app/api/admin/requests/[id]/weather/route';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { menuLink, resolveLinkVars, UnknownLinkKindError } from '@/features/email/link-vars';
-import { findToken } from '@/features/invites/action-tokens';
+import { findToken, issueManageToken, manageExpiry } from '@/features/invites/action-tokens';
 import { loadNewDateModel } from '@/features/invites/manage-model';
 import { createRequestTx } from '@/features/requests/create';
 import { lockRequest } from '@/features/requests/lock';
@@ -284,7 +284,15 @@ describe('T2.4.06 Weather call → delete the event + E10', () => {
       );
     }
     expect(await weatherCall(guests[0]!.id, NOW)).toMatchObject({ status: 409, reason: 'not_allowed' });
+    // Manage links from the locked booking's emails: they last to its end + 7 days.
+    const links = await withTx(async (c) =>
+      Promise.all([host.id, ...guests.map((g) => g.id)].map((id) => issueManageToken(c, id, NOW))),
+    );
+    expect((await findToken(links[0]!))!.expires_at).toEqual(manageExpiry(before!.e, NOW));
     expect((await weatherCall(host.id, NOW)).ok).toBe(true);
+    // Back to waiting on a new time: every live manage link (host and joined guests) lasts the unlocked lifetime,
+    // not the old end + 7 days (as Ask for another time does).
+    for (const raw of links) expect((await findToken(raw))!.expires_at).toEqual(manageExpiry(null, NOW));
     const tokens: string[] = [];
     for (const g of guests) {
       const [j] = await q<{
