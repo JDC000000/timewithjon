@@ -160,8 +160,12 @@ export function DetailPane(p: DetailPaneProps) {
       },
     );
   // The desktop ⋯ menu (APG); the phone sheet lists the same actions, with Suggest first (wireframe 09 A3c2).
+  // A request already on stand-by can't be moved there again (the server refuses it): no such row.
+  const canMoveToStandby = view.filter !== 'standby';
   const menuItems: MenuItem[] = [
-    { key: 'standby', label: ACTIONS.standby, onSelect: () => setSheet('standby') },
+    ...(canMoveToStandby
+      ? [{ key: 'standby', label: ACTIONS.standby, onSelect: () => setSheet('standby') }]
+      : []),
     { key: 'copy', label: ACTIONS.copyEmail, onSelect: () => copyEmail() },
     ...(p.joinedToRequestId
       ? [{ key: 'promote', label: SHEETS.join.promote(view.who), onSelect: () => promote() }]
@@ -544,12 +548,14 @@ export function DetailPane(p: DetailPaneProps) {
               </button>
             </li>
           )}
-          <li>
-            <button className="row" type="button" onClick={() => setSheet('standby')}>
-              <span>{ACTIONS.standby}</span>
-              <span aria-hidden="true">›</span>
-            </button>
-          </li>
+          {canMoveToStandby ? (
+            <li>
+              <button className="row" type="button" onClick={() => setSheet('standby')}>
+                <span>{ACTIONS.standby}</span>
+                <span aria-hidden="true">›</span>
+              </button>
+            </li>
+          ) : null}
           <li>
             <button className="row" type="button" onClick={() => copyEmail()}>
               <span>{ACTIONS.copyEmail}</span>

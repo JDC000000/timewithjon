@@ -156,3 +156,22 @@ describe('A3b: the lock is never silent (PR-G)', () => {
     expect(document.activeElement).toBe(alert);
   });
 });
+
+describe('a stand-by request (Jon, 2026-10-04)', () => {
+  it('offers Lock in and Suggest like an open request, no Move to stand-by and no Before 60 box', async () => {
+    const standby: DetailPaneProps = {
+      ...props,
+      view: { ...view, filter: 'standby', back: { href: '/admin#standby', label: 'Stand-by' } },
+    };
+    const user = userEvent.setup({ delay: null });
+    const { container } = render(<DetailPane {...standby} />);
+    expect(screen.getByRole('button', { name: /^Lock in/ })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Suggest another time' }).length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText('Before 60')).toBeNull();
+    // the ⋯ menu (desktop) and the More sheet (phone) list Copy their email, never Move to stand-by
+    await user.click(container.querySelector('button[aria-haspopup="menu"]')!);
+    expect(screen.getByRole('menuitem', { name: 'Copy their email' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Move to stand-by' })).toBeNull();
+    expect(container.querySelector(`#more-r1`)?.textContent).not.toContain('Move to stand-by');
+  });
+});
