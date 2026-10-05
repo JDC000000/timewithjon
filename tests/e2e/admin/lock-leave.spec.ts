@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { ACTIONS } from '../../../src/content/ui/admin-requests';
 import { ROUTES } from '../../../src/ui/routes';
+import { BOOKED_WEEKS } from '../support/booked-weeks';
 import { signInAs } from '../support/sessions';
 import { expect, test } from '../support/fixtures';
 
@@ -32,6 +33,7 @@ const seedRequest = () =>
         // on it, and no lock anywhere in its week (no clash, no Big Day, no full week).
         `select s.id from slot s join week w on w.week_start = date_trunc('week', s.date)::date
           where s.date >= '2027-01-01' and s.window_kind = 'lunch' and s.date <> '2027-04-01'
+            and w.week_start <> all($1::date[])
             and not exists (select 1 from request_slot_choice x join request xr on xr.id = x.request_id
                              where x.slot_id = s.id and xr.status <> 'cancelled')
             and not exists (select 1 from offer o join request orq on orq.id = o.request_id
@@ -40,6 +42,7 @@ const seedRequest = () =>
             and not exists (select 1 from request r where r.status = 'locked'
                               and r.locked_starts_at::date between w.week_start - 1 and w.week_start + 8)
           order by s.date desc limit 1`,
+        [BOOKED_WEEKS],
       );
       if (!slot) throw new Error('no free 2027 slot in the test DB');
       const email = `g2-${randomUUID()}@example.com`;

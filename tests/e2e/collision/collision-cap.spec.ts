@@ -16,6 +16,7 @@ import type { Browser, Page } from '@playwright/test';
 import { Client } from 'pg';
 import { LOCK, ordinal } from '../../../src/content/ui/admin-requests';
 import { ROUTES } from '../../../src/ui/routes';
+import { BOOKED_WEEKS } from '../support/booked-weeks';
 import { expect, test } from '../support/fixtures';
 import { lockIn } from '../support/flows';
 import { clickLikeAPerson } from '../support/input';
@@ -59,7 +60,8 @@ const seed = () =>
       await c.query(`select pg_advisory_xact_lock(hashtext('twj_e2e_collision_cap'))`);
       const { rows: weeks } = await c.query<{ week_start: string; slots: Record<string, string> }>(
         `with ws as (select date_trunc('week', s.date)::date as week_start, s.id, s.date, s.window_kind
-                        from slot s where s.date >= '2027-01-01' and s.date <> '2027-04-01')
+                        from slot s where s.date >= '2027-01-01' and s.date <> '2027-04-01'
+                          and date_trunc('week', s.date)::date <> all($1::date[]))
          select ws.week_start::text, jsonb_object_agg(to_char(ws.date, 'Dy') || '-' || ws.window_kind, ws.id) as slots
            from ws left join week w on w.week_start = ws.week_start
           where coalesce(w.cap_override, (select default_weekly_cap from settings limit 1)) = 2
@@ -76,6 +78,7 @@ const seed = () =>
             and not exists (select 1 from request r where r.status in ('locked', 'done')
                               and r.locked_starts_at::date between ws.week_start - 1 and ws.week_start + 8)
           order by ws.week_start desc limit 2`,
+        [BOOKED_WEEKS],
       );
       const [a, b] = weeks;
       if (!a || !b) throw new Error('no two free 2027 weeks in the test DB');

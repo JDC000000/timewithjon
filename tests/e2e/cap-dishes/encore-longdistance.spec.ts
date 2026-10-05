@@ -18,6 +18,7 @@ import { FLOW } from '../../../src/content';
 import { LOCK, LOCK_SHEET, ordinal } from '../../../src/content/ui/admin-requests';
 import { generateInviteSecret, signCookie } from '../../../src/features/invites/tokens';
 import { ROUTES } from '../../../src/ui/routes';
+import { BOOKED_WEEKS } from '../support/booked-weeks';
 import { expect, test } from '../support/fixtures';
 import { lockIn, TOAST_UNDO } from '../support/flows';
 import { clickLikeAPerson } from '../support/input';
@@ -69,7 +70,7 @@ const claimWeek = (tag: string) =>
                 (select l.id from lunch l where l.date = w.week_start + 3 order by l.id limit 1) as thu_id,
                 (select l.id from lunch l where l.date = w.week_start + 4 order by l.id limit 1) as fri_id
            from week w
-          where w.week_start >= '2027-01-01' and w.cap_override is null
+          where w.week_start >= '2027-01-01' and w.cap_override is null and w.week_start <> all($1::date[])
             and exists (select 1 from lunch l where l.date = w.week_start + 3)
             and exists (select 1 from lunch l where l.date = w.week_start + 4)
             and not exists (select 1 from request_slot_choice x join slot s on s.id = x.slot_id
@@ -83,6 +84,7 @@ const claimWeek = (tag: string) =>
             and not exists (select 1 from request r where r.status = 'locked'
                               and r.locked_starts_at::date between w.week_start - 1 and w.week_start + 7)
           order by w.week_start desc limit 1`,
+        [BOOKED_WEEKS],
       );
       if (!w) throw new Error('no free 2027 week in the test DB');
       const seed = async (slotId: string, who: string) => {
