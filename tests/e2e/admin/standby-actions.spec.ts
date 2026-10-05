@@ -60,6 +60,16 @@ const seedStandby = () =>
     }
   });
 
+// Its lock takes a free 2027 week; later specs (collision-cap, offer AC1) need free weeks too, so it goes after.
+const seeded: string[] = [];
+test.afterEach(() =>
+  db((c) =>
+    c.query(`update request set status = 'cancelled', cancelled_at = now() where id = any($1::uuid[])`, [
+      seeded.splice(0),
+    ]),
+  ),
+);
+
 const status = (id: string) =>
   db(
     async (c) =>
@@ -71,6 +81,7 @@ test('a stand-by request offers Lock in and Suggest, not Move to stand-by or Bef
   baseURL,
 }) => {
   const id = await seedStandby();
+  seeded.push(id);
   await signInAs(page.context(), 'admin', baseURL!);
   expect((await page.goto(`${ROUTES.admin.requestsPrefix}/${id}`))?.status()).toBe(200);
   const lockIn = page.getByRole('button', { name: new RegExp(`^${ACTIONS.lockIn}`) });
