@@ -1,5 +1,6 @@
 // src/app/menu/page.tsx — S04 the activity menu (T1.3; pack v2.2 s04 + s05 sheets; decision 37c: its own page).
-// The menu, then the closing line (S14) as on the landing. ROUTES.menu = '/menu'. The model decides, JSX renders.
+// The menu, then the closing photo (Jon, 2026-10-05: no menu foot, no closing line, no footer line here).
+// ROUTES.menu = '/menu'. The model decides, JSX renders.
 import type { Metadata } from 'next';
 import { MENU_TITLE } from '@/content';
 import { SiteFooter, SiteHeader } from '@/ui';
@@ -21,9 +22,9 @@ export default async function MenuPage() {
       <main id="main">
         <Menu model={model} gate={gate} />
         <CourseBar />
-        <Closing quiet />
+        <Closing />
       </main>
-      <SiteFooter photos={model.photos} />
+      <SiteFooter photos={model.photos} bare />
     </div>
   );
 }

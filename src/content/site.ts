@@ -28,10 +28,17 @@ export const PERSONAL = {
   book: (dish: string) => `Book ${dish}`,
   seeWholeMenu: 'See the whole activity menu', // v2.1 COPY (decision 37d)
 };
-export const WHY_LINE =
-  'At a party I get a hug, a drink and half a story before someone pulls you away. This time I’d like the whole story. A table, a couple of hours, and nowhere else to be.';
-export const CLOSING_LINE = 'Time is the gift. Memory is the message. Looking forward is the point.'; // D-2 default: once, small
-export const FOOTER = ['Questions? Text me. You’ve got the number.', 'Time with Jon · North Shore, BC'];
+/**
+ * Jon (2026-10-05): the landing's one story block, all in the body face: the why lines and the story invite as one
+ * paragraph (the address and its copy button follow inline), then his sign-off. It replaces the why line, the
+ * "Can’t make a date?" block and the closing line on the landing.
+ */
+export const STORY_BLOCK = {
+  lead: 'At a party I get a hug, a drink and half a story before someone pulls you away. This time I’d like the whole story. A table, a couple of hours, and nowhere else to be. Can’t make a date? How about you email me a photo from way back and a few lines. Any story, any length, I’d love to hear from you.', // approved: Jon (2026-10-05)
+  signOff: 'As always, looking forward to whatever is next! - Jon', // approved: Jon (2026-10-05)
+};
+/** The footer line on every page but /menu (Jon, 2026-10-05: "Time with Jon · North Shore, BC" is gone). */
+export const FOOTER_LINE = 'Questions? Text me. You’ve got the number.'; // approved: Jon (2026-10-05)
 export const NOT_FOUND = { line: 'This page took the day off.', back: 'Back to the activity menu' }; // v2.1 COPY (decision 37d)
 /**
  * Jon decisions 45 + 47a: "No gifts. Really." left the front of the site (the landing section, the nav link and the
@@ -51,10 +58,9 @@ export const WINE_TAG = {
   from: 'From',
   noDate: 'No date? It opens on my 51st.',
 };
+/** S19 /story's heading (the landing's block now carries its own words: STORY_BLOCK). */
 export const SEND_A_STORY = {
   title: 'Can’t make a date?',
-  body: 'Email me a photo from way back and a few lines. Any story, any length.',
-  address: (domain: string) => `stories@${domain}`,
 };
 export const AFTER_SEND = {
   stamp: 'Sent.',

@@ -1,6 +1,7 @@
-// S04 /menu view model + deep links (pack v2.2 s04/s05): course order, rows, sheets, the Bluebird, photo slots.
+// S04 /menu view model + deep links (pack v2.2 s04/s05): course order, rows, sheets, photo slots. Jon (2026-10-05):
+// the Bluebird is off the menu and the menu foot is gone.
 import { describe, expect, it } from 'vitest';
-import { BLUEBIRD_BOOKABLE, DISHES, DISH_CARDS, MENU_FOOTER, menuLine, type Dish } from '@/content';
+import { DISHES, DISH_CARDS, menuLine, type Dish } from '@/content';
 import { dishBySlug } from '@/content/menu-helpers';
 import { PHOTO_SLOTS } from '@/ui/photo-slots';
 import { menuModel } from '../menu-model';
@@ -20,9 +21,9 @@ describe('menuModel (S04)', () => {
       ['off-the-menu', 'Off the Menu', null],
     ]);
   });
-  it('all 16 activities in menu order; Mains ends The Encore, The Double Date, The Family Hang', () => {
+  it('all 15 activities in menu order; Mains ends The Encore, The Double Date, The Family Hang', () => {
     expect(rows.map((d) => d.name)).toEqual(DISHES.map((d) => d.name));
-    expect(rows).toHaveLength(16);
+    expect(rows).toHaveLength(15);
     expect(m.courses[1]!.dishes.map((d) => d.name)).toEqual([
       'The Long Lunch',
       'The Old Haunt',
@@ -49,10 +50,11 @@ describe('menuModel (S04)', () => {
     expect(row('the-shore-ride').sheet?.cap).toBe('Big Days');
     expect(row('surprise-me').sheet?.cap).toBe('Off the Menu');
   });
-  it('the Bluebird (off by default) is a display-only row: no link, no sheet', () => {
-    expect(BLUEBIRD_BOOKABLE).toBe(false);
-    expect(row('the-bluebird')).toMatchObject({ href: null, sheet: null, detail: ['Back with the snow'] });
-    expect(rows.filter((d) => d.href === null).map((d) => d.slug)).toEqual(['the-bluebird']);
+  it('the Bluebird is not on the menu at all, and every row is bookable (Jon, 2026-10-05)', () => {
+    expect(rows.map((d) => d.slug as string)).not.toContain('the-bluebird');
+    expect(rows.filter((d) => d.href === null)).toEqual([]);
+    expect(row('the-grind').name).toBe('A hike or nature moment');
+    expect(row('the-grind').sheet?.book.label).toBe('Book A hike or nature moment');
   });
   it('Pitch Me shows its lead and examples in the line', () => {
     expect(row('pitch-me').line).toBe(
@@ -69,13 +71,12 @@ describe('menuModel (S04)', () => {
     expect(menuModel(NOW, [dishBySlug('the-encore')!]).courses.map((c) => c.id)).toEqual(['mains']);
     expect(menuModel(NOW, []).courses).toEqual([]);
   });
-  it('the footer: line 1, then lines 2 + 3 as one paragraph', () => {
-    expect(m.foot).toEqual([MENU_FOOTER[0], `${MENU_FOOTER[1]} ${MENU_FOOTER[2]}`]);
-    expect(menuModel(NOW, []).foot[0]).toBe(MENU_FOOTER[0]);
+  it('has no menu foot any more (Jon, 2026-10-05)', () => {
+    expect('foot' in m).toBe(false);
   });
   it('photos = every dish slot in page order, then close; every one filled (a credited stand-in or Jon’s own, dec 48)', () => {
     expect(m.photos).toEqual([...DISHES.map((d) => DISH_CARDS[d.slug].slot), 'close']);
-    expect(new Set(m.photos).size).toBe(17);
+    expect(new Set(m.photos).size).toBe(16);
     for (const s of m.photos) expect(PHOTO_SLOTS[s]?.w.length, s).toBeGreaterThan(0);
   });
 });

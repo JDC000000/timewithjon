@@ -1,6 +1,7 @@
 // src/app/_menu/Menu.tsx — S04 the activity menu page body (pack v2.2 s04 menu_block). Its own page (decision 37c):
-// h1 the page name, h2 the courses, h3 the dishes. A bookable row is a link that opens its S05 sheet; the Bluebird
-// (display-only while it's off) is a plain row. The course nav links to each course (`/menu#<section>`).
+// h1 the page name, h2 the courses, h3 the dishes. A bookable row is a link that opens its S05 sheet; a dish that
+// can't be booked would be a plain row. The course nav links to each course (`/menu#<section>`). Jon (2026-10-05):
+// no menu foot (its lines and the closing line are gone).
 import { MENU_CAP, MENU_LABELS, MENU_SUBHEAD, MENU_TITLE } from '@/content';
 import { KeepWhole, PhotoSlot } from '@/ui';
 import type { BookGate } from '@/app/_landing/book-gate';
@@ -76,10 +77,6 @@ export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
               </ul>
             </section>
           ))}
-          <div className="menu-foot">
-            <p>{model.foot[0]}</p>
-            <p>{model.foot[1]}</p>
-          </div>
         </div>
       </section>
     </DishSheets>

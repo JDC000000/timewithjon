@@ -57,8 +57,9 @@ describe('bookGate', () => {
     expect(bookGate({ state: 'valid', invite: invite('general') }, release, late)).toEqual({ kind: 'book' });
     expect(bookGate({ state: 'valid', invite: invite('personal') }, null)).toEqual({ kind: 'book' });
   });
-  it('off: a dish that cannot be booked (the Bluebird) gets neither Book nor a note, for any visitor', () => {
-    const bluebird = dishBySlug('the-bluebird')!;
+  it('off: a dish that cannot be booked gets neither Book nor a note, for any visitor', () => {
+    expect(dishBySlug('the-bluebird' as never)).toBeUndefined(); // off the menu (Jon, 2026-10-05)
+    const bluebird = { ...dishBySlug('the-day-trip')!, bookable: false }; // any dish with bookable: false
     const late = new Date('2027-04-02T00:00:00Z');
     expect(bookGate({ state: 'valid', invite: invite('personal') }, release, late, bluebird)).toEqual({
       kind: 'off',

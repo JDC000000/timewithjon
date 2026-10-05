@@ -76,7 +76,7 @@ test('the menu page opens a dish sheet by keyboard and by deep link, and Esc ret
   expect(response?.status()).toBe(200);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(MENU_TITLE);
   await expect(page.getByRole('heading', { level: 2 })).toHaveCount(4);
-  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(16);
+  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(15); // the Bluebird is off the menu (2026-10-05)
   await page.waitForLoadState('networkidle');
   const row = page.locator('a[aria-haspopup="dialog"]', { hasText: name });
   await expect(row).toHaveAttribute('aria-haspopup', 'dialog');

@@ -92,6 +92,9 @@ describe('S12b /tag', () => {
     expect(screen.getByRole('button', { name: TAG_UI.print }).parentElement?.className).toBe('send');
     expect(screen.getByRole('img', { name: TAG_UI.sheetLabel }).style.marginTop).toBe('var(--s7)');
     expect(document.getElementById('tag-words')?.style.marginTop).toBe('var(--s3)');
-    expect(within(screen.getByRole('contentinfo')).getByText('Time with Jon · North Shore, BC')).toBeTruthy();
+    expect(
+      within(screen.getByRole('contentinfo')).getByText('Questions? Text me. You’ve got the number.'),
+    ).toBeTruthy();
+    expect(within(screen.getByRole('contentinfo')).queryByText(/North Shore/)).toBeNull(); // Jon, 2026-10-05
   });
 });

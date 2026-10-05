@@ -3543,3 +3543,16 @@ li[hidden] {
   padding: 0 var(--s1);
   border-radius: var(--r-control);
 }
+
+/* Jon (2026-10-05): the landing's one story block reads in the body face throughout; its "(Copy the address)" is
+   the copy button inline in the sentence, in the paragraph's own font (an inline target, WCAG 2.5.8 exception). */
+.story-block .textbtn {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  font: inherit;
+  vertical-align: baseline;
+}
+.story-block .body + .body {
+  margin-top: var(--s4);
+}

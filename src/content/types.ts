@@ -15,7 +15,6 @@ export type DishSlug =
   | 'catch-and-release'
   | 'the-grind'
   | 'the-day-trip'
-  | 'the-bluebird'
   | 'surprise-me'
   | 'pitch-me'
   | 'something-new';

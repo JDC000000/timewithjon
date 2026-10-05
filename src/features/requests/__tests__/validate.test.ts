@@ -105,12 +105,12 @@ describe('validateRequest', () => {
       ),
     ).toEqual({ ok: false, code: 'time_gone' });
   });
-  it('AC4 rejects a dish that is not bookable (the Bluebird while off)', () => {
+  it('AC4 rejects a dish that is not bookable (any dish with bookable: false)', () => {
     expect(
       validateRequest(
-        body({ dish: 'the-bluebird', dates: ['2027-04-10'] }),
-        dishBySlug('the-bluebird')!,
-        engineFor('the-bluebird'),
+        body({ dish: 'the-day-trip', dates: ['2027-04-10'] }),
+        { ...dishBySlug('the-day-trip')!, bookable: false },
+        engineFor('the-day-trip'),
         season,
         now,
       ),

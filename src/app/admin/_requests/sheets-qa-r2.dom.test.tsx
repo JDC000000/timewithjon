@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
 }));
 
-const base = { requestId: 'r1', who: 'Sam', dish: 'The Grind', open: true, onClose: () => {} };
+const base = { requestId: 'r1', who: 'Sam', dish: 'A hike or nature moment', open: true, onClose: () => {} };
 const at = (date: string, hm: string) => new Date(`${date}T${hm}:00-07:00`).toISOString();
 const TIMES = [
   { slotId: 's1', startsAt: at('2027-05-13', '12:00'), endsAt: at('2027-05-13', '14:00') },

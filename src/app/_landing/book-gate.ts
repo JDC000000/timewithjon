@@ -12,7 +12,7 @@ export type BookGate = { kind: 'book' } | { kind: 'note'; text: string } | { kin
 export type ReleaseTimes = Pick<SettingsRow, 'personal_open_at' | 'general_open_at'>;
 
 /**
- * off · the dish itself can't be booked (the Bluebird while BLUEBIRD_BOOKABLE is false, or past its last day): no Book
+ * off · the dish itself can't be booked (bookable false, or past its last day): no Book
  * and no note, whoever asks (its row shows the dish's own detail line).
  * a · a valid invite whose booking has opened: Book. b · a valid invite before its release: "Booking opens {date}."
  * c · no invite (a bare URL): the no-invite line. d · a stale, revoked or rotated link (S16): the stale line.

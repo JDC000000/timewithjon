@@ -1,27 +1,19 @@
 // src/content/menu.ts — creative v1.2 §4, word for word (reconciled per TSD §14.2).
 import type { Dish, DishSlug, Section } from './types';
 
-/** C-2: the Bluebird is display-only by default (PRD v1.2). G1 may flip this ONE flag. */
-export const BLUEBIRD_BOOKABLE = false;
-
 // TODO(v2.1 layout): the landing's "April to June 2027 / The Activity Menu" section is removed (decision 37c); the
 // activity menu page (S04) shows the name alone. Kept until U2/U4 rebuild the screens.
 export const MENU_HEADER = 'The Activity Menu · April to June 2027'; // v2.1 COPY (decision 37d)
 /** The activity menu page's name (S04/S05 h1, header nav, back links, <title>): decision 37d. */
 export const MENU_TITLE = 'The Activity Menu'; // v2.1 COPY (decision 37d)
-export const MENU_SUBHEAD = 'Pick an activity. Tell me when works. I’ll lock one in.'; // v2.1 COPY (decision 37e)
+export const MENU_SUBHEAD =
+  'Pick an activity. Tell me when works. I’ll lock one in and looking forward to seeing you.'; // approved: Jon (2026-10-05)
 export const SECTIONS: { id: Section; title: string; intro?: string }[] = [
   { id: 'starters', title: 'Starters' },
   { id: 'mains', title: 'Mains' },
   { id: 'big-days', title: 'Big Days', intro: 'Weekends are fine. Pick a date, and I’ll confirm.' },
   { id: 'off-the-menu', title: 'Off the Menu' },
 ];
-export const MENU_FOOTER = [
-  'Every activity comes with the same side: time.', // v2.1 COPY (decision 37e)
-  'Coffee, lunch and the first round are on me.',
-  'Everything fits in a day. Or one night away, if there’s a campfire or some sport in the mix.',
-];
-
 export const DISHES: Dish[] = [
   {
     slug: 'the-flat-white',
@@ -187,7 +179,7 @@ export const DISHES: Dish[] = [
   {
     slug: 'the-grind',
     section: 'big-days',
-    name: 'The Grind',
+    name: 'A hike or nature moment', // approved: Jon (2026-10-05)
     line: 'The Grouse Grind, or something kinder. I’ll be the one stopping to “take in the view.”',
     detail: 'half a day · serves up to 8 · weather call by 7 am',
     mode: 'dates',
@@ -201,7 +193,8 @@ export const DISHES: Dish[] = [
     availableUntil: null,
   },
   {
-    // v2.1 (decision 37f): Big Days, after The Grind, before The Bluebird. Lock-in default 9 am, a day (decision 43(5)).
+    // v2.1 (decision 37f): Big Days, after the hike. Lock-in default 9 am, a day (decision 43(5)). The Bluebird, which
+    // followed it, is off the menu (Jon, 2026-10-05).
     slug: 'the-day-trip',
     section: 'big-days',
     name: 'The Day Trip', // v2.1 COPY (decision 43)
@@ -216,24 +209,6 @@ export const DISHES: Dish[] = [
     servesMax: 4,
     bookable: true,
     availableUntil: null,
-  },
-  {
-    slug: 'the-bluebird',
-    section: 'big-days',
-    name: 'The Bluebird',
-    line: 'First chair optional. Last run mandatory.',
-    detail: BLUEBIRD_BOOKABLE
-      ? 'a day · April only, while there’s snow · serves up to 6'
-      : 'Back with the snow',
-    mode: 'dates',
-    flow: 'dates',
-    windows: [],
-    countsToward: 'big_day',
-    dateRule: 'weekend-or-thu-fri',
-    overnightAllowed: true,
-    servesMax: 6,
-    bookable: BLUEBIRD_BOOKABLE,
-    availableUntil: BLUEBIRD_BOOKABLE ? '2027-04-30' : null,
   },
   {
     slug: 'surprise-me',
@@ -312,7 +287,7 @@ export interface DishCard {
   slot: string;
   /** the row's detail lines (.dl), in order */
   detail: readonly string[];
-  /** the sheet’s facts (dt, dd); the Bluebird has none: display-only while BLUEBIRD_BOOKABLE is false (no sheet) */
+  /** the sheet’s facts (dt, dd); a display-only dish would have none (no sheet) */
   facts: readonly (readonly [string, string])[];
   /** the sheet's "what happens next" line */
   next: string | null;
@@ -437,12 +412,6 @@ export const DISH_CARDS: Readonly<Record<DishSlug, DishCard>> = {
       ['Serves', 'up to 4 (one car)'],
     ],
     next: 'Pick a date or two. Weekends are fine.',
-  }, // PACK v2.2 s04/s05
-  'the-bluebird': {
-    slot: 'bluebird',
-    detail: ['Back with the snow'],
-    facts: [],
-    next: null,
   }, // PACK v2.2 s04/s05
   'surprise-me': {
     slot: 'surprise-me',

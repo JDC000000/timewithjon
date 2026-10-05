@@ -84,10 +84,10 @@ describe('decision 41d: The Double Date and The Family Hang (NEW ACTIVITIES, COP
     expect(dishBySlug('the-double-date')).toEqual(DOUBLE_DATE);
     expect(dishBySlug('the-family-hang')).toEqual(FAMILY_HANG);
   });
-  it('16 activities: Starters 3 · Mains 5 · Big Days 5 · Off the Menu 3; both in Mains after The Encore', () => {
-    expect(DISHES).toHaveLength(16);
+  it('15 activities: Starters 3 · Mains 5 · Big Days 4 · Off the Menu 3 (the Bluebird gone, 2026-10-05); both in Mains after The Encore', () => {
+    expect(DISHES).toHaveLength(15);
     const count = (id: string) => DISHES.filter((d) => d.section === id).length;
-    expect(SECTIONS.map((s) => count(s.id))).toEqual([3, 5, 5, 3]);
+    expect(SECTIONS.map((s) => count(s.id))).toEqual([3, 5, 4, 3]);
     expect(DISHES.filter((d) => d.section === 'mains').map((d) => d.slug)).toEqual([
       'the-long-lunch',
       'the-old-haunt',
