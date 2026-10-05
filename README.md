@@ -47,7 +47,7 @@ by [`src/config/env.ts`](./src/config/env.ts).
 
 ## CI
 
-GitHub Actions **Quality Checks**: Prettier check, ESLint, `tsc --noEmit`, Vitest. No branch protection (GitHub Free): run these locally and keep `main` green.
+GitHub Actions: Quality Checks (Prettier, ESLint, `tsc --noEmit`, Vitest), integration tests, E2E smoke (Chromium + WebKit) and Lighthouse. `main` only takes pull requests with the required checks green. Deploys, rollback and incidents: [docs/RUNBOOK.md](./docs/RUNBOOK.md).
 
 ## Status
 
