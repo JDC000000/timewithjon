@@ -7,10 +7,11 @@
 // S17 shows a Surprise Me guest their OWN plan (TSD §4.8 S17, C4): only to the holder of that request's manage
 // token, and never to admin code, email, calendar or export (tests/unit/sealed-plan-static.test.ts).
 import 'server-only';
-import { ALREADY, CLOSED_IN_PERSON_LABEL, ERRORS, GUEST_LABEL } from '@/content';
+import { ALREADY, CLOSED_IN_PERSON_LABEL, ERRORS, GUEST_LABEL, JON_CANCELLED_LABEL } from '@/content';
 import { dishBySlug } from '@/content/menu-helpers';
 import type { RequestStatus } from '@/features/availability/types';
 import { q } from '@/lib/db';
+import { isJonCancelled } from '@/features/requests/guest-cancel';
 import { guestWhen } from '@/lib/when';
 import { findToken, tokenState, type ActionToken, type TokenPurpose } from './action-tokens';
 
@@ -54,6 +55,7 @@ interface Row {
   status: RequestStatus;
   dish: string;
   closed_in_person: boolean;
+  cancelled_by: 'guest' | 'jon' | null;
   guest_time_zone: string | null;
   starts_at: Date | null;
   ends_at: Date | null;
@@ -65,9 +67,9 @@ async function loadView(
   requestId: string,
   now: Date,
   withPlan: boolean,
-): Promise<{ view: RequestView; ownPlan: string | null; tz: string | null } | null> {
+): Promise<{ view: RequestView; ownPlan: string | null; tz: string | null; jonCancelled: boolean } | null> {
   const [r] = await q<Row>(
-    `select r.status, r.dish, r.closed_in_person, r.guest_time_zone,
+    `select r.status, r.dish, r.closed_in_person, r.cancelled_by::text as cancelled_by, r.guest_time_zone,
             case when r.joined_to_request_id is null then r.locked_starts_at else h.locked_starts_at end as starts_at,
             case when r.joined_to_request_id is null then r.locked_ends_at else h.locked_ends_at end as ends_at,
             case when r.joined_to_request_id is null then r.locked_where else h.locked_where end as where_text,
@@ -84,11 +86,21 @@ async function loadView(
     requestId,
     dish: { slug: r.dish, name: dish?.name ?? r.dish },
     status,
-    label: status === 'cancelled' && r.closed_in_person ? CLOSED_IN_PERSON_LABEL : GUEST_LABEL[status],
+    label: status === 'cancelled' ? cancelledLabel(r) : GUEST_LABEL[status],
     when: timed && r.ends_at ? guestWhen(r.starts_at!, r.ends_at, r.guest_time_zone) : null,
     where: timed ? r.where_text : null,
   };
-  return { view, ownPlan: dish?.flow === 'surprise' ? r.own_plan : null, tz: r.guest_time_zone };
+  return {
+    view,
+    ownPlan: dish?.flow === 'surprise' ? r.own_plan : null,
+    tz: r.guest_time_zone,
+    jonCancelled: isJonCancelled(r),
+  };
+}
+
+function cancelledLabel(r: Pick<Row, 'status' | 'cancelled_by' | 'closed_in_person'>): string {
+  if (r.closed_in_person) return CLOSED_IN_PERSON_LABEL;
+  return isJonCancelled(r) ? JON_CANCELLED_LABEL : GUEST_LABEL.cancelled;
 }
 
 /** The token for this page, or why there's nothing to show. A token of another purpose is as good as none. */
@@ -119,7 +131,8 @@ export async function loadManageModel(
     ...v,
     ownPlan: loaded.ownPlan,
     canCancel: open,
-    canAskAnother: open,
+    // 2026-10-05: after Jon cancelled for them, the guest can send new times (rerequest takes it back to Jon).
+    canAskAnother: open || loaded.jonCancelled,
     canAddStory: true,
   };
 }

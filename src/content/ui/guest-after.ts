@@ -10,6 +10,8 @@ export const STORY_FORM = {
   empty: 'Add a line or a photo first, or skip it.', // PACK v2.2 s11 (G1 copy list, decision 31)
   waiting: 'Waiting for your photo…', // approved: Jon decision 49 (2026-09-28), line 1 (Send busy while a photo uploads)
   honeypot: 'Leave this empty', // PACK v2.2 s06/s07/s10 (the hidden honeypot label, AD-9)
+  /** S19 on the general link only: the story page's name box (the booking form keeps FLOW.nameLabel). */
+  nameLabel: 'Your name (optional)', // approved: Jon (2026-10-05)
 };
 
 export const PHOTO_PICKER = {

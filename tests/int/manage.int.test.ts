@@ -13,7 +13,7 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
-import { ALREADY, CLOSED_IN_PERSON_LABEL, ERRORS } from '@/content';
+import { ALREADY, CLOSED_IN_PERSON_LABEL, ERRORS, GUEST_LABEL, JON_CANCELLED_LABEL } from '@/content';
 import { GET as availability } from '@/app/api/availability/route';
 import { POST as cancelRoute } from '@/app/api/manage/cancel/route';
 import { POST as anotherTimeRoute } from '@/app/api/manage/another-time/route';
@@ -28,13 +28,14 @@ import {
   findToken,
   issueManageToken,
   issueToken,
+  manageExpiry,
   manageGrant,
   MANAGE_HEADER,
 } from '@/features/invites/action-tokens';
 import { loadManageModel, loadNewDateModel, loadOfferModel } from '@/features/invites/manage-model';
 import { signCookie } from '@/features/invites/tokens';
 import { createRequestTx } from '@/features/requests/create';
-import { cancelByGuest } from '@/features/requests/guest-cancel';
+import { cancelByGuest, cancelForGuest } from '@/features/requests/guest-cancel';
 import { lockRequest } from '@/features/requests/lock';
 import { rerequest } from '@/features/requests/rerequest';
 import { RequestBody } from '@/features/requests/schema';
@@ -804,5 +805,68 @@ describe('Add a story or photo through the manage grant (T2.7.06)', () => {
     // No header: the twj_req cookie still works as before (T1.8).
     expect((await storyRoute(post('/api/stories', null, { body: 'hi' }))).status).toBe(200);
     expect(await q(`select 1 from story where request_id = $1`, [other])).toHaveLength(1);
+  });
+});
+
+describe('after Jon cancels for the guest (2026-10-05): "Cancelled, no problem" and Ask for another time', () => {
+  it('the page says so and offers Ask for another time; new times go back to Jon as a re-request', async () => {
+    const { id } = await lockedRequest('2027-06-10');
+    const token = await manageToken(id);
+    expect((await cancelForGuest(id)).ok).toBe(true);
+    expect(await loadManageModel(token)).toMatchObject({
+      kind: 'manage',
+      status: 'cancelled',
+      label: JON_CANCELLED_LABEL,
+      canCancel: false,
+      canAskAnother: true,
+      canAddStory: true,
+    });
+
+    const target = await slotId('2027-06-11', 'lunch');
+    const res = await anotherTimeRoute(
+      post('/api/manage/another-time', token, { slotIds: [target], clientKey: randomUUID() }),
+    );
+    expect(res.status).toBe(200);
+    const [r] = await q<{
+      status: string;
+      cancelled_by: string | null;
+      cancelled_at: Date | null;
+      awaiting: Date | null;
+    }>(
+      `select status, cancelled_by::text, cancelled_at, awaiting_jon_since awaiting from request where id = $1`,
+      [id],
+    );
+    expect(r).toEqual({ status: 'requested', cancelled_by: null, cancelled_at: null, awaiting: NOW }); // Jon's inbox
+    expect(
+      (
+        await q<{ slot_id: string }>(`select slot_id from request_slot_choice where request_id = $1`, [id])
+      ).map((c) => c.slot_id),
+    ).toEqual([target]);
+    expect(await templates(id)).toContain('E16');
+    // the manage link lives on (the unlocked lifetime, as after Ask for another time from a locked booking)
+    expect((await findToken(token))!.expires_at).toEqual(manageExpiry(null, NOW));
+    expect(await loadManageModel(token)).toMatchObject({ status: 'requested', label: GUEST_LABEL.requested });
+  });
+
+  it("the guest's own cancel is unchanged: 'Cancelled, no guilt', no Ask for another time, and the POST is refused", async () => {
+    const { id } = await lockedRequest('2027-06-10', 'evening');
+    const token = await manageToken(id);
+    expect((await cancelByGuest(id)).ok).toBe(true);
+    expect(await loadManageModel(token)).toMatchObject({
+      status: 'cancelled',
+      label: GUEST_LABEL.cancelled,
+      canCancel: false,
+      canAskAnother: false,
+      canAddStory: true,
+    });
+    const res = await anotherTimeRoute(
+      post('/api/manage/another-time', token, {
+        slotIds: [await slotId('2027-06-11', 'lunch')],
+        clientKey: randomUUID(),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'not_changeable' });
+    expect((await row(id)).status).toBe('cancelled');
   });
 });

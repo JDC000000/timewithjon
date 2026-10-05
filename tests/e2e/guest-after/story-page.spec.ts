@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { Client } from 'pg';
-import { AFTER_SEND, FLOW } from '../../../src/content';
+import { AFTER_SEND } from '../../../src/content';
 import { PHOTO_PICKER, STALE, STORY_FORM } from '../../../src/content/ui/guest-after';
 import { signCookie } from '../../../src/features/invites/tokens';
 import { expect, test } from '../support/fixtures';
@@ -71,7 +71,7 @@ test('S19 AC1 + QA r2 H1: a story saves; a second visit with 2 photos is a new s
   const inviteId = await withInvite(page, baseURL, await freshInvite('S19 two visits'));
   const first = `S19 ${randomUUID()}: the lunch that ran to dinner.`;
   await openStory(page);
-  await expect(page.getByRole('textbox', { name: FLOW.nameLabel })).toHaveCount(0); // a personal link names its guest
+  await expect(page.getByRole('textbox', { name: STORY_FORM.nameLabel })).toHaveCount(0); // a personal link names its guest
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(first);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(first);
   await page.getByRole('checkbox', { name: AFTER_SEND.consent }).check();
@@ -119,7 +119,7 @@ test('S19 QA r2 M4: on the general link the guest can give a name, and the story
   await withInvite(page, baseURL);
   const body = `S19 ${randomUUID()}: from the general link.`;
   await openStory(page);
-  const name = page.getByRole('textbox', { name: FLOW.nameLabel });
+  const name = page.getByRole('textbox', { name: STORY_FORM.nameLabel });
   await name.fill('Gina Ruiz');
   await expect(name).toHaveValue('Gina Ruiz');
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(body);
