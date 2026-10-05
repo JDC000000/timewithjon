@@ -32,8 +32,10 @@ const seedRequest = () =>
         // on it, and no lock anywhere in its week (no clash, no Big Day, no full week).
         `select s.id from slot s join week w on w.week_start = date_trunc('week', s.date)::date
           where s.date >= '2027-01-01' and s.window_kind = 'lunch' and s.date <> '2027-04-01'
-            and not exists (select 1 from request_slot_choice x where x.slot_id = s.id)
-            and not exists (select 1 from offer o where s.id = any(o.slot_ids) or o.taken_slot_id = s.id)
+            and not exists (select 1 from request_slot_choice x join request xr on xr.id = x.request_id
+                             where x.slot_id = s.id and xr.status <> 'cancelled')
+            and not exists (select 1 from offer o join request orq on orq.id = o.request_id
+                             where orq.status <> 'cancelled' and (s.id = any(o.slot_ids) or o.taken_slot_id = s.id))
             and not exists (select 1 from availability_block b where s.date between b.start_date and b.end_date)
             and not exists (select 1 from request r where r.status = 'locked'
                               and r.locked_starts_at::date between w.week_start - 1 and w.week_start + 8)
@@ -64,6 +66,17 @@ const seedRequest = () =>
     }
   });
 
+// Its lock takes a free 2027 week; it is given back when the test ends (cancelled: other specs' free-week
+// queries skip a cancelled request's leftovers), so the weeks don't run out by the last browser project.
+const seeded: string[] = [];
+test.afterEach(() =>
+  db((c) =>
+    c.query(`update request set status = 'cancelled', cancelled_at = now() where id = any($1::uuid[])`, [
+      seeded.splice(0),
+    ]),
+  ),
+);
+
 const status = (id: string) =>
   db(
     async (c) =>
@@ -82,6 +95,7 @@ test('Lock in, leave 2 s into the undo window: the lock still lands, and the req
   // The desktop pane (>= 600 px); the phone layout's sticky bar is covered by its own specs.
   test.skip((page.viewportSize()?.width ?? 0) < 600, 'desktop detail pane only');
   const id = await seedRequest();
+  seeded.push(id);
   await signInAs(page.context(), 'admin', baseURL!);
   const detail = `${ROUTES.admin.requestsPrefix}/${id}`;
   expect((await page.goto(detail))?.status()).toBe(200);

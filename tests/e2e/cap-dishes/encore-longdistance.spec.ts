@@ -50,8 +50,9 @@ type Seeded = { week: Week; thu: { id: string; who: string }; fri: { id: string;
 
 /**
  * Claim a free week at the default cap and seed two requested weekly_cap Flat Whites on its Thursday and Friday
- * lunch slots. Free = no override on the cap, no away block, no offer, no lock anywhere near it, and no request
- * choosing any of its slots (so a parallel run of this spec, which claims weeks the same way, skips it).
+ * lunch slots. Free = no override on the cap, no away block, no offer, no lock anywhere near it, and no live
+ * request choosing any of its slots (so a parallel run of this spec, which claims weeks the same way, skips it; a
+ * cancelled request's leftovers don't count, so weeks other specs have given back are reused).
  */
 const claimWeek = (tag: string) =>
   db(async (c): Promise<Seeded> => {
@@ -72,8 +73,10 @@ const claimWeek = (tag: string) =>
             and exists (select 1 from lunch l where l.date = w.week_start + 3)
             and exists (select 1 from lunch l where l.date = w.week_start + 4)
             and not exists (select 1 from request_slot_choice x join slot s on s.id = x.slot_id
+                             join request xr on xr.id = x.request_id and xr.status <> 'cancelled'
                              where s.date between w.week_start and w.week_start + 6)
             and not exists (select 1 from offer o join slot s on s.id = any(o.slot_ids) or s.id = o.taken_slot_id
+                             join request orq on orq.id = o.request_id and orq.status <> 'cancelled'
                              where s.date between w.week_start and w.week_start + 6)
             and not exists (select 1 from availability_block b
                              where b.start_date <= w.week_start + 6 and b.end_date >= w.week_start)

@@ -7,7 +7,9 @@
 // 3. The guest's picker, with that week full, carries no cap / count / remaining: not in the DOM text, not as a key
 //    in any response it loads (T0.5 AC12).
 // Seeds its own requests in the loopback test DB (as tests/e2e/admin/lock-leave does): two whole free 2027 weeks per
-// engine, picked under an advisory lock so parallel workers never share a week. Scope: 1440 at 100 %, once per
+// engine, picked under an advisory lock so parallel workers never share a week. A week is free when nothing LIVE is
+// on it (a cancelled request's choices and offers don't count), and every spec that seeds a week this way cancels
+// its requests when it ends, so the weeks are reused within a run instead of running out by the last project. Scope: 1440 at 100 %, once per
 // engine, first repeat only (the journey/journey.spec.ts SCOPE pattern).
 import { randomUUID } from 'node:crypto';
 import type { Browser, Page } from '@playwright/test';
@@ -64,9 +66,11 @@ const seed = () =>
           group by ws.week_start
          having count(*) = 4
             and not exists (select 1 from ws s2 join request_slot_choice x on x.slot_id = s2.id
+                             join request xr on xr.id = x.request_id and xr.status <> 'cancelled'
                              where s2.week_start = ws.week_start)
-            and not exists (select 1 from offer o, ws s2 where s2.week_start = ws.week_start
-                              and (s2.id = any(o.slot_ids) or o.taken_slot_id = s2.id))
+            and not exists (select 1 from offer o join request orq on orq.id = o.request_id, ws s2
+                             where s2.week_start = ws.week_start and orq.status <> 'cancelled'
+                               and (s2.id = any(o.slot_ids) or o.taken_slot_id = s2.id))
             and not exists (select 1 from availability_block b
                              where b.start_date <= ws.week_start + 6 and b.end_date >= ws.week_start)
             and not exists (select 1 from request r where r.status in ('locked', 'done')
@@ -114,6 +118,16 @@ const seed = () =>
     }
   });
 
+// Its locks fill two weeks; they are given back when the test ends (cancelled: no longer locked, choices ignored).
+const seeded: string[] = [];
+test.afterEach(() =>
+  db((c) =>
+    c.query(`update request set status = 'cancelled', cancelled_at = now() where id = any($1::uuid[])`, [
+      seeded.splice(0),
+    ]),
+  ),
+);
+
 const statuses = (ids: string[]) =>
   db(async (c) =>
     (
@@ -141,6 +155,7 @@ test('T4.3.03: a collision, then the hidden cap (3rd lock blocked, override work
   test.skip(test.info().repeatEachIndex > 0, 'writes to the DB: first repeat only');
   test.setTimeout(150_000);
   const s = await seed();
+  seeded.push(...s.collision, ...s.capped);
   const sideErrors: string[] = [];
 
   await test.step('Collision: two admins lock the same window at once; exactly one lands', async () => {
