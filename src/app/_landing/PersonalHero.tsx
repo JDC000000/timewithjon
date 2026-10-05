@@ -7,6 +7,7 @@ import { Button } from '@/ui';
 import { ROUTES } from '@/ui/routes';
 import type { BookGate } from './book-gate';
 import { FactLine, HeroFrame, HeroHeading } from './Hero';
+import { inSentence } from '@/content/menu-helpers';
 import { around } from './text';
 
 export type PersonalModel = Extract<LandingModel, { variant: 'personal' }>;
@@ -19,13 +20,13 @@ export interface PersonalHeroProps {
 }
 
 function PickedLine({ line, dish }: { line: string; dish: PersonalHeroProps['dish'] }) {
-  const parts = dish ? around(line, dish.name) : null;
+  const parts = dish ? around(line, inSentence(dish)) : null;
   if (!dish || !parts) return <>{line}</>;
   return (
     <>
       {parts[0]}
       <a className="il" href={`${ROUTES.menu}#${dish.section}`}>
-        {dish.name}
+        {inSentence(dish)}
       </a>
       {parts[1]}
     </>

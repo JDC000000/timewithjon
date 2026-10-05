@@ -5,7 +5,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { E4C_LEAD, fill } from '@/content/emails';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishInSentence } from '@/content/menu-helpers';
 import { queueEmail } from '@/features/email/send';
 import { guestWhen } from '@/lib/when';
 import { calendarEvent, LOCKED_COLUMNS, type LockedRow } from './event';
@@ -31,7 +31,9 @@ export async function queueIcsEmail(c: PoolClient, requestId: string, method: Ic
   if (!r) return [];
   const startsAt = r.locked_starts_at!;
   const event = calendarEvent(requestId, r);
-  const dish = dishBySlug(r.dish)?.name ?? r.dish;
+  const dish = dishInSentence(r.dish);
+  // CANCEL's lead starts its sentence with the dish: a capital there ("A hike or nature moment, Sat Jun 5, is off.")
+  const leadDish = method === 'CANCEL' ? dish.charAt(0).toUpperCase() + dish.slice(1) : dish;
   const when = guestWhen(startsAt, r.locked_ends_at!, r.guest_time_zone); // QA C: the email's words, not the .ics
   const queued = await queueEmail(c, {
     template: 'E4c',
@@ -40,7 +42,7 @@ export async function queueIcsEmail(c: PoolClient, requestId: string, method: Ic
     eventKey: `ics:${r.ics_sequence}`,
     vars: {
       dish,
-      lead: fill(E4C_LEAD[method], { dish, when }),
+      lead: fill(E4C_LEAD[method], { dish: leadDish, when }),
       method,
       requestId,
       sequence: r.ics_sequence,

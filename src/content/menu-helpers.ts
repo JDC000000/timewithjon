@@ -3,6 +3,23 @@ import { vancouverDate } from '@/lib/time';
 import { DISHES } from './menu';
 import type { Dish } from './types';
 
+/** A dish's name inside a sentence (Jon, 2026-10-05: "I was thinking a hike or nature moment"); titles keep `name`. */
+export function inSentence(d: Pick<Dish, 'name' | 'inSentence'>): string {
+  return d.inSentence ?? d.name;
+}
+
+/** The sentence form by slug, for emails' {dish} (an unknown slug reads as itself). */
+export function dishInSentence(slug: string): string {
+  const d = dishBySlug(slug);
+  return d ? inSentence(d) : slug;
+}
+
+/** After a possessive ("Cancel Sam’s …", "Lock in Sam’s …"): the sentence form without its article ("Long Lunch",
+ *  "hike or nature moment"). */
+export function dishAfterPossessive(slug: string): string {
+  return dishInSentence(slug).replace(/^(The|a|an) /, '');
+}
+
 export function dishBySlug(slug: string): Dish | undefined {
   return DISHES.find((d) => d.slug === slug);
 }

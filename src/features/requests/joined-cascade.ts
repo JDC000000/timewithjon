@@ -9,7 +9,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import type { TemplateId } from '@/content/emails';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishInSentence } from '@/content/menu-helpers';
 import type { EmailVar } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { extendManageTokens, reopenManageTokens } from '@/features/invites/action-tokens';
@@ -37,7 +37,8 @@ export interface CascadeOptions {
   extendLinksTo?: Date;
 }
 
-export const dishName = (slug: string): string => dishBySlug(slug)?.name ?? slug;
+/** A dish's name for an email's {dish}: the sentence form (Jon, 2026-10-05: "a hike or nature moment"). */
+export const dishName = (slug: string): string => dishInSentence(slug);
 
 /** A 'needs_new_time' cascade ran after the caller had already cleared the host's range: nothing left to copy. */
 export class HostRangeClearedError extends Error {

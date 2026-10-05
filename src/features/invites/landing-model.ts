@@ -1,5 +1,5 @@
 // src/features/invites/landing-model.ts — T1.2 non-UI: S1/S2/S16 view model. The page renders this; no logic in JSX.
-import { dishBySlug, isBookable, bookHref } from '@/content/menu-helpers';
+import { dishBySlug, inSentence, isBookable, bookHref } from '@/content/menu-helpers';
 import { OPEN_LINE, PERSONAL, SEE_THE_MENU } from '@/content/site';
 import type { InviteSession } from '@/features/invites/session';
 import { ROUTES } from '@/ui/routes';
@@ -9,7 +9,7 @@ export type LandingModel =
   | {
       variant: 'personal';
       name: string;
-      heroLine: string; // "We keep saying we should do {their things} or that epic trip." or the open line
+      heroLine: string; // the one hero line, the same for everyone (Jon, 2026-10-05)
       pickedLine: string | null;
       cta: { label: string; href: string };
       secondary: { label: string; href: string };
@@ -30,11 +30,11 @@ export function landingModel(s: InviteSession, now = new Date()): LandingModel {
   return {
     variant: 'personal',
     name: inv.display_name ?? inv.name_slug,
-    heroLine: PERSONAL.ourThingsLine(inv.our_things),
-    pickedLine: dish ? PERSONAL.pickedLine(dish.name) : null,
+    heroLine: OPEN_LINE, // Jon (2026-10-05): the same line as everyone, whatever the invite's things
+    pickedLine: dish ? PERSONAL.pickedLine(inSentence(dish)) : null,
     cta:
       dish && bookable
-        ? { label: PERSONAL.book(dish.name), href: bookHref(dish) }
+        ? { label: PERSONAL.book(inSentence(dish)), href: bookHref(dish) }
         : { label: PERSONAL.seeWholeMenu, href: ROUTES.menu },
     secondary: { label: PERSONAL.seeWholeMenu, href: ROUTES.menu },
   };

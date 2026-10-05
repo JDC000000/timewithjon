@@ -15,7 +15,6 @@ export type DishSlug =
   | 'catch-and-release'
   | 'the-grind'
   | 'the-day-trip'
-  | 'the-bluebird'
   | 'surprise-me'
   | 'pitch-me'
   | 'something-new';
@@ -28,6 +27,8 @@ export interface Dish {
   slug: DishSlug;
   section: Section;
   name: string;
+  /** The name inside a sentence ("I was thinking …", "Book …", emails' {dish}); absent = `name`. */
+  inSentence?: string;
   line: string;
   detail: string;
   mode: 'slots' | 'dates' | 'slots-or-dates';

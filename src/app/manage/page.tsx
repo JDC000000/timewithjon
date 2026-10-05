@@ -15,7 +15,7 @@ import { SENT_UI, STALE } from '@/content/ui/guest-after';
 import { loadManageModel, type ManageModel } from '@/features/invites/manage-model';
 import { MANAGE_HEADER } from '@/features/invites/require';
 import { MAX_PHOTOS } from '@/features/photos/limits';
-import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
+import { KeepWhole, PhotoSlot, ROUTES, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { SentReceipt } from '../_guest/sent-receipt';
 import { dishPhotoSlot, dishView } from '../book/[dish]/_lib/flow-view';
@@ -46,7 +46,6 @@ export default async function ManagePage({ searchParams }: { searchParams: Searc
       ) : (
         <Manage model={model} token={token!} sent={await sentLines(model)} />
       )}
-      <SiteFooter photos={[]} />
     </>
   );
 }

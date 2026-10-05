@@ -320,7 +320,7 @@ test('QA r2 M1: after a good Send, /new-date shows "Sent" with what was sent, th
   await rough.fill('any Saturday in June');
   await expect(rough).toHaveValue('any Saturday in June');
   await page.getByRole('button', { name: FLOW.send }).click();
-  const sent = MANAGE_UI.heading(GUEST_LABEL.requested, 'The Grind');
+  const sent = MANAGE_UI.heading(GUEST_LABEL.requested, 'A hike or nature moment');
   for (const visit of ['after Send', 'reload']) {
     if (visit === 'reload') await page.reload();
     await expect(page.getByRole('heading', { level: 1 }), visit).toHaveText(sent);

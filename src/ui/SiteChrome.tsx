@@ -1,6 +1,5 @@
 // src/ui/SiteChrome.tsx (T1.1a.U1): the guest header and footer (pack s01 header() / FOOT).
 import Link from 'next/link';
-import { FOOTER } from '@/content';
 import { ADMIN_SHELL, MARK, SITE_NAV } from '@/content/ui/foundation';
 import type { ReactNode } from 'react';
 import { ROUTES } from './routes';
@@ -36,21 +35,6 @@ export function SiteHeader({ back }: { back?: { href: string; label: string } })
     </header>
   );
 }
-
-/** The footer pair. Jon's menu polish: the photo credits line is gone from every page (the one stand-in left,
- *  something-new, is under the Unsplash License, which asks for no attribution). `photos` is still accepted so the
- *  pages that pass it keep compiling; it renders nothing. TODO: drop it from the callers (book page: after lane F2). */
-export const SiteFooter: (props: { photos?: readonly string[] }) => ReactNode = () => {
-  const [line, place] = FOOTER;
-  return (
-    <footer className="site-f">
-      <div className="wrap">
-        <p>{line}</p>
-        <p className="muted">{place}</p>
-      </div>
-    </footer>
-  );
-};
 
 /** The admin sign-in pages' frame (pack a1* solo()): wordmark + "Admin", then one centred box. Outside AdminShell. */
 export function AdminSolo({ children }: { children: ReactNode }) {

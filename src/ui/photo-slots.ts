@@ -98,11 +98,6 @@ export const PHOTO_SLOTS: Readonly<Record<string, Photo>> = {
     w: [480, 800, 1200],
     alt: '',
   },
-  bluebird: {
-    file: 'bluebird',
-    w: [480, 800, 1200],
-    alt: '',
-  },
   'surprise-me': {
     file: 'surprise-me',
     w: [480, 800, 1200],

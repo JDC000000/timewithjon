@@ -1,7 +1,7 @@
 // src/app/api/requests/route.ts — T1.7 POST: validate, one transaction, THEN awaited E1/E2, then capability.
 import { NextResponse, type NextRequest } from 'next/server';
 import { ERRORS, FLOW } from '@/content';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishBySlug, inSentence } from '@/content/menu-helpers';
 import { setRequestCapability } from '@/features/invites/capability';
 import { deliverRequestEmails } from '@/features/email/send';
 import { getBusy } from '@/features/availability/busy';
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       status: v.status,
       countsToward: v.countsToward,
       bigCrew: v.bigCrew,
-      dishName: dish.name,
+      dishName: inSentence(dish), // E1/E2's {dish}, inside a sentence
       capGuestEmails: invite.kind === 'general',
     }));
   } catch (e) {

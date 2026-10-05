@@ -1,4 +1,5 @@
-// S04 /menu as rendered (pack v2.2 s04/s05): headings, course nav, rows, the Bluebird, sheets, the gate, deep links.
+// S04 /menu as rendered (pack v2.2 s04/s05): headings, course nav, rows, sheets, the gate, deep links. Jon
+// (2026-10-05): the new subhead, no menu foot, the hike's new name, no Bluebird.
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ERRORS } from '@/content';
@@ -29,25 +30,28 @@ const model = menuModel(new Date('2027-03-01T12:00:00Z'));
 const open = () => document.querySelector('dialog[open]');
 
 describe('S04 /menu', () => {
-  it('h1 the page name under its cap, h2 the courses, h3 the 16 dishes; the lead and the footer lines', () => {
+  it('h1 the page name under its cap, h2 the courses, h3 the 15 dishes; the lead, and no menu foot', () => {
     render(<Menu model={model} gate={{ kind: 'book' }} />);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('The Activity Menu');
     expect(screen.getByText('April to June 2027')).toBeTruthy();
-    expect(screen.getByText('Pick an activity. Tell me when works. I’ll lock one in.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Pick an activity. Tell me when works. I’ll lock one in, and I’m looking forward to seeing you.',
+      ),
+    ).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
       'Starters',
       'Mains',
       'Big Days',
       'Off the Menu',
     ]);
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(16);
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(15);
     expect(screen.getByText('Weekends are fine. Pick a date, and I’ll confirm.').className).toBe(
       'course-note',
     );
-    expect(screen.getByText('Every activity comes with the same side: time.')).toBeTruthy();
-    expect(
-      screen.getByText(/^Coffee, lunch and the first round are on me\. Everything fits in a day\./),
-    ).toBeTruthy();
+    expect(screen.queryByText('Every activity comes with the same side: time.')).toBeNull();
+    expect(screen.queryByText(/Coffee, lunch and the first round are on me/)).toBeNull();
+    expect(document.querySelector('.menu-foot')).toBeNull();
   });
   it('the Courses nav links each course by its section id', () => {
     render(<Menu model={model} gate={{ kind: 'book' }} />);
@@ -65,18 +69,19 @@ describe('S04 /menu', () => {
     for (const id of ['starters', 'mains', 'big-days', 'off-the-menu'])
       expect(document.getElementById(id)?.getAttribute('aria-labelledby')).toBe(`${id}-h`);
   });
-  it('rows are links to /book/{slug} with name, line and detail; the Bluebird is not a link', () => {
+  it('rows are links to /book/{slug} with name, line and detail; every dish is a link, no Bluebird', () => {
     render(<Menu model={model} gate={{ kind: 'book' }} />);
     const lunch = screen.getByRole('link', { name: /^The Long Lunch/ });
     expect(lunch.getAttribute('href')).toBe('/book/the-long-lunch');
     expect(lunch.textContent).toContain('2 hr · Thu/Fri, noon–2 pm');
     expect(lunch.querySelector('.nw')?.textContent).toBe('noon–2 pm');
-    expect(screen.queryByRole('link', { name: /The Bluebird/ })).toBeNull();
-    const bluebird = screen.getByRole('heading', { name: 'The Bluebird' });
-    expect(bluebird.closest('a')).toBeNull();
-    expect(bluebird.closest('li')?.className).toBe('dish dish--off');
-    expect(screen.getByText('Back with the snow')).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: /^(The |Catch|Surprise|Pitch|Something)/ })).toHaveLength(15);
+    expect(screen.queryByText(/Bluebird/)).toBeNull();
+    expect(screen.queryByText('Back with the snow')).toBeNull();
+    expect(screen.getByRole('link', { name: /^A hike or nature moment/ }).getAttribute('href')).toBe(
+      '/book/the-grind',
+    );
+    expect(document.querySelectorAll('li.dish a')).toHaveLength(15);
+    expect(document.querySelector('.dish--off')).toBeNull();
   });
   it('a plain click opens the sheet: course cap, title, facts, next, Book {dish}; × closes it', () => {
     render(<Menu model={model} gate={{ kind: 'book' }} />);

@@ -5,7 +5,8 @@ import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFocusGuard } from '@/ui/focus';
-import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, SiteFooter, Toast } from '@/ui';
+import * as ui from '@/ui';
+import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, Toast } from '@/ui';
 import { AdminNav } from '@/ui/AdminNav';
 import { PHOTO_SLOTS, type Photo } from '@/ui/photo-slots';
 
@@ -373,14 +374,8 @@ describe('Toast (jsdom: always in view)', () => {
   });
 });
 
-describe('SiteFooter', () => {
-  it('is the footer pair only: no photo credits line on any page (Jon’s menu polish)', () => {
-    for (const photos of [undefined, [], ['something-new'], ['flat-white', 'close']]) {
-      const { container } = render(<SiteFooter photos={photos} />);
-      expect(container.querySelectorAll('.site-f p')).toHaveLength(2);
-      expect(container.querySelector('.credits')).toBeNull();
-      expect(container.textContent).not.toMatch(/Stand-in|Unsplash|Photos: Jon/);
-      cleanup();
-    }
+describe('the site footer is gone (Jon, 2026-10-05)', () => {
+  it('no SiteFooter is exported: its lines left every page', () => {
+    expect('SiteFooter' in ui).toBe(false);
   });
 });

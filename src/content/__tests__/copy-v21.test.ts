@@ -101,14 +101,17 @@ describe('v2.1 copy guard (decision 37)', () => {
 
   it('the v2.1 strings, word for word', () => {
     expect(content.OPEN_LINE).toBe(
-      'We keep saying we should do lunch, that beer, a mountain bike lap, an epic trip or something new.',
+      'We keep saying we should get or do that epic trip.', // Jon, 2026-10-05: one line for everyone
     );
     expect(content.SEE_THE_MENU).toBe('See the activity menu');
     expect(content.PERSONAL.seeWholeMenu).toBe('See the whole activity menu');
     expect(content.NOT_FOUND.back).toBe('Back to the activity menu');
     expect(content.MENU_TITLE).toBe('The Activity Menu');
-    expect(content.MENU_SUBHEAD).toBe('Pick an activity. Tell me when works. I’ll lock one in.');
-    expect(content.MENU_FOOTER[0]).toBe('Every activity comes with the same side: time.');
+    // Jon (2026-10-05): the subhead's new end, and the menu foot is gone.
+    expect(content.MENU_SUBHEAD).toBe(
+      'Pick an activity. Tell me when works. I’ll lock one in, and I’m looking forward to seeing you.',
+    );
+    expect('MENU_FOOTER' in content).toBe(false);
     expect(foundation.SITE_NAV.menu).toBe('The Activity Menu');
     expect(booking.FLOW_UI.backToMenu).toBe('The Activity Menu');
     expect(booking.RAIL.otherDish).toBe('Pick a different activity');
@@ -191,13 +194,13 @@ describe('v2.1 new menu items (decision 37f, NEW COPY)', () => {
     expect(DISHES.find((d) => d.slug === 'something-new')).toEqual(SOMETHING_NEW);
   });
 
-  it('The Day Trip sits after The Grind and before The Bluebird; Something New after Pitch Me', () => {
+  it('The Day Trip sits after the hike (the-grind) and ends the Big Days (the Bluebird is gone); Something New after Pitch Me', () => {
     const slugs = DISHES.map((d) => d.slug);
     expect(new Set(slugs).size).toBe(slugs.length); // the count itself: copy-v22.test.ts
     expect(slugs.slice(slugs.indexOf('the-grind'), slugs.indexOf('the-grind') + 3)).toEqual([
       'the-grind',
       'the-day-trip',
-      'the-bluebird',
+      'surprise-me',
     ]);
     expect(slugs.slice(-2)).toEqual(['pitch-me', 'something-new']);
   });

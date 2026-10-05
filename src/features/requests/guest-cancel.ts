@@ -8,7 +8,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { E12_PARTS } from '@/content/emails';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishInSentence } from '@/content/menu-helpers';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
@@ -124,7 +124,7 @@ async function cancelTx(
     }
   }
 
-  const dish = dishBySlug(r.dish)?.name ?? r.dish;
+  const dish = dishInSentence(r.dish);
   const when = e12When(r);
   const wasLocked = when !== null;
   after.emailIds.push(

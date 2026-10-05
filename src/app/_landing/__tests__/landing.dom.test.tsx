@@ -1,14 +1,13 @@
 // Jon decisions 41b/47c + v2.2 "no words on a photo" as DOM order (pr89 F2), and CopyAddress's success-only "Copied" (F4).
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CLOSING_LINE, WHY_LINE } from '@/content';
 import { COPY_ADDRESS } from '@/content/ui/landing';
 import { dishBySlug } from '@/content/menu-helpers';
 import { landingModel } from '@/features/invites/landing-model';
 import { CopyAddress } from '../CopyAddress';
 import { Hero } from '../Hero';
 import { PersonalHero, type PersonalModel } from '../PersonalHero';
-import { Closing, Why } from '../Why';
+import { Closing, StoryBlock, Why } from '../Why';
 
 afterEach(() => {
   cleanup();
@@ -32,32 +31,39 @@ const personalModel = landingModel({
   },
 }) as PersonalModel;
 
-describe('S3 why band (decision 41b)', () => {
-  it('the band comes first, full-bleed; the why line sits after it, outside it', () => {
+describe('the why band (decision 41b), then the one story block (Jon, 2026-10-05)', () => {
+  it('the why band is the photo alone, full-bleed', () => {
     const { container } = render(<Why />);
     const section = container.querySelector('section.why')!;
-    const [first, second] = [...section.children];
-    expect(first!.matches('figure.ph.ph--band')).toBe(true);
-    expect(first!.getAttribute('data-slot')).toBe('why');
-    const line = section.querySelector('p.lead')!;
-    expect(line.textContent).toBe(WHY_LINE);
-    expect(second!.contains(line)).toBe(true);
-    expect(first!.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(first!.contains(line)).toBe(false);
+    expect([...section.children].map((c) => c.matches('figure.ph.ph--band'))).toEqual([true]);
+    expect(section.textContent).toBe('');
+  });
+
+  it('#story: three body paragraphs, Jon’s words; the address a mailto link and "(Copy the address)" inline', () => {
+    const { container } = render(<StoryBlock />);
+    const section = container.querySelector('section#story')!;
+    expect(section.querySelector('h1, h2, h3, .h1, .display, .cap, .lead')).toBeNull(); // one face throughout
+    const ps = [...section.querySelectorAll('p')];
+    expect(ps.map((p) => p.className)).toEqual(['body measure', 'body measure', 'body measure']);
+    const [why, invite, signOff] = ps;
+    expect(why!.textContent).toBe(
+      'At a party I get a hug, a drink and half a story before someone pulls you away. This time I’d like the whole story. A table, a couple of hours, and nowhere else to be.',
+    );
+    expect(invite!.textContent).toBe(
+      `Can’t make a date? How about you email me a photo from way back and a few lines. Any story, any length, I’d love to hear from you. stories@timewithjon.com (${COPY_ADDRESS.label})`,
+    );
+    expect(invite!.querySelector('a')!.getAttribute('href')).toBe('mailto:stories@timewithjon.com');
+    expect(invite!.querySelector('button')!.textContent).toBe(COPY_ADDRESS.label);
+    expect(signOff!.textContent).toBe('As always, looking forward to whatever is next! - Jon');
   });
 });
 
-describe('S14 closing (decision 47c)', () => {
-  it('the closing line comes first, then its photo, never on it', () => {
+describe('the closing photo (decision 47c; its line is gone, Jon 2026-10-05)', () => {
+  it('is the photo alone, no words', () => {
     const { container } = render(<Closing />);
     const section = container.querySelector('section.closing')!;
-    const kids = [...section.children];
-    expect(kids).toHaveLength(2);
-    const line = section.querySelector('p')!;
-    expect(line.textContent).toBe(CLOSING_LINE);
-    expect(kids[0]!.contains(line)).toBe(true);
-    expect(kids[1]!.matches('figure.ph.ph--close')).toBe(true);
-    expect(kids[1]!.contains(line)).toBe(false);
+    expect([...section.children].map((c) => c.matches('figure.ph.ph--close'))).toEqual([true]);
+    expect(section.textContent).toBe('');
   });
 });
 

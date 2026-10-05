@@ -6,7 +6,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { getEnv } from '@/config/env';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishInSentence } from '@/content/menu-helpers';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { intakeEmails } from '@/features/requests/intake-emails';
 import { withTx } from '@/lib/db';
@@ -68,7 +68,7 @@ export async function markRequestNotSpam(id: string): Promise<SpamResult> {
         requestId: id,
         auditId: audit!.id,
         status: r.status as 'requested' | 'standby',
-        dishName: dishBySlug(r.dish)?.name ?? r.dish,
+        dishName: dishInSentence(r.dish),
         guestEmail: r.contact_email,
         guestName: r.contact_name,
         crew: r.crew_size,

@@ -1,12 +1,12 @@
-// T2.6.U1: A5 Links (TSD T2.6 AC1-AC3) end to end. AC1: the New link sheet refuses a 5-word phrase, a 41-character
-// phrase and a comma on its box, counts "n/4 words" live, and its preview IS the S2 hero line (blank = the open
-// line); the API refuses a 4th phrase. AC2: a revoked link shows the S16 stale line on its next request. AC3: after
-// Rotate the old general link shows S16 and the new one works.
+// T2.6.U1: A5 Links (TSD T2.6 AC1-AC3) end to end. AC1 (Jon, 2026-10-05): the hero line is the same for everyone, so
+// the New link sheet has no "our things" boxes and its preview IS the S2 hero with that line; the API still takes
+// (and checks) the old field. AC2: a revoked link shows the S16 stale line on its next request. AC3: after Rotate
+// the old general link shows S16 and the new one works.
 import { randomBytes } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { A5 } from '../../../src/app/admin/(app)/invites/_a5/copy';
 import { ERRORS } from '../../../src/content/microcopy';
-import { OPEN_LINE, PERSONAL } from '../../../src/content/site';
+import { OPEN_LINE } from '../../../src/content/site';
 import { ROUTES } from '../../../src/ui/routes';
 import { signInAs } from '../support/sessions';
 import { expect, test } from '../support/fixtures';
@@ -22,9 +22,6 @@ async function openLinks(page: Page, baseURL: string) {
 }
 
 const sheet = (page: Page) => page.getByRole('dialog', { name: A5.sheetTitle });
-// The box's accessible name is "<label> <n/4 words>" (e.g. "1, our thing 0/4 words"): match the label prefix only.
-const thing = (page: Page, n: number) =>
-  sheet(page).getByRole('textbox', { name: new RegExp(`^${A5.thing(n)}(\\s|$)`) });
 
 /** The `?for=` path of the link shown in a region (the list prints it without the scheme). Read the link's own
  * <p class="a5-link">: the region's textContent runs the link into the next text ("...?for=friends-abcnot opened"). */
@@ -52,16 +49,15 @@ async function opensStale(page: Page, baseURL: string, path: string): Promise<bo
   }
 }
 
-async function makeLink(page: Page, name: string, things: string[]) {
+async function makeLink(page: Page, name: string) {
   await page.getByRole('button', { name: A5.newLink }).click();
   await sheet(page).getByRole('textbox', { name: A5.name, exact: true }).fill(name);
-  for (const [i, t] of things.entries()) await thing(page, i + 1).fill(t);
   await sheet(page).getByRole('button', { name: A5.save }).click();
   await expect(page.getByRole('status')).toHaveText(A5.made(name));
   return page.getByRole('listitem').filter({ hasText: name });
 }
 
-test('AC1: each box refuses 5 words, 41 characters and a comma; n/4 counts live; the preview is the S2 hero line', async ({
+test('AC1: no "our things" boxes; the preview is the S2 hero, with the one line everyone sees', async ({
   page,
   baseURL,
 }) => {
@@ -69,35 +65,14 @@ test('AC1: each box refuses 5 words, 41 characters and a comma; n/4 counts live;
   await page.getByRole('button', { name: A5.newLink }).click();
   await expect(sheet(page)).toBeVisible();
   const preview = sheet(page).getByTestId('a5-preview');
-  // Blank things: the open-link line.
+  await expect(sheet(page).getByText(/our thing/i)).toHaveCount(0);
+  await expect(sheet(page).getByText(/\d\/4 words/)).toHaveCount(0);
+  // The boxes left: Name and Email (the dish is a select).
+  expect(await sheet(page).getByRole('textbox').count()).toBe(2);
   await expect(preview).toContainText(OPEN_LINE);
-
-  await thing(page, 1).fill('one two three four five');
-  await expect(sheet(page).getByText(A5.words(5))).toBeVisible();
-  await expect(sheet(page).getByText(A5.err.four_words_max)).toBeVisible();
-  await thing(page, 2).fill('x'.repeat(41));
-  await expect(sheet(page).getByText(A5.err.thing_too_long)).toBeVisible();
-  await thing(page, 3).fill('x, y');
-  await expect(sheet(page).getByText(A5.err.no_commas)).toBeVisible();
-  // Save is refused on the boxes: nothing is made.
-  await sheet(page).getByRole('button', { name: A5.save }).click();
-  await expect(sheet(page)).toBeVisible();
-  // The page's status line sits behind the modal sheet (out of the a11y tree while it is open): include hidden.
-  await expect(page.getByRole('status', { includeHidden: true }).filter({ hasText: /\S/ })).toHaveCount(0);
-
-  // Fixed: the counts follow, the errors go, and the preview reads exactly the S2 hero line (blank box dropped).
-  await thing(page, 1).fill('a long lunch');
-  await thing(page, 2).fill('that bike lap');
-  await thing(page, 3).fill('');
-  // Per box: both phrases are 3 words, so a bare getByText('3/4 words') matches two counts.
-  await expect(sheet(page).getByTestId('count-0')).toHaveText(A5.words(3));
-  await expect(sheet(page).getByTestId('count-1')).toHaveText(A5.words(3));
-  await expect(sheet(page).getByTestId('count-2')).toHaveText(A5.words(0));
-  for (const e of [A5.err.four_words_max, A5.err.thing_too_long, A5.err.no_commas])
-    await expect(sheet(page).getByText(e)).toHaveCount(0);
   await sheet(page).getByRole('textbox', { name: A5.name, exact: true }).fill('Dana');
   await expect(preview).toContainText('Dana');
-  await expect(preview).toContainText(PERSONAL.ourThingsLine(['a long lunch', 'that bike lap']));
+  await expect(preview).toContainText(OPEN_LINE);
 
   // A 4th phrase never gets past the API.
   const res = await page.request.post('/api/admin/invites', {
@@ -123,7 +98,7 @@ test('AC2: a revoked link shows the S16 stale line on its next request', async (
   );
   await openLinks(page, baseURL!);
   const name = freshName();
-  const row = await makeLink(page, name, ['a long lunch']);
+  const row = await makeLink(page, name);
   const path = await forPath(row);
   expect(await opensStale(page, baseURL!, path)).toBe(false);
   await row.getByRole('button', { name: A5.revoke }).click();

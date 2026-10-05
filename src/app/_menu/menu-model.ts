@@ -1,9 +1,9 @@
 // src/app/_menu/menu-model.ts — S04 /menu + S05 sheets view model (pack v2.2 s04/s05). Pure; the page renders it.
 // Courses in SECTIONS order (a course with no visible dish is dropped); each row carries its pack card (photo slot,
 // detail lines) and, when the dish can be booked, its sheet (course caption, facts, next line, Book {dish}).
-import { DISH_CARDS, MENU_FOOTER, PERSONAL, SECTIONS, menuLine } from '@/content';
+import { DISH_CARDS, PERSONAL, SECTIONS, menuLine } from '@/content';
 import type { Dish, DishSlug, Section } from '@/content';
-import { bookHref, isBookable, visibleDishes } from '@/content/menu-helpers';
+import { bookHref, inSentence, isBookable, visibleDishes } from '@/content/menu-helpers';
 
 export interface DishSheetModel {
   cap: string; // the course title
@@ -17,7 +17,7 @@ export interface DishRowModel {
   line: string;
   slot: string;
   detail: readonly string[];
-  href: string | null; // null = display-only (the Bluebird while it's off): no link, no sheet
+  href: string | null; // null = display-only (a dish that can't be booked): no link, no sheet
   sheet: DishSheetModel | null;
 }
 export interface CourseModel {
@@ -28,7 +28,6 @@ export interface CourseModel {
 }
 export interface MenuModel {
   courses: CourseModel[];
-  foot: [string, string]; // pack s04: line 1, then lines 2 + 3 as one paragraph
   /** every photo slot the page shows, in page order (each one must be filled: menu-model.test.ts) */
   photos: string[];
 }
@@ -45,7 +44,7 @@ function dishRow(d: Dish, courseTitle: string, now: Date): DishRowModel {
       cap: courseTitle,
       facts: card.facts,
       next: card.next,
-      book: { label: PERSONAL.book(d.name), href },
+      book: { label: PERSONAL.book(inSentence(d)), href },
     },
   };
 }
@@ -57,7 +56,6 @@ export function menuModel(now = new Date(), dishes: readonly Dish[] = visibleDis
     intro: s.intro ?? null,
     dishes: dishes.filter((d) => d.section === s.id).map((d) => dishRow(d, s.title, now)),
   })).filter((c) => c.dishes.length > 0);
-  const [first = '', ...rest] = MENU_FOOTER;
   const photos = [...courses.flatMap((c) => c.dishes.map((d) => d.slot)), 'close'];
-  return { courses, foot: [first, rest.join(' ')], photos };
+  return { courses, photos };
 }

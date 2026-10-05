@@ -3,6 +3,7 @@
 // The sealed plan is never here: only `hasSealedPlan` (C4, AD-11).
 import { CHECK, DETAIL, INBOX, ROW } from '@/content/ui/admin-requests';
 import type { RequestDetail } from '@/features/admin/detail';
+import { dishAfterPossessive } from '@/content/menu-helpers';
 import { dayLabel, vancouverInstant } from '@/lib/time';
 import { ageLabel, shortDate, whenLabel } from './format';
 import { flagsOf, type FilterKey } from './rows';
@@ -188,7 +189,7 @@ export function detailView(
     bigDayLocked: filter === 'locked' && d.countsToward === 'big_day',
     cancelWords:
       filter === 'locked' && d.lockedStartsAt
-        ? { dish: (d.dishName ?? d.dish).replace(/^The /, ''), day: dayLabel(new Date(d.lockedStartsAt)) }
+        ? { dish: dishAfterPossessive(d.dish), day: dayLabel(new Date(d.lockedStartsAt)) }
         : null,
   };
 }

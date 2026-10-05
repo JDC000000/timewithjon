@@ -255,7 +255,7 @@ describe('requestOptions: what the A3 sheets offer', () => {
     });
     const o = (await requestOptions(id, now))!;
     expect(o.weeks.map((w) => w.weekStart)).toEqual(['2027-05-31', '2027-06-14', '2027-06-21']);
-    // The Grind takes Thu to Sun: the rows read "Jun 3–6", and a free week is open, never "full" for lack of slots.
+    // The hike (the-grind) takes Thu to Sun: the rows read "Jun 3–6", and a free week is open, never "full" for lack of slots.
     expect(o.weeks[0]).toMatchObject({ firstDate: '2027-06-03', lastDate: '2027-06-06', state: 'open' });
     expect(o.weeks[1]).toMatchObject({ firstDate: '2027-06-17', lastDate: '2027-06-20' });
     expect(o.openTimes).toEqual([]); // a date dish has no time slots to suggest

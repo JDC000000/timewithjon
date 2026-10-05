@@ -160,10 +160,10 @@ user's own focus inside pauses and resets to `seconds`; Undo is ignored for 600 
 resize/text-size refit follows `resizeMayKeep`. Unmount cleans `toast-on`. Lanes own what Undo/expire DO
 (server calls, the page swap, focus after: `moveFocus(capRef.current)`).
 
-### 2.8 SiteHeader / SiteFooter (pack s01 header/`FOOT`)
+### 2.8 SiteHeader (pack s01 header; the footer is gone: Jon, 2026-10-05)
 
 `<SiteHeader />` = wordmark + nav (The Activity Menu, Send a story d-only; "No gifts" is gone, Jon decision 45). `<SiteHeader back={{ href, label }} />`
-= the back-link variant. `<SiteFooter />` = the two `FOOTER` lines only (Jon's menu polish removed the `.credits` block: the one stand-in left, something-new, is under the Unsplash License, which asks for no attribution; its `credit` record stays in photo-slots.ts as provenance). `photos?` is still accepted and ignored until the callers drop it. Every public/img file is sha256-allowlisted (tests/unit/ui/public-img-allowlist.test.ts). Both server components.
+= the back-link variant. There is no site footer (Jon, 2026-10-05: its lines are gone from every page). Every public/img file is sha256-allowlisted (tests/unit/ui/public-img-allowlist.test.ts). A server component.
 
 ### 2.9 AdminShell — `src/app/admin/(app)/layout.tsx` (server)
 
@@ -186,7 +186,7 @@ Response it returns: a layout and its page render in parallel, so the layout's c
 
 `<PhotoSlot slot="hero" kind="hero" alt?="" className?>` → `<figure class="ph ph--hero" data-slot="hero" data-alt=""
 aria-hidden="true">`. `slot` = the v2.0 slots.json key; `kind` ∈ hero · band · dish · sheet · thumb · sent · wine · close
-(the ratio: site.css, `var(--ph-ratio-*, v2 fallback)`); `alt` '' = decorative. G1 SIGNED: a slot listed in `photo-slots.ts` renders `<img src srcset sizes alt>` (no aria-hidden; `priority="hero"` = eager + preload); an unlisted slot stays the empty box. Credits: SiteFooter `photos`.
+(the ratio: site.css, `var(--ph-ratio-*, v2 fallback)`); `alt` '' = decorative. G1 SIGNED: a slot listed in `photo-slots.ts` renders `<img src srcset sizes alt>` (no aria-hidden; `priority="hero"` = eager + preload); an unlisted slot stays the empty box.
 
 ### 2.13 VisuallyHidden `<Vh>` → `<span class="vh">`. `announce(msg)` (from `@/ui/focus`) speaks via the one `#live` region.
 

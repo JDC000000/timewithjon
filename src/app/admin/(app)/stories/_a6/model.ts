@@ -1,5 +1,6 @@
 // src/app/admin/(app)/stories/_a6/model.ts — T2.9.U1 / T3.7.U1: the A6 words for one story (wireframe 09 A6) and
 // the "Add emailed story" checks. Pure: no reads, no React.
+import { dishInSentence } from '@/content/menu-helpers';
 import type { StoryItem } from '@/features/admin/stories';
 import { ADD_STORY, STORIES } from '@/content/ui/admin-season';
 import { ERRORS } from '@/content';
@@ -14,7 +15,7 @@ export function storyWho(s: Story): string {
 
 /** "after The Long Lunch", or "sent by email" for an emailed story; null when neither applies. */
 export function storyContext(s: Story): string | null {
-  if (s.request?.dishName) return STORIES.after(s.request.dishName);
+  if (s.request?.dishName) return STORIES.after(dishInSentence(s.request.dish));
   return s.source === 'email_in' ? STORIES.byEmail : null;
 }
 

@@ -11,7 +11,7 @@ import { SENT_UI } from '@/content/ui/guest-after';
 import { getInviteSession } from '@/features/invites/session';
 import { MAX_PHOTOS } from '@/features/photos/limits';
 import { loadSettings } from '@/lib/settings';
-import { ROUTES, SiteFooter, SiteHeader } from '@/ui';
+import { ROUTES, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { StaleState } from '../_guest/stale';
 import { StoryForm } from '../_guest/story-form';
@@ -36,7 +36,6 @@ export default async function StoryPage() {
       ) : (
         <StaleState />
       )}
-      <SiteFooter photos={[]} />
     </>
   );
 }

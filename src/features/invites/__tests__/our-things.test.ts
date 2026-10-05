@@ -1,6 +1,8 @@
-// TSD v1.8: "our things" validation + the hero sentence (creative v1.4 §2.3).
+// TSD v1.8: "our things" validation (the API still checks the field). Jon (2026-10-05): the hero sentence no longer
+// uses them: the landing shows one line for everyone.
 import { describe, expect, it } from 'vitest';
-import { OPEN_LINE, PERSONAL } from '@/content/site';
+import { OPEN_LINE } from '@/content/site';
+import { landingModel } from '@/features/invites/landing-model';
 import { OurThings, ourThingError } from '@/features/invites/our-things';
 import { ARRAY_CASES, PHRASE_CASES } from '../../../../tests/fixtures/our-things-cases';
 
@@ -30,26 +32,25 @@ describe('our things', () => {
     expect(OurThings.safeParse(['x'.repeat(41)]).success).toBe(false);
     expect(OurThings.safeParse(['a', 'b', 'c', 'd']).success).toBe(false);
   });
-  it('renders 1, 2 and 3 things, and falls back to the open line when blank', () => {
-    expect(PERSONAL.ourThingsLine(['the Seymour lap'])).toBe(
-      'We keep saying we should do the Seymour lap or that epic trip.',
-    );
-    expect(PERSONAL.ourThingsLine(['the Seymour lap', 'Tofino again'])).toBe(
-      'We keep saying we should do the Seymour lap, Tofino again or that epic trip.',
-    );
-    expect(PERSONAL.ourThingsLine(['a', 'b', 'c'])).toBe(
-      'We keep saying we should do a, b, c or that epic trip.',
-    );
-    expect(PERSONAL.ourThingsLine(null)).toBe(OPEN_LINE);
-    expect(PERSONAL.ourThingsLine([])).toBe(OPEN_LINE);
-  });
-  it('QA r2 L5: a thing that is the line’s own "that epic trip", or a repeat, is said once', () => {
-    expect(PERSONAL.ourThingsLine(['river days', 'that epic trip'])).toBe(
-      'We keep saying we should do river days or that epic trip.',
-    );
-    expect(PERSONAL.ourThingsLine(['That Epic Trip', 'river days', 'River days'])).toBe(
-      'We keep saying we should do river days or that epic trip.',
-    );
-    expect(PERSONAL.ourThingsLine(['that epic trip'])).toBe('We keep saying we should do that epic trip.');
+  it('the hero line ignores an invite’s things: one line for every personal link, the general link and no link', () => {
+    expect(OPEN_LINE).toBe('We keep saying we should get or do that epic trip.');
+    const personal = (our_things: string[]) =>
+      landingModel({
+        state: 'valid',
+        invite: {
+          id: 'i',
+          kind: 'personal',
+          is_test: true,
+          name_slug: 'dave',
+          display_name: 'Dave',
+          our_things,
+          picked_dish: null,
+          prefill_name: null,
+          prefill_email: null,
+          revoked_at: null,
+        },
+      }).heroLine;
+    expect([personal(['the Seymour lap', 'that epic trip']), personal([])]).toEqual([OPEN_LINE, OPEN_LINE]);
+    expect(landingModel({ state: 'none' }).heroLine).toBe(OPEN_LINE);
   });
 });

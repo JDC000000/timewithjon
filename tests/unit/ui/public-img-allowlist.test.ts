@@ -14,9 +14,6 @@ const IMAGE = /\.(webp|jpe?g|png|gif|avif|heic|heif|tiff?|bmp|svg|ico)$/i;
 
 /** path under public/ -> sha256 of the committed stand-in (JONS_OWN slots are replaced by Jon's photos in private builds). */
 const ALLOWED: Readonly<Record<string, string>> = {
-  'img/bluebird-1200.webp': '1a60ac90b6e0b8889fb0958801f6c2e2aefe30cdcf472786a11cc74607bd6f06',
-  'img/bluebird-480.webp': '74a2d88f27e144f2978c56ef13cb50bc953c674d3594e4701bc3acb1ead1fa51',
-  'img/bluebird-800.webp': '7e6364dd3546cf9b9f903f6216db5a10a72e1bfa09b6ec55a594c3a4aef873e8',
   'img/catch-release-1200.webp': '8604af1cf8a377684de187f22e57a5e06de53a0fdcb4d19514bf64bbc36dba70',
   'img/catch-release-480.webp': '02041f93f4d87b6251f813ddf55020e563e6dbb6bfa57c02705f6ebc9545733d',
   'img/catch-release-800.webp': 'aec98cf182f9eac0c1aa8eca3f3451eb860fe438dbc1848099917ab452393e4b',

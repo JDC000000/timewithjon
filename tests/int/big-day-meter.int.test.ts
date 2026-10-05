@@ -42,7 +42,7 @@ describe('the Big Days meter (QA M2)', () => {
         status: 'requested',
         countsToward: 'big_day',
         bigCrew: false,
-        dishName: 'The Grind',
+        dishName: 'A hike or nature moment',
       }),
     );
     made.push(requestId);
