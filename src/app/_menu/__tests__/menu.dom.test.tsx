@@ -36,7 +36,7 @@ describe('S04 /menu', () => {
     expect(screen.getByText('April to June 2027')).toBeTruthy();
     expect(
       screen.getByText(
-        'Pick an activity. Tell me when works. I’ll lock one in and looking forward to seeing you.',
+        'Pick an activity. Tell me when works. I’ll lock one in, and I’m looking forward to seeing you.',
       ),
     ).toBeTruthy();
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([

@@ -10,7 +10,7 @@
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishBySlug, dishInSentence } from '@/content/menu-helpers';
 import { getBusy } from '@/features/availability/busy';
 import { engineInput, loadEngineData, withoutOwnBooking } from '@/features/availability/load';
 import { openWindows } from '@/features/availability/openWindows';
@@ -193,7 +193,7 @@ export async function rerequestTx(
           eventKey: a.clientKey,
           vars: {
             name: r.contact_name,
-            dish: dishBySlug(r.dish)?.name ?? r.dish,
+            dish: dishInSentence(r.dish),
             adminLink: adminLink(requestId),
           },
         }),

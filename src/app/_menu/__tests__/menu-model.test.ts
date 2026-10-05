@@ -54,7 +54,7 @@ describe('menuModel (S04)', () => {
     expect(rows.map((d) => d.slug as string)).not.toContain('the-bluebird');
     expect(rows.filter((d) => d.href === null)).toEqual([]);
     expect(row('the-grind').name).toBe('A hike or nature moment');
-    expect(row('the-grind').sheet?.book.label).toBe('Book A hike or nature moment');
+    expect(row('the-grind').sheet?.book.label).toBe('Book a hike or nature moment'); // inside a sentence: lowercase
   });
   it('Pitch Me shows its lead and examples in the line', () => {
     expect(row('pitch-me').line).toBe(

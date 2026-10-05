@@ -18,12 +18,13 @@ export const PERSONAL = {
   seeWholeMenu: 'See the whole activity menu', // v2.1 COPY (decision 37d)
 };
 /**
- * Jon (2026-10-05): the landing's one story block, all in the body face: the why lines and the story invite as one
- * paragraph (the address and its copy button follow inline), then his sign-off. It replaces the why line, the
+ * Jon (2026-10-05): the landing's one story block, all in the body face: the why lines, then the story invite (the
+ * address and its copy button follow inline), then his sign-off. It replaces the why line, the
  * "Can’t make a date?" block and the closing line on the landing.
  */
 export const STORY_BLOCK = {
-  lead: 'At a party I get a hug, a drink and half a story before someone pulls you away. This time I’d like the whole story. A table, a couple of hours, and nowhere else to be. Can’t make a date? How about you email me a photo from way back and a few lines. Any story, any length, I’d love to hear from you.', // approved: Jon (2026-10-05)
+  why: 'At a party I get a hug, a drink and half a story before someone pulls you away. This time I’d like the whole story. A table, a couple of hours, and nowhere else to be.', // approved: Jon (2026-10-05)
+  lead: 'Can’t make a date? How about you email me a photo from way back and a few lines. Any story, any length, I’d love to hear from you.', // approved: Jon (2026-10-05)
   signOff: 'As always, looking forward to whatever is next! - Jon', // approved: Jon (2026-10-05)
 };
 export const NOT_FOUND = { line: 'This page took the day off.', back: 'Back to the activity menu' }; // v2.1 COPY (decision 37d)

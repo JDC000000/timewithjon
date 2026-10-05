@@ -3,7 +3,7 @@
 // detail lines) and, when the dish can be booked, its sheet (course caption, facts, next line, Book {dish}).
 import { DISH_CARDS, PERSONAL, SECTIONS, menuLine } from '@/content';
 import type { Dish, DishSlug, Section } from '@/content';
-import { bookHref, isBookable, visibleDishes } from '@/content/menu-helpers';
+import { bookHref, inSentence, isBookable, visibleDishes } from '@/content/menu-helpers';
 
 export interface DishSheetModel {
   cap: string; // the course title
@@ -44,7 +44,7 @@ function dishRow(d: Dish, courseTitle: string, now: Date): DishRowModel {
       cap: courseTitle,
       facts: card.facts,
       next: card.next,
-      book: { label: PERSONAL.book(d.name), href },
+      book: { label: PERSONAL.book(inSentence(d)), href },
     },
   };
 }

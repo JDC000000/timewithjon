@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Button, Field, KeepWhole, Sheet } from '@/ui';
 import { LOCK_DEFAULTS, LOCK_SHEET, SHEETS } from '@/content/ui/admin-requests';
 import type { CountsToward } from '@/features/availability/types';
+import { dishAfterPossessive } from '@/content/menu-helpers';
 import { dayLabel, vancouverInstant } from '@/lib/time';
 import { clockLabel } from './format';
 import {
@@ -103,8 +104,8 @@ export function DateLockSheet(props: {
       id={id}
       open={props.open}
       onClose={props.onClose}
-      title={LOCK_SHEET.title(props.who, props.dishName.replace(/^The /, ''))}
-      closeLabel={SHEETS.close(LOCK_SHEET.title(props.who, props.dishName.replace(/^The /, '')))}
+      title={LOCK_SHEET.title(props.who, dishAfterPossessive(props.dish))}
+      closeLabel={SHEETS.close(LOCK_SHEET.title(props.who, dishAfterPossessive(props.dish)))}
       footer={
         <Button variant="commit" dt block type="submit" form={`${id}-form`} disabled={!date}>
           {date && startAt ? <CommitLabel {...commitParts(date, startAt)} /> : LOCK_SHEET.lockOpen}

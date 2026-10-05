@@ -1,7 +1,6 @@
 // Jon decisions 41b/47c + v2.2 "no words on a photo" as DOM order (pr89 F2), and CopyAddress's success-only "Copied" (F4).
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { STORY_BLOCK } from '@/content';
 import { COPY_ADDRESS } from '@/content/ui/landing';
 import { dishBySlug } from '@/content/menu-helpers';
 import { landingModel } from '@/features/invites/landing-model';
@@ -40,18 +39,21 @@ describe('the why band (decision 41b), then the one story block (Jon, 2026-10-05
     expect(section.textContent).toBe('');
   });
 
-  it('#story: two body paragraphs, Jon’s words, the address a mailto link and "(Copy the address)" inline', () => {
+  it('#story: three body paragraphs, Jon’s words; the address a mailto link and "(Copy the address)" inline', () => {
     const { container } = render(<StoryBlock />);
     const section = container.querySelector('section#story')!;
     expect(section.querySelector('h1, h2, h3, .h1, .display, .cap, .lead')).toBeNull(); // one face throughout
-    const [lead, signOff] = [...section.querySelectorAll('p')];
-    expect([...section.querySelectorAll('p')].map((p) => p.className)).toEqual([
-      'body measure',
-      'body measure',
-    ]);
-    expect(lead!.textContent).toBe(`${STORY_BLOCK.lead} stories@timewithjon.com (${COPY_ADDRESS.label})`);
-    expect(lead!.querySelector('a')!.getAttribute('href')).toBe('mailto:stories@timewithjon.com');
-    expect(lead!.querySelector('button')!.textContent).toBe(COPY_ADDRESS.label);
+    const ps = [...section.querySelectorAll('p')];
+    expect(ps.map((p) => p.className)).toEqual(['body measure', 'body measure', 'body measure']);
+    const [why, invite, signOff] = ps;
+    expect(why!.textContent).toBe(
+      'At a party I get a hug, a drink and half a story before someone pulls you away. This time I’d like the whole story. A table, a couple of hours, and nowhere else to be.',
+    );
+    expect(invite!.textContent).toBe(
+      `Can’t make a date? How about you email me a photo from way back and a few lines. Any story, any length, I’d love to hear from you. stories@timewithjon.com (${COPY_ADDRESS.label})`,
+    );
+    expect(invite!.querySelector('a')!.getAttribute('href')).toBe('mailto:stories@timewithjon.com');
+    expect(invite!.querySelector('button')!.textContent).toBe(COPY_ADDRESS.label);
     expect(signOff!.textContent).toBe('As always, looking forward to whatever is next! - Jon');
   });
 });

@@ -109,7 +109,7 @@ describe('v2.1 copy guard (decision 37)', () => {
     expect(content.MENU_TITLE).toBe('The Activity Menu');
     // Jon (2026-10-05): the subhead's new end, and the menu foot is gone.
     expect(content.MENU_SUBHEAD).toBe(
-      'Pick an activity. Tell me when works. I’ll lock one in and looking forward to seeing you.',
+      'Pick an activity. Tell me when works. I’ll lock one in, and I’m looking forward to seeing you.',
     );
     expect('MENU_FOOTER' in content).toBe(false);
     expect(foundation.SITE_NAV.menu).toBe('The Activity Menu');

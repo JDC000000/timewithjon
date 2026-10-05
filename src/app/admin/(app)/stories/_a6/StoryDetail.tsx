@@ -1,6 +1,7 @@
 // src/app/admin/(app)/stories/_a6/StoryDetail.tsx — T2.9.U1: the A6 detail (wireframe 09 A6): "After The Long Lunch",
 // the name, the story in full, its photos (10-minute signed URLs, T3.6.07), the Before 60 answer and "OK for the
 // book". A spam suspect can't be consented (the route answers 409): it gets A2b's Not spam / Delete instead. Server.
+import { dishInSentence } from '@/content/menu-helpers';
 import type { ReactNode } from 'react';
 import type { StoryItem } from '@/features/admin/stories';
 import type { AdminPhoto } from '@/features/photos/thumbnails';
@@ -28,7 +29,7 @@ export function StoryDetail({
   back: ReactNode;
 }) {
   const who = storyWho(story);
-  const dish = story.request?.dishName;
+  const dish = story.request?.dishName ? dishInSentence(story.request.dish) : null; // "After a hike…" (2026-10-05)
   return (
     <>
       {back}

@@ -21,6 +21,7 @@ export function StoryBlock() {
   return (
     <section className="section story-block" id="story">
       <div className="wrap">
+        <p className="body measure">{STORY_BLOCK.why}</p>
         <p className="body measure">
           {STORY_BLOCK.lead} <a href={`mailto:${address}`}>{address}</a> (<CopyAddress address={address} />)
         </p>

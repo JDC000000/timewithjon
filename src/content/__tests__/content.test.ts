@@ -155,3 +155,21 @@ describe('QA r2 L2: the booking screens write lunch as the menu does', () => {
     expect(lunch.map((d) => d.detail.includes('Thu/Fri, noon–2 pm'))).toEqual([true, true]);
   });
 });
+
+describe('the hike inside a sentence (Jon, 2026-10-05)', () => {
+  it('its title keeps the capital; in a sentence it is lowercase; after a possessive it drops its article', async () => {
+    const { dishBySlug, dishAfterPossessive, dishInSentence, inSentence } = await import('../menu-helpers');
+    const { PERSONAL } = await import('../site');
+    const hike = dishBySlug('the-grind')!;
+    expect(hike.name).toBe('A hike or nature moment');
+    expect(inSentence(hike)).toBe('a hike or nature moment');
+    expect(PERSONAL.pickedLine(inSentence(hike))).toBe(
+      'I was thinking a hike or nature moment, but anything on the menu is yours.',
+    );
+    expect(PERSONAL.book(inSentence(hike))).toBe('Book a hike or nature moment');
+    expect(dishInSentence('the-grind')).toBe('a hike or nature moment');
+    expect(dishInSentence('the-long-lunch')).toBe('The Long Lunch'); // the others are names in a sentence too
+    expect(dishAfterPossessive('the-grind')).toBe('hike or nature moment');
+    expect(dishAfterPossessive('the-long-lunch')).toBe('Long Lunch');
+  });
+});

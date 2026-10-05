@@ -7,7 +7,7 @@ export const MENU_HEADER = 'The Activity Menu · April to June 2027'; // v2.1 CO
 /** The activity menu page's name (S04/S05 h1, header nav, back links, <title>): decision 37d. */
 export const MENU_TITLE = 'The Activity Menu'; // v2.1 COPY (decision 37d)
 export const MENU_SUBHEAD =
-  'Pick an activity. Tell me when works. I’ll lock one in and looking forward to seeing you.'; // approved: Jon (2026-10-05)
+  'Pick an activity. Tell me when works. I’ll lock one in, and I’m looking forward to seeing you.'; // approved: Jon (2026-10-05)
 export const SECTIONS: { id: Section; title: string; intro?: string }[] = [
   { id: 'starters', title: 'Starters' },
   { id: 'mains', title: 'Mains' },
@@ -180,6 +180,7 @@ export const DISHES: Dish[] = [
     slug: 'the-grind',
     section: 'big-days',
     name: 'A hike or nature moment', // approved: Jon (2026-10-05)
+    inSentence: 'a hike or nature moment', // approved: Jon (2026-10-05)
     line: 'The Grouse Grind, or something kinder. I’ll be the one stopping to “take in the view.”',
     detail: 'half a day · serves up to 8 · weather call by 7 am',
     mode: 'dates',

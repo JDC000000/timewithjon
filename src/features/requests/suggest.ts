@@ -7,7 +7,7 @@
 // (canLock, T2.4.07).
 import 'server-only';
 import type { PoolClient } from 'pg';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishInSentence } from '@/content/menu-helpers';
 import { loadEngineData } from '@/features/availability/load';
 import { blockedBy, inSeason } from '@/features/availability/rules';
 import type { CountsToward, RequestStatus } from '@/features/availability/types';
@@ -140,7 +140,7 @@ async function suggestTx(
         requestId: a.requestId,
         eventKey: offerId,
         vars: {
-          dish: dishBySlug(r.dish)?.name ?? r.dish,
+          dish: dishInSentence(r.dish),
           lead: a.lead ? `${a.lead} ` : '',
           times: times.map((t) => timeLabel(t, r.guest_time_zone)).join('\n'),
           takeLink: takeLink(offerId),

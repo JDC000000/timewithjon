@@ -4,7 +4,7 @@
 // Sent after commit; a crash in between leaves the email_log row 'pending' for email-retry.
 import 'server-only';
 import { getEnv } from '@/config/env';
-import { dishBySlug } from '@/content/menu-helpers';
+import { dishInSentence } from '@/content/menu-helpers';
 import { withTx } from '@/lib/db';
 import { deliverEmail, jonEmail, queueEmail } from './send';
 
@@ -39,7 +39,7 @@ export async function sendDueNudges(now: Date, deadline: number, batch = 20): Pr
           eventKey: r.awaiting_jon_since.toISOString(),
           vars: {
             name: r.contact_name,
-            dish: dishBySlug(r.dish)?.name ?? r.dish,
+            dish: dishInSentence(r.dish),
             adminLink: `${getEnv().NEXT_PUBLIC_SITE_URL}/admin/requests/${r.id}`,
           },
         });
