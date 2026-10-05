@@ -57,6 +57,8 @@ export const GUEST_LABEL: Record<RequestStatus, string> = {
   done: '',
 };
 export const CLOSED_IN_PERSON_LABEL = 'Sorted. See you soon.'; // R2-L4
+/** The status line on /manage when Jon cancelled for the guest (the guest's own cancel keeps "Cancelled, no guilt"). */
+export const JON_CANCELLED_LABEL = 'Cancelled, no problem'; // approved: Jon (2026-10-05)
 export const ALREADY = {
   lockedIn: (when: string) => `You’re locked in for ${when}.`,
   cancelled: 'Already cancelled. No guilt.',

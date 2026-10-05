@@ -54,9 +54,11 @@ describe('S19 /story', () => {
 
   it('QA r2 M4: the general link asks for a name (optional, 80 at most); a personal link does not', async () => {
     const g = await html(GENERAL);
-    expect(g).toContain(`>${FLOW.nameLabel}<`);
+    expect(g).toContain('>Your name (optional)<'); // Jon, 2026-10-05: the story page's own label
+    expect(g).toContain(`>${STORY_FORM.nameLabel}<`);
+    expect(g).not.toContain(`>${FLOW.nameLabel}<`); // the booking form keeps "Your name"
     expect(g).toMatch(/<input[^>]*name="name"[^>]*maxLength="80"|<input[^>]*maxLength="80"[^>]*name="name"/i);
     expect(g).not.toMatch(/<input[^>]*name="name"[^>]*required/);
-    expect(await html(VALID)).not.toContain(`>${FLOW.nameLabel}<`);
+    expect(await html(VALID)).not.toContain(`>${STORY_FORM.nameLabel}<`);
   });
 });

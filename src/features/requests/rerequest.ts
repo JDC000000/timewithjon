@@ -2,7 +2,9 @@
 // the SAME row goes back to `requested` with its choices replaced, the event is deleted if it was locked, live
 // offers are released, and E16 goes to Jon (§6: `locked` → `requested`, and `requested`/`needs_new_time`/
 // `standby` → `requested`). A joined guest detaches (rule 5): joined_to_request_id is cleared and the host's event
-// is patched to drop them. The host leaving works as a cancel does for its joined guests (rule 4).
+// is patched to drop them. The host leaving works as a cancel does for its joined guests (rule 4). A request Jon
+// cancelled for the guest (2026-10-05, not closed in person) can come back the same way: `cancelled` →
+// `requested`; its event and joined-guest changes were already made by the cancel.
 // Lane L1's T2.4.08 (the guest proposes new times from an offer or weather-call page) reuses checkRerequest()
 // (before its transaction: it may read Google free/busy, L-3) and rerequestTx() (inside it).
 import 'server-only';
@@ -17,7 +19,7 @@ import { jonEmail, queueEmail } from '@/features/email/send';
 import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { findInviteById } from '@/features/invites/repo';
 import { q, withTx } from '@/lib/db';
-import { isLazilyDone } from './guest-cancel';
+import { isJonCancelled, isLazilyDone } from './guest-cancel';
 import { hostLeft } from './joined-cascade';
 import { releaseLiveOffers } from './offers';
 import { honeypotField } from '@/lib/honeypot';
@@ -70,6 +72,8 @@ interface Row {
   ends_at: Date | null;
   google_event_id: string | null;
   calendar_state: string;
+  cancelled_by: 'guest' | 'jon' | null;
+  closed_in_person: boolean;
 }
 
 export interface Checked {
@@ -83,7 +87,7 @@ export interface Checked {
 
 const ROW = `select r.status, r.dish, r.invite_id, r.contact_name, r.crew_size, r.guest_time_zone, r.pitch_idea,
             r.surprise_need_to_know, r.joined_to_request_id, coalesce(h.locked_ends_at, r.locked_ends_at) as ends_at,
-            r.google_event_id, r.calendar_state
+            r.google_event_id, r.calendar_state, r.cancelled_by::text as cancelled_by, r.closed_in_person
        from request r left join request h on h.id = r.joined_to_request_id
       where r.id = $1`;
 
@@ -120,7 +124,8 @@ export async function rerequestTx(
     [requestId, a.action ?? 'request_rerequested', a.clientKey],
   );
   if (replay.rowCount) return { result: { ok: true }, after: none };
-  if (!CHANGEABLE.has(r.status) || isLazilyDone(r, now))
+  const jonCancelled = isJonCancelled(r);
+  if (!(CHANGEABLE.has(r.status) || jonCancelled) || isLazilyDone(r, now))
     return { result: { ok: false, status: 409, reason: 'not_changeable' }, after: none };
 
   const {
@@ -134,7 +139,9 @@ export async function rerequestTx(
     ],
   );
   const after = noSideEffects();
-  if (r.joined_to_request_id) {
+  if (jonCancelled) {
+    // Jon's cancel already deleted the event (or dropped this joined guest from the host's) and released offers.
+  } else if (r.joined_to_request_id) {
     // Rule 5: detach, and the host's event drops this attendee.
     const patch = await patchHostIfLocked(c, r.joined_to_request_id);
     if (patch) after.outboxIds.push(patch);
@@ -146,13 +153,14 @@ export async function rerequestTx(
       after.emailIds.push(...(await queueIcsEmail(c, requestId, 'CANCEL')));
   }
   // A locked booking's manage links ran to its end + 7 days; open again, they get the unlocked lifetime (§6).
-  if (r.status === 'locked') await reopenManageTokens(c, [requestId], now);
+  if (r.status === 'locked' || jonCancelled) await reopenManageTokens(c, [requestId], now);
   await c.query(
     `update request
         set status = 'requested', mode = $2, counts_toward = $3, date_prefs = $4, overnight = $5, standby_week = null,
             overnight_night = case when $5 then $8 else null end,
             joined_to_request_id = null, locked_slot_id = null, locked_starts_at = null, locked_ends_at = null,
             locked_where = null, awaiting_jon_since = case when $7 then null else $6::timestamptz end,
+            cancelled_by = null, cancelled_at = null,
             spam_suspect = spam_suspect or $7
       where id = $1`,
     [

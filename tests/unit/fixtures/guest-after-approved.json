@@ -5,6 +5,7 @@
   "STORY_FORM.empty": "Add a line or a photo first, or skip it.",
   "STORY_FORM.waiting": "Waiting for your photo…",
   "STORY_FORM.honeypot": "Leave this empty",
+  "STORY_FORM.nameLabel": "Your name (optional)",
   "PHOTO_PICKER.added": "Added",
   "PHOTO_PICKER.addedSay": "Photo added.",
   "PHOTO_PICKER.remove": "Remove",

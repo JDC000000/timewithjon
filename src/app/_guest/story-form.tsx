@@ -7,10 +7,10 @@
 // S19 (`storyPage`): the first save creates the story, so a photo picked before Send first saves the story as it
 // stands (nothing typed yet), and only that first save carries the general invite's Turnstile token (AD-9). Later
 // saves in the same page view update that story; a fresh visit starts a new one (QA r2 H1). On the general link S19
-// also asks for the guest's name (optional, the booking form's label and length; M4).
+// also asks for the guest's name (optional: its own label, the booking form's length; M4).
 import Link from 'next/link';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
-import { AFTER_SEND, ERRORS, FLOW } from '@/content';
+import { AFTER_SEND, ERRORS } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
 import { Button, Field } from '@/ui';
@@ -164,7 +164,7 @@ export function StoryForm(p: StoryFormProps) {
         <Field
           id={ids.name}
           name="name"
-          label={FLOW.nameLabel}
+          label={STORY_FORM.nameLabel}
           maxLength={80}
           autoComplete="name"
           value={name}

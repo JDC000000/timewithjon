@@ -363,5 +363,23 @@
     "summary": "On /sent and /story the photo tile's 'Added' and 'Remove' were dark text drawn straight on the photo, unreadable on a dark photo.",
     "fix": "The tile's words sit on a solid paper chip with ink text (.photo-chip), whatever the photo.",
     "tests": ["src/app/_guest/__tests__/photo-picker.dom.test.tsx", "tests/unit/tokens-contrast.test.ts"]
+  },
+  {
+    "id": "jon-cancel-reads-as-guest-cancel",
+    "date": "2026-10-05",
+    "task": "T2.7",
+    "area": "guest",
+    "summary": "After Jon cancelled for the guest, /manage read 'Cancelled, no guilt' (the guest's own-cancel line) and offered no way to send new times, so the guest could only start over from the menu.",
+    "fix": "A Jon cancel (cancelled_by 'jon', not closed in person) reads 'Cancelled, no problem' and offers Ask for another time; the re-request takes the same row back to requested for Jon (E16) and keeps the manage link alive. The guest's own cancel is unchanged.",
+    "tests": ["tests/int/manage.int.test.ts", "tests/e2e/guest-after/manage-jon-cancel.spec.ts"]
+  },
+  {
+    "id": "story-name-box-reads-required",
+    "date": "2026-10-05",
+    "task": "T3.12",
+    "area": "guest",
+    "summary": "The general-link /story name box used the booking form's 'Your name', though on the story page it is optional.",
+    "fix": "The story page has its own label, 'Your name (optional)'; the booking form keeps 'Your name'.",
+    "tests": ["src/app/story/__tests__/story-page.test.ts", "tests/e2e/guest-after/story-page.spec.ts"]
   }
 ]

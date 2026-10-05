@@ -54,6 +54,15 @@ export function e12When(r: Pick<Row, 'status' | 'starts_at' | 'ends_at'>): strin
   return whenLabel(r.starts_at, r.ends_at);
 }
 
+/** Jon cancelled it for the guest (not closed in person): the guest may ask for another time (2026-10-05). */
+export function isJonCancelled(r: {
+  status: string;
+  cancelled_by: 'guest' | 'jon' | null;
+  closed_in_person: boolean;
+}): boolean {
+  return r.status === 'cancelled' && r.cancelled_by === 'jon' && !r.closed_in_person;
+}
+
 /** Locked (own or through the host) and the end has passed: lazily done (AD-8), so nothing left to cancel. */
 export function isLazilyDone(r: Pick<Row, 'status' | 'ends_at'>, now: Date): boolean {
   return r.status === 'done' || (r.status === 'locked' && r.ends_at !== null && r.ends_at <= now);
