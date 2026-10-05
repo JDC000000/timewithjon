@@ -39,6 +39,7 @@ describe('menuModel (S04)', () => {
       line: dishBySlug('the-long-lunch')!.line,
       slot: 'long-lunch',
       detail: ['2 hr · Thu/Fri, noon–2 pm', 'serves 1–15 (my wallet prefers 1–6)'],
+      caption: null,
       href: '/book/the-long-lunch',
       sheet: {
         cap: 'Mains',
@@ -55,6 +56,11 @@ describe('menuModel (S04)', () => {
     expect(rows.filter((d) => d.href === null)).toEqual([]);
     expect(row('the-grind').name).toBe('A hike or nature moment');
     expect(row('the-grind').sheet?.book.label).toBe('Book a hike or nature moment'); // inside a sentence: lowercase
+  });
+  it('only Surprise Me carries a photo caption (Jon, 2026-10-05)', () => {
+    expect(rows.filter((d) => d.caption !== null).map((d) => [d.slug, d.caption])).toEqual([
+      ['surprise-me', 'No snowboard lessons offered'],
+    ]);
   });
   it('Pitch Me shows its lead and examples in the line', () => {
     expect(row('pitch-me').line).toBe(

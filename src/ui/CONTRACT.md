@@ -186,7 +186,7 @@ Response it returns: a layout and its page render in parallel, so the layout's c
 
 `<PhotoSlot slot="hero" kind="hero" alt?="" className?>` → `<figure class="ph ph--hero" data-slot="hero" data-alt=""
 aria-hidden="true">`. `slot` = the v2.0 slots.json key; `kind` ∈ hero · band · dish · sheet · thumb · sent · wine · close
-(the ratio: site.css, `var(--ph-ratio-*, v2 fallback)`); `alt` '' = decorative. G1 SIGNED: a slot listed in `photo-slots.ts` renders `<img src srcset sizes alt>` (no aria-hidden; `priority="hero"` = eager + preload); an unlisted slot stays the empty box.
+(the ratio: site.css, `var(--ph-ratio-*, v2 fallback)`); `alt` '' = decorative. G1 SIGNED: a slot listed in `photo-slots.ts` renders `<img src srcset sizes alt>` (no aria-hidden; `priority="hero"` = eager + preload); an unlisted slot stays the empty box. A slot with `slides` > 1 (private builds only, docs/PHOTOS.md) is a slideshow (`Slideshow.tsx`): photo 1 as above; photos 2..n and a Pause/Play toggle join after load. `controls="outside"` + `<SlideshowScope>`/`<SlideshowToggle>` place the toggle outside a link (menu cards: `DishPhotoScope`). `slots` = a fixture registry (`/dev/slides` only).
 
 ### 2.13 VisuallyHidden `<Vh>` → `<span class="vh">`. `announce(msg)` (from `@/ui/focus`) speaks via the one `#live` region.
 

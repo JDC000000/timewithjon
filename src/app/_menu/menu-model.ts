@@ -17,6 +17,8 @@ export interface DishRowModel {
   line: string;
   slot: string;
   detail: readonly string[];
+  /** the small line under the photo (row and sheet), or null */
+  caption: string | null;
   href: string | null; // null = display-only (a dish that can't be booked): no link, no sheet
   sheet: DishSheetModel | null;
 }
@@ -34,7 +36,14 @@ export interface MenuModel {
 
 function dishRow(d: Dish, courseTitle: string, now: Date): DishRowModel {
   const card = DISH_CARDS[d.slug];
-  const base = { slug: d.slug, name: d.name, line: menuLine(d), slot: card.slot, detail: card.detail };
+  const base = {
+    slug: d.slug,
+    name: d.name,
+    line: menuLine(d),
+    slot: card.slot,
+    detail: card.detail,
+    caption: card.caption ?? null,
+  };
   if (!isBookable(d, now)) return { ...base, href: null, sheet: null };
   const href = bookHref(d);
   return {

@@ -3,13 +3,16 @@
 // public/img/<slot>-<w>.webp for the slots below. Input is the PRIVATE slot -> photo map (manifest.json, not in this
 // repo; its JPEGs are already metadata-stripped). Output keeps each stand-in's widths and aspect ratio, cropped
 // around the manifest focal point (CSS object-position semantics), with NO metadata at all (no EXIF, XMP, IPTC, ICC).
+// A slot may hold up to MAX_SLIDES sources (a list, shown in turn): the first renders to <slot>-<w>.webp as before,
+// source n >= 2 to <slot>-<n>-<w>.webp, with the same widths, aspect and quality.
 //   node scripts/build-real-photos.mjs [path/to/manifest.json]   (default: $TWJ_PHOTO_MANIFEST)
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 
 /** slot -> [widths (ascending, as in src/ui/photo-slots.ts), aspect w, aspect h] */
-const SLOTS = {
+export const SLOTS = {
   hero: [[480, 800, 1200, 1600], 4, 5],
   why: [[480, 800, 1200, 1600], 16, 9],
   close: [[480, 800, 1200, 1600], 16, 9],
@@ -36,24 +39,49 @@ const MAX_BYTES = 190 * 1024; // photo-slots.test.ts IMGSLOT budget is 200 KB
  *  2026-10-03): why and close sit below the fold on /, but within Chrome's lazy-load distance on a phone, so they
  *  download while the hero paints; at q60 they stop slowing the hero. Never lower the hero or a page's first photo. */
 const QUALITY = { why: 60, close: 60 };
+/** the most photos one slot shows in turn */
+export const MAX_SLIDES = 6;
 
-const manifestPath = process.argv[2] ?? process.env.TWJ_PHOTO_MANIFEST;
-if (!manifestPath) throw new Error('usage: build-real-photos.mjs <manifest.json>');
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-const out = join(dirname(new URL(import.meta.url).pathname), '..', 'public', 'img');
+function fail(msg) {
+  throw new Error(`build-real-photos: ${msg}`);
+}
+
+/**
+ * The manifest's `slots` as { slot: [{ file, pos? }, ...] } (1..MAX_SLIDES sources each). Takes the object form
+ * ({ file, pos }) or a list of them. Fails on an unknown slot, an empty or too-long list, or an entry with no file.
+ */
+export function parseSlots(slots) {
+  if (slots === undefined) return {};
+  if (typeof slots !== 'object' || slots === null || Array.isArray(slots))
+    fail('"slots" must be an object of slot -> source(s)');
+  const out = {};
+  for (const [slot, entry] of Object.entries(slots)) {
+    if (!Object.hasOwn(SLOTS, slot)) fail(`unknown slot "${slot}"`);
+    const list = Array.isArray(entry) ? entry : [entry];
+    if (list.length < 1 || list.length > MAX_SLIDES)
+      fail(`${slot}: 1 to ${MAX_SLIDES} sources, not ${list.length}`);
+    out[slot] = list.map((e, i) => {
+      if (typeof e !== 'object' || e === null || typeof e.file !== 'string' || e.file.length === 0)
+        fail(`${slot} #${i + 1}: needs a "file"`);
+      if (e.pos !== undefined) [0, 1].forEach((axis) => pct(slot, e.pos, axis));
+      return e.pos === undefined ? { file: e.file } : { file: e.file, pos: e.pos };
+    });
+  }
+  return out;
+}
+
+/** public/img name of slot source n (1-based) at width w: source 1 keeps the stand-in's name */
+export const outName = (slot, n, w) => (n === 1 ? `${slot}-${w}.webp` : `${slot}-${n}-${w}.webp`);
 
 /** one axis of a CSS object-position in percent ('50% 45%'), as 0..1; keywords are refused, not guessed */
 const pct = (slot, s, i) => {
   const v = String(s ?? '50% 50%').split(/\s+/)[i] ?? '50%';
-  if (!/^\d+(\.\d+)?%$/.test(v))
-    throw new Error(`${slot}: pos "${s}" must be two percentages, e.g. "50% 45%"`);
+  if (!/^\d+(\.\d+)?%$/.test(v)) fail(`${slot}: pos "${s}" must be two percentages, e.g. "50% 45%"`);
   return Math.min(1, Math.max(0, Number(v.slice(0, -1)) / 100));
 };
 
-for (const [slot, [widths, aw, ah]] of Object.entries(SLOTS)) {
-  const entry = manifest.slots[slot];
-  if (!entry) continue; // no Jon photo: the stand-in stays
-  const src = join(dirname(manifestPath), entry.file);
+async function renderOne(slot, n, src, pos, outDir, log) {
+  const [widths, aw, ah] = SLOTS[slot];
   // .rotate() applies the EXIF Orientation first (a phone portrait stays upright); the output carries no metadata
   // (decoded to raw sRGB pixels once: no second lossy encode)
   const { data, info } = await sharp(src).rotate().raw().toBuffer({ resolveWithObject: true });
@@ -64,10 +92,12 @@ for (const [slot, [widths, aw, ah]] of Object.entries(SLOTS)) {
     ch = h0;
   if (w0 / h0 > r) cw = Math.round(h0 * r);
   else ch = Math.round(w0 / r);
-  const left = Math.round(pct(slot, entry.pos, 0) * (w0 - cw));
-  const top = Math.round(pct(slot, entry.pos, 1) * (h0 - ch));
+  const left = Math.round(pct(slot, pos, 0) * (w0 - cw));
+  const top = Math.round(pct(slot, pos, 1) * (h0 - ch));
+  const written = [];
   for (const w of widths) {
     const h = Math.round((w * ah) / aw);
+    const name = outName(slot, n, w);
     let q = (QUALITY[slot] ?? 80) + 5,
       buf;
     do {
@@ -79,11 +109,40 @@ for (const [slot, [widths, aw, ah]] of Object.entries(SLOTS)) {
         .webp({ quality: q, effort: 6 })
         .toBuffer(); // sharp writes no metadata unless asked (no keepMetadata/withMetadata/keepIccProfile)
     } while (buf.length > MAX_BYTES && q > 50);
-    if (buf.length > MAX_BYTES)
-      throw new Error(`${slot}-${w}.webp is ${buf.length} B, over ${MAX_BYTES} B even at q50`);
-    writeFileSync(join(out, `${slot}-${w}.webp`), buf);
-    console.log(
-      `${slot}-${w}.webp ${w}x${h} q${q} ${(buf.length / 1024).toFixed(0)}KB crop ${cw}x${ch}@${left},${top}${w > cw ? ' UPSCALED' : ''}`,
+    if (buf.length > MAX_BYTES) fail(`${name} is ${buf.length} B, over ${MAX_BYTES} B even at q50`);
+    writeFileSync(join(outDir, name), buf);
+    written.push(name);
+    log(
+      `${name} ${w}x${h} q${q} ${(buf.length / 1024).toFixed(0)}KB crop ${cw}x${ch}@${left},${top}${w > cw ? ' UPSCALED' : ''}`,
     );
   }
+  return written;
+}
+
+/**
+ * Renders every slot of `manifest` (sources relative to `baseDir`) into `outDir`. Everything is validated (slots,
+ * counts, files) before the first file is written. Returns the files written and each slot's slide count.
+ */
+export async function buildRealPhotos(manifest, baseDir, outDir, log = console.log) {
+  const slots = parseSlots(manifest.slots);
+  for (const [slot, list] of Object.entries(slots))
+    list.forEach((e, i) => {
+      if (!existsSync(join(baseDir, e.file))) fail(`${slot} #${i + 1}: source file is missing`);
+    });
+  const files = [];
+  const slides = {};
+  for (const [slot, list] of Object.entries(slots)) {
+    for (const [i, e] of list.entries())
+      files.push(...(await renderOne(slot, i + 1, join(baseDir, e.file), e.pos, outDir, log)));
+    slides[slot] = list.length;
+  }
+  return { files, slides };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const manifestPath = process.argv[2] ?? process.env.TWJ_PHOTO_MANIFEST;
+  if (!manifestPath) fail('usage: build-real-photos.mjs <manifest.json>');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'img');
+  await buildRealPhotos(manifest, dirname(manifestPath), out);
 }

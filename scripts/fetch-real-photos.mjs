@@ -10,7 +10,11 @@
 //   "prebuilt": ["hero-480.webp", ...]   finished files, copied over the stand-in of the same name
 //   "sha256":   { "hero-480.webp": "<hex>" }   optional integrity pins for prebuilt files
 //   "slots":    { "<slot>": { "file": "rel/path.jpg", "pos": "50% 40%" } }   sources, rendered by
-//                                          scripts/build-real-photos.mjs (same format it already takes)
+//                                          scripts/build-real-photos.mjs (same format it already takes); a slot may
+//                                          also be a list of 1-6 such sources, shown in turn (a slideshow): source 1
+//                                          renders to <slot>-<w>.webp, source n to <slot>-<n>-<w>.webp, and the count
+//                                          is written to the slot's `slides` in src/ui/photo-slots.ts. A rendered
+//                                          slot wins over prebuilt files of the same slot.
 //   "text":     { "<exact find>": "<replacement>" }   or   [{ "file", "find", "replace" }]   private copy, applied
 //                                          by exact string replace to allow-listed source files (TEXT_FILES)
 //   "pos":      { "<slot>": "50% 20%" }   focal-point overrides for existing slots in src/ui/photo-slots.ts
@@ -24,8 +28,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { parseSlots } from './build-real-photos.mjs';
 import {
   applyPosOverrides,
+  applySlidesOverrides,
   applyTextOverrides,
   parsePosOverrides,
   parseTextOverrides,
@@ -73,14 +79,18 @@ const manifest = JSON.parse((await get('manifest.json')).toString('utf8'));
 // the source overrides are worked out (and validated) before any file is touched; written after the photos
 const textOverrides = parseTextOverrides(manifest.text);
 const posOverrides = parsePosOverrides(manifest.pos);
+const slots = parseSlots(manifest.slots);
+const slideCounts = Object.entries(slots)
+  .map(([slot, list]) => [slot, list.length])
+  .filter(([, n]) => n > 1);
 const sourceFiles = [...new Set(textOverrides.map((t) => t.file))];
 const rewritten = applyTextOverrides(
   Object.fromEntries(sourceFiles.map((f) => [f, readFileSync(join(ROOT, f), 'utf8')])),
   textOverrides,
 );
-if (posOverrides.length > 0) {
+if (posOverrides.length + slideCounts.length > 0) {
   const slotsSrc = rewritten[PHOTO_SLOTS_FILE] ?? readFileSync(join(ROOT, PHOTO_SLOTS_FILE), 'utf8');
-  rewritten[PHOTO_SLOTS_FILE] = applyPosOverrides(slotsSrc, posOverrides);
+  rewritten[PHOTO_SLOTS_FILE] = applySlidesOverrides(applyPosOverrides(slotsSrc, posOverrides), slideCounts);
 }
 
 const prebuilt = manifest.prebuilt ?? [];
@@ -89,6 +99,7 @@ let count = 0;
 
 for (const name of prebuilt) {
   if (!/^[a-z0-9-]+-\d+\.webp$/.test(name)) throw new Error(`fetch-real-photos: bad prebuilt name "${name}"`);
+  if (Object.hasOwn(slots, name.replace(/-\d+\.webp$/, ''))) continue; // the slot's rendered sources win
   const dest = join(IMG, name);
   if (!existsSync(dest)) throw new Error(`fetch-real-photos: ${name} has no stand-in in public/img`);
   const buf = await get(name);
@@ -103,16 +114,18 @@ for (const name of prebuilt) {
   count++;
 }
 
-const slots = manifest.slots ?? {};
 if (Object.keys(slots).length > 0) {
   const dir = mkdtempSync(join(tmpdir(), 'twj-photos-'));
   try {
     const local = { slots: {} };
-    for (const [slot, entry] of Object.entries(slots)) {
-      const rel = safeRel(entry.file);
-      mkdirSync(dirname(join(dir, rel)), { recursive: true });
-      writeFileSync(join(dir, rel), await get(rel.split(sep).join('/')));
-      local.slots[slot] = { file: rel, pos: entry.pos };
+    for (const [slot, list] of Object.entries(slots)) {
+      local.slots[slot] = [];
+      for (const entry of list) {
+        const rel = safeRel(entry.file);
+        mkdirSync(dirname(join(dir, rel)), { recursive: true });
+        writeFileSync(join(dir, rel), await get(rel.split(sep).join('/')));
+        local.slots[slot].push({ file: rel, pos: entry.pos });
+      }
     }
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(local));
     const r = spawnSync(
@@ -131,8 +144,8 @@ if (Object.keys(slots).length > 0) {
 
 // counts and file names only: the replacement text is private and never logged
 for (const [file, contents] of Object.entries(rewritten)) writeFileSync(join(ROOT, file), contents);
-if (textOverrides.length + posOverrides.length > 0)
+if (textOverrides.length + posOverrides.length + slideCounts.length > 0)
   console.log(
-    `fetch-real-photos: ${textOverrides.length} text and ${posOverrides.length} focal-point override(s) applied (${Object.keys(rewritten).join(', ')})`,
+    `fetch-real-photos: ${textOverrides.length} text, ${posOverrides.length} focal-point and ${slideCounts.length} slideshow override(s) applied (${Object.keys(rewritten).join(', ')})`,
   );
 console.log(`fetch-real-photos: ${count} private photo file(s)/slot(s) applied from ${base.host}`);

@@ -19,7 +19,10 @@ The folder at the base URL holds a `manifest.json` and the files it names:
 {
   "prebuilt": ["hero-480.webp", "hero-800.webp"],
   "sha256": { "hero-480.webp": "<hex>", "hero-800.webp": "<hex>" },
-  "slots": { "grind": { "file": "sources/grind.jpg", "pos": "50% 40%" } },
+  "slots": {
+    "grind": { "file": "sources/grind.jpg", "pos": "50% 40%" },
+    "hero": [{ "file": "sources/hero-1.jpg" }, { "file": "sources/hero-2.jpg", "pos": "50% 30%" }]
+  },
   "text": { "<exact public wording>": "<private wording>" },
   "pos": { "grind": "50% 20%" }
 }
@@ -30,7 +33,8 @@ The folder at the base URL holds a `manifest.json` and the files it names:
   ICC). `sha256` pins are optional and checked when present.
 - `slots`: source photos, downloaded to a temp folder and rendered by `scripts/build-real-photos.mjs` (same
   manifest format it has always taken: widths, aspect, focal point, all metadata stripped). The temp folder is
-  deleted afterwards.
+  deleted afterwards. A slot is either one source (`{ "file", "pos"? }`) or a **list of 1 to 6** of them, shown in
+  turn as a slideshow (below). A rendered slot wins over `prebuilt` files of the same slot (those are skipped).
 - `text`: private copy. The public repo carries stand-in wording; the private build swaps in the real wording by
   exact string replace. The object form applies to `src/content/menu.ts`; the list form
   (`[{ "file": "src/content/menu.ts", "find": "…", "replace": "…" }]`) names the file, which must be on the
@@ -47,7 +51,8 @@ The folder at the base URL holds a `manifest.json` and the files it names:
   file itself cut off.
 
 When `PRIVATE_PHOTOS_BASE_URL` is set, any failure (HTTP error, wrong size, metadata, hash mismatch, a `text` find
-string not found exactly once, an unknown slot or a bad `pos`) **fails the build**, so a production deploy never
+string not found exactly once, an unknown slot, a bad `pos`, an empty list or more than 6 sources, or a source
+missing from the store) **fails the build**, so a production deploy never
 silently ships stand-ins or stand-in wording. The overrides are checked before any file is written. The token is
 never logged.
 
@@ -59,13 +64,30 @@ URL. Use a read-only credential scoped to that folder only.
 Only set these variables on the Vercel projects that should show Jon's photos. Keep **Git Fork Protection** on, so
 a fork's pull request never builds with them.
 
+### Slideshows (a list of sources)
+
+With a list, source 1 renders to the slot's usual `<slot>-<w>.webp`, so the page's first photo (and the landing
+hero's largest paint) is unchanged. Source _n_ ≥ 2 renders to `<slot>-<n>-<w>.webp` with the same widths, aspect,
+quality (q60 for `why` and `close`) and no metadata. The build then writes the count into that slot's entry in
+`src/ui/photo-slots.ts` as `slides: <n>` (a count of 1 writes nothing). These extra files exist only in a private
+build: they are never committed, and the public image allowlist test accepts a `<slot>-<n>-<w>.webp` only when the
+slot's `slides` asks for it (and git never tracks it).
+
+On the page (`<PhotoSlot>`, `src/ui/Slideshow.tsx`), a slot with `slides` > 1 keeps the same box and renders
+photo 1 exactly as a still photo. Photos 2 to _n_ are added after the page's load event (lazy, low priority, `alt=""`)
+and crossfade every 5 seconds; a Pause/Play button sits on the photo's bottom-right. With reduced motion there is
+no rotation and no button (photo 1 only), and the rotation stops while the tab is hidden. On a menu card the photo
+is inside the card's link, so the button sits next to the link, laid over the photo. Any slot works: the landing
+hero (and the /sent hero, same slot), `why`, `close`, and any dish slot (its menu card and its sheet). The
+prototype-only page `/dev/slides` shows one on a test fixture (`tests/e2e/ui/slideshow.spec.ts`).
+
 ## After a private build
 
-The swap rewrites files in `public/img` and, with `text` or `pos` overrides, `src/content/menu.ts` and
-`src/ui/photo-slots.ts`. The unit tests pin the committed stand-ins byte for byte
+The swap rewrites files in `public/img` (and, for a slideshow, adds `<slot>-<n>-<w>.webp` files) and, with `text`,
+`pos` or slideshow overrides, `src/content/menu.ts` and `src/ui/photo-slots.ts`. The unit tests pin the committed stand-ins byte for byte
 (`tests/unit/ui/public-img-allowlist.test.ts`) and the public copy, so if you run the swap locally, restore with
-`git checkout -- public/img src/content/menu.ts src/ui/photo-slots.ts` before running the tests, and never commit
-the swapped files.
+`git checkout -- public/img src/content/menu.ts src/ui/photo-slots.ts && git clean -f public/img` before running the
+tests, and never commit the swapped files.
 
 ## Stand-in sources (Unsplash License)
 

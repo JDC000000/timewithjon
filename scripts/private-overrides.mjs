@@ -135,27 +135,44 @@ export function parsePosOverrides(pos) {
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Sets each slot's `pos:` in photo-slots.ts source (replacing an existing one, or adding one after `file:`).
- * The slot must already exist as a top-level entry of PHOTO_SLOTS, exactly once.
+ * Sets `key: literal,` in one slot's entry of photo-slots.ts source (replacing an existing line, or adding one after
+ * `file:`). The slot must already exist as a top-level entry of PHOTO_SLOTS, exactly once. `what` names the override
+ * in errors.
  */
+function setSlotField(src, slot, key, literal, what) {
+  if (!/^[a-z0-9-]+$/.test(slot)) fail(`${what} "${slot}": not a slot name`);
+  const head = new RegExp(`^ {2}(?:'${escapeRe(slot)}'|${escapeRe(slot)}): \\{$`, 'gm');
+  const starts = [...src.matchAll(head)];
+  if (starts.length !== 1) fail(`${what} "${slot}": no such slot in ${PHOTO_SLOTS_FILE}`);
+  const begin = starts[0].index + starts[0][0].length;
+  const end = src.indexOf('\n  },', begin);
+  if (end === -1) fail(`${what} "${slot}": entry in ${PHOTO_SLOTS_FILE} is not closed`);
+  const block = src.slice(begin, end);
+  const line = `    ${key}: ${literal},`;
+  const existing = new RegExp(`^ {4}${key}: [^\\n]*,$`, 'm');
+  let next;
+  if (existing.test(block)) next = block.replace(existing, line);
+  else if (/^ {4}file: '[^'\n]*',$/m.test(block))
+    next = block.replace(/^( {4}file: '[^'\n]*',)$/m, `$1\n${line}`);
+  else fail(`${what} "${slot}": entry in ${PHOTO_SLOTS_FILE} has no file line`);
+  return src.slice(0, begin) + next + src.slice(end);
+}
+
+/** Sets each slot's `pos:` in photo-slots.ts source (see setSlotField). */
 export function applyPosOverrides(source, overrides) {
-  let src = source;
-  for (const [slot, value] of overrides) {
-    if (!/^[a-z0-9-]+$/.test(slot)) fail(`pos "${slot}": not a slot name`);
-    const key = new RegExp(`^ {2}(?:'${escapeRe(slot)}'|${escapeRe(slot)}): \\{$`, 'gm');
-    const starts = [...src.matchAll(key)];
-    if (starts.length !== 1) fail(`pos "${slot}": no such slot in ${PHOTO_SLOTS_FILE}`);
-    const begin = starts[0].index + starts[0][0].length;
-    const end = src.indexOf('\n  },', begin);
-    if (end === -1) fail(`pos "${slot}": entry in ${PHOTO_SLOTS_FILE} is not closed`);
-    const block = src.slice(begin, end);
-    const line = `    pos: '${value}',`;
-    let next;
-    if (/^ {4}pos: '[^'\n]*',$/m.test(block)) next = block.replace(/^ {4}pos: '[^'\n]*',$/m, line);
-    else if (/^ {4}file: '[^'\n]*',$/m.test(block))
-      next = block.replace(/^( {4}file: '[^'\n]*',)$/m, `$1\n${line}`);
-    else fail(`pos "${slot}": entry in ${PHOTO_SLOTS_FILE} has no file line`);
-    src = src.slice(0, begin) + next + src.slice(end);
-  }
-  return src;
+  return overrides.reduce(
+    (src, [slot, value]) => setSlotField(src, slot, 'pos', `'${value}'`, 'pos'),
+    source,
+  );
+}
+
+/**
+ * Sets each slot's `slides:` (how many photos it shows in turn) in photo-slots.ts source, for the slots the private
+ * build rendered from a list of sources. A count of 1 is a still photo: nothing is written.
+ */
+export function applySlidesOverrides(source, counts) {
+  return counts.reduce((src, [slot, n]) => {
+    if (!Number.isInteger(n) || n < 1 || n > 6) fail(`slides "${slot}": must be a whole number 1-6`);
+    return n === 1 ? src : setSlotField(src, slot, 'slides', String(n), 'slides');
+  }, source);
 }
