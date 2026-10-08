@@ -1,0 +1,9 @@
+{
+  "id": "e1-cap-concurrent",
+  "date": "2026-10-04",
+  "task": "T3.2",
+  "area": "email",
+  "summary": "Concurrent E1 sends to one address could all pass the 3-a-day cap (count then insert).",
+  "fix": "A per-address transaction lock before the count.",
+  "test": "tests/int/requests.int.test.ts"
+}

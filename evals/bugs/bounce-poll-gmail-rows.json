@@ -1,0 +1,9 @@
+{
+  "id": "bounce-poll-gmail-rows",
+  "date": "2026-10-04",
+  "task": "T3.13.02",
+  "area": "email",
+  "summary": "Rows sent by the Gmail mailer were polled at Resend for 72 h, using up the per-tick call budget.",
+  "fix": "The poll claim skips gmail: ids.",
+  "test": "tests/int/email-outcomes.int.test.ts"
+}

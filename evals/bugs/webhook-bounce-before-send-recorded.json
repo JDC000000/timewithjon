@@ -1,0 +1,9 @@
+{
+  "id": "webhook-bounce-before-send-recorded",
+  "date": "2026-10-04",
+  "task": "T3.13.01",
+  "area": "email",
+  "summary": "A bounce or complaint webhook for an email whose provider id wasn't stored yet was acknowledged and recorded, so it was never redelivered and the bounce was lost.",
+  "fix": "Such an event is answered 503 with nothing stored, so it is delivered again later.",
+  "test": "tests/int/email-outcomes.int.test.ts"
+}

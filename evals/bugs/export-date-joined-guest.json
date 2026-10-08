@@ -1,0 +1,9 @@
+{
+  "id": "export-date-joined-guest",
+  "date": "2026-10-04",
+  "task": "T3.10.01",
+  "area": "export",
+  "summary": "A joined guest's story was dated by the day it came in, not the date of the time together.",
+  "fix": "The date falls back to the host's slot, then the locked start.",
+  "test": "tests/int/export.int.test.ts"
+}

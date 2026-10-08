@@ -1,0 +1,9 @@
+{
+  "id": "webhook-event-unpruned",
+  "date": "2026-10-04",
+  "task": "T3.13.01",
+  "area": "jobs",
+  "summary": "Nothing pruned webhook_event.",
+  "fix": "The pruning job (now prune-old-rows) drops rows older than 7 days.",
+  "test": "tests/int/prune-jobs.int.test.ts"
+}

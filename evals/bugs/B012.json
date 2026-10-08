@@ -1,0 +1,9 @@
+{
+  "id": "B012",
+  "date": "2026-10-04",
+  "area": "requests/intake",
+  "title": "A Surprise plan was stored on any dish",
+  "symptom": "surprisePlan sent with a non-Surprise dish was stored as surprise_plan_sealed, and Jon saw 'Sealed plan on file' on that request.",
+  "fix": "storableBody drops surprisePlan unless the dish is Surprise Me.",
+  "test": "src/features/requests/__tests__/validate.test.ts (B012)"
+}

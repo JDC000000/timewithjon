@@ -1,0 +1,9 @@
+{
+  "id": "tick-hard-stop",
+  "date": "2026-10-04",
+  "task": "T3.9.01",
+  "area": "jobs",
+  "summary": "A hung Google or mailer call inside a tick job ran past the route's maxDuration: the heartbeat was not written and the jobs after it never ran while the provider was slow.",
+  "fix": "Every Google and mailer call in a tick stops at the start budget + 1 s; jobs the budget skipped run first on the next tick.",
+  "test": "tests/unit/tick-hard-stop.test.ts"
+}

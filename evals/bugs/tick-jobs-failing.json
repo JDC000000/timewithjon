@@ -1,0 +1,9 @@
+{
+  "id": "tick-jobs-failing",
+  "date": "2026-10-04",
+  "task": "T3.14.01",
+  "area": "health",
+  "summary": "/api/health reported the tick ok while every job threw on every tick.",
+  "fix": "The heartbeat records the failed count; a tick where every job failed fails the tick check, a partial failure is a warning.",
+  "test": "tests/int/health.int.test.ts"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "story-page-edit-of-deleted-story-inserts",
+  "date": "2026-10-04",
+  "task": "T3.12",
+  "area": "stories",
+  "summary": "An edit whose story had been deleted fell through to an insert with no bot check, no daily limit and no new capability.",
+  "fix": "An edit never creates: saveStoryPageStory only updates, and the route answers the stale line (403 capability_expired).",
+  "tests": ["tests/int/story-page-limits.int.test.ts", "tests/int/stories.int.test.ts"]
+}

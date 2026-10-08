@@ -1,0 +1,9 @@
+{
+  "id": "B011",
+  "date": "2026-10-04",
+  "area": "availability/freebusy",
+  "title": "Free/busy refetch had no single flight",
+  "symptom": "After the 10-minute cache expired, every guest render called Google until one write landed.",
+  "fix": "The refetch runs under a transaction advisory lock; renders that arrive meanwhile serve the stale cache.",
+  "test": "tests/int/freebusy-cooldown.int.test.ts (B011)"
+}

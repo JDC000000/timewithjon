@@ -1,0 +1,9 @@
+{
+  "id": "B010",
+  "date": "2026-10-04",
+  "area": "analytics/events",
+  "title": "A chunked beacon body was read whole before the size check",
+  "symptom": "Without a Content-Length, POST /api/events buffered the entire body before refusing it as over 256 bytes.",
+  "fix": "The body is read with a bounded reader that stops once it passes the limit.",
+  "test": "src/app/api/events/__tests__/route.test.ts (B010)"
+}

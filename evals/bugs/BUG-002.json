@@ -1,0 +1,9 @@
+{
+  "id": "BUG-002",
+  "date": "2026-10-04",
+  "task": "T3.14.02",
+  "area": "calendar",
+  "summary": "One 401 on a cached access token recorded last_error 'unauthorized' and sent Jon the reconnect email, even when a fresh refresh would have worked.",
+  "fix": "On a 401 the gateway drops the cached token, refreshes and retries once; only a second 401 or a failed refresh reaches the alert.",
+  "tests": ["src/lib/adapters/__tests__/google-calendar.test.ts", "tests/int/calendar-gateway.int.test.ts"]
+}

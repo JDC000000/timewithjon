@@ -1,0 +1,9 @@
+{
+  "id": "story-name-box-reads-required",
+  "date": "2026-10-05",
+  "task": "T3.12",
+  "area": "guest",
+  "summary": "The general-link /story name box used the booking form's 'Your name', though on the story page it is optional.",
+  "fix": "The story page has its own label, 'Your name (optional)'; the booking form keeps 'Your name'.",
+  "tests": ["src/app/story/__tests__/story-page.test.ts", "tests/e2e/guest-after/story-page.spec.ts"]
+}
