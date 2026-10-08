@@ -61,6 +61,33 @@ Any https store that answers a plain GET works, e.g. a private Supabase Storage 
 private GitHub repo via `raw.githubusercontent.com` (fine-grained read-only token), or R2 behind a signed/protected
 URL. Use a read-only credential scoped to that folder only.
 
+**A read-only token for a Supabase Storage bucket.** Never use the project's service-role key as the token: it
+can read and write every table and bucket. Hosted Supabase lets Storage act only as `anon`, `authenticated` or
+`service_role`, so a dedicated database role can't work. Instead:
+
+1. Add two select-only policies, scoped to the bucket and to a claim no sign-in can carry:
+   - on `storage.objects`, for `authenticated`, using `bucket_id = '<bucket>' and auth.jwt() ->> 'twj_scope' = 'photo-read'`;
+   - the same on `storage.buckets` (`id = '<bucket>'`).
+
+   Supabase Auth never puts a custom top-level claim in a user's token unless a custom access-token hook is
+   enabled, so keep that hook off.
+
+2. Mint a long-lived token with the project's JWT secret (HS256). Its claims are `role: authenticated`,
+   `aud: authenticated`, `twj_scope: photo-read`, a fixed `sub` and an `exp` years ahead.
+
+Before using it, check both halves:
+
+- it **can** read the manifest and a source;
+- it **cannot**:
+  - upload, overwrite or delete;
+  - see another bucket;
+  - create a bucket;
+  - reach the Data API;
+  - reach Auth admin.
+
+This holds only while `authenticated` keeps no grants on the app's tables and the Data API exposes no schema.
+Keep this infra out of `supabase/migrations`: it belongs to the store's project, not to the app's database.
+
 Only set these variables on the Vercel projects that should show Jon's photos. Keep **Git Fork Protection** on, so
 a fork's pull request never builds with them.
 
