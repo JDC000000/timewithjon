@@ -26,6 +26,9 @@ const OPEN_AT = '2026-01-01T08:00:00Z';
 /** The picker screen = the first bookable picker dish on the menu (as tests/e2e/support/screens.ts). */
 const PICKER_DISH = DISHES.find((d) => d.flow === 'picker' && isBookable(d))?.slug;
 if (!PICKER_DISH) throw new Error('no bookable picker dish in src/content');
+/** A dates screen = the first bookable dates dish (as tests/e2e/support/screens.ts). */
+const DATES_DISH = DISHES.find((d) => d.flow === 'dates' && isBookable(d))?.slug;
+if (!DATES_DISH) throw new Error('no bookable dates dish in src/content');
 
 async function openBooking(): Promise<void> {
   const auth = await startFakeAuth();
@@ -92,6 +95,7 @@ const targets: [page: string, path: string, cookie: string, mustContain?: string
   ['/', ROUTES.home, ''],
   ['/menu', ROUTES.menu, ''],
   [`/book/${PICKER_DISH}`, `/book/${PICKER_DISH}`, guest],
+  [`/book/${DATES_DISH}`, `/book/${DATES_DISH}`, guest],
   ['/sent (After Send)', ROUTES.sent, sent, AFTER_SEND.stamp],
 ];
 for (const [, path, cookie, mustContain] of targets) await check(path, cookie, mustContain);
