@@ -1,0 +1,9 @@
+{
+  "id": "B002",
+  "date": "2026-10-04",
+  "area": "requests/propose",
+  "title": "Proposing new times locked the request before its host",
+  "symptom": "A weather-called joined guest proposing new times while Jon promoted a sibling to host could end in a deadlock (40P01) and a 500 on one side.",
+  "fix": "proposeTimes locks the host row first (lockHostOf), then the request, as every other joined-guest action does.",
+  "test": "tests/int/propose.int.test.ts (B002)"
+}

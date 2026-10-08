@@ -1,0 +1,9 @@
+{
+  "id": "B007",
+  "date": "2026-10-04",
+  "area": "admin/sign-in",
+  "title": "Other people's attempts could refuse the admin's correct sign-in code",
+  "symptom": "The per-address verify bucket counted every attempt, so 10 tries at the admin's address from anywhere refused the admin's correct code for an hour.",
+  "fix": "The per-address bucket counts only wrong codes, after the check; the per-IP limit still counts every attempt.",
+  "test": "tests/int/admin-verify.int.test.ts (B007)"
+}

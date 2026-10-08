@@ -1,0 +1,9 @@
+{
+  "id": "B009",
+  "date": "2026-10-04",
+  "area": "turnstile",
+  "title": "Siteverify hostname was not checked",
+  "symptom": "A solve from any site using our key passed.",
+  "fix": "Outside prototype, siteverify's hostname must equal NEXT_PUBLIC_SITE_URL's host (a mismatch is reported).",
+  "test": "src/lib/__tests__/turnstile.test.ts (B009)"
+}

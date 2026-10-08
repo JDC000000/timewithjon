@@ -1,0 +1,9 @@
+{
+  "id": "dev-routes-check-coverage",
+  "date": "2026-10-04",
+  "task": "T0.4.05",
+  "area": "build",
+  "summary": "The no-dev-routes check named four routes and probed only /dev/outbox, so /dev/axe was not proven absent.",
+  "fix": "The check lists every route under src/app/dev and probes each one.",
+  "test": "scripts/check-no-dev-routes.sh"
+}

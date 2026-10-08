@@ -1,0 +1,9 @@
+{
+  "id": "new-date-grid-ignores-engine-off-dates",
+  "date": "2026-10-05",
+  "task": "T2.4",
+  "area": "booking",
+  "summary": "The weather-call /new-date grid offered every season day, including Thu Apr 1 (the household hold) and blocked days, so Send was refused with 'One of those times just went'; /book already greyed them.",
+  "fix": "/new-date greys the engine's off dates for the request's dish and invite, the same call as /book (rule 11, with the hold).",
+  "tests": ["src/app/new-date/__tests__/form.dom.test.tsx", "tests/e2e/guest-after/offer.spec.ts"]
+}

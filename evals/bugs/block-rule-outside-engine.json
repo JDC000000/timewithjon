@@ -1,0 +1,13 @@
+{
+  "id": "block-rule-outside-engine",
+  "date": "2026-10-04",
+  "task": "T2.3",
+  "area": "availability",
+  "summary": "The block-confirm move re-implemented the block rule in SQL, and Suggest another time checked neither blocks nor the season, so a blocked or out-of-season time could be offered and the guest's take then failed.",
+  "fix": "One engine rule, blockedBy (rules.ts), used by canLock, the block-confirm check and Suggest; Suggest refuses a blocked (in_block) or out-of-season time.",
+  "tests": [
+    "src/features/availability/__tests__/block-rule.test.ts",
+    "tests/int/admin-block-confirm.int.test.ts",
+    "tests/int/offers.int.test.ts"
+  ]
+}

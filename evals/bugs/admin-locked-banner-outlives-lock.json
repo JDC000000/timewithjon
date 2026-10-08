@@ -1,0 +1,9 @@
+{
+  "id": "admin-locked-banner-outlives-lock",
+  "date": "2026-10-05",
+  "task": "T2.9",
+  "area": "admin",
+  "summary": "After Cancel for the guest or a Weather call in the same page view, the request detail still showed 'Locked in. Invite sent.' above the new state.",
+  "fix": "The lock's line is kept only while the page reads the request as locked; once it reads otherwise it goes.",
+  "tests": ["src/app/admin/_requests/DetailPane.dom.test.tsx"]
+}

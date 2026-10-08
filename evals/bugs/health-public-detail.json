@@ -1,0 +1,9 @@
+{
+  "id": "health-public-detail",
+  "date": "2026-10-04",
+  "task": "T3.14.01",
+  "area": "health",
+  "summary": "The public /api/health body named each check's internal state.",
+  "fix": "The public body says only ok/fail per check; reason codes and warnings need the cron secret.",
+  "test": "tests/int/health.int.test.ts"
+}

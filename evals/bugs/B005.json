@@ -1,0 +1,9 @@
+{
+  "id": "B005",
+  "date": "2026-10-04",
+  "area": "photos/finalise",
+  "title": "A refused upload could be finalised again",
+  "symptom": "A refused upload (too big or unreadable) could be re-sent to the same path and finalised again, re-running the image decode each time; only successful finalises were counted.",
+  "fix": "A refused upload is marked done without a photo (finalised_at set, photo_id null); finalising it again answers not_found before any download.",
+  "test": "tests/int/photos.int.test.ts (B005)"
+}

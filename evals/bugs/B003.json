@@ -1,0 +1,9 @@
+{
+  "id": "B003",
+  "date": "2026-10-04",
+  "area": "admin/invites",
+  "title": "CSV invite import could write part of the file",
+  "symptom": "Each row was its own transaction, so a failure at row N left N-1 invites; a re-upload then made duplicates.",
+  "fix": "All rows are written in one transaction (createInvite takes the caller's client).",
+  "test": "tests/int/admin-invites-import.int.test.ts (B003)"
+}

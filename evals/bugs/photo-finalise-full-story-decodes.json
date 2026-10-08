@@ -1,0 +1,9 @@
+{
+  "id": "photo-finalise-full-story-decodes",
+  "date": "2026-10-04",
+  "task": "T3.6.03",
+  "area": "photos",
+  "summary": "Finalising an upload for a story that already had its photos downloaded and decoded the image before refusing it, and kept the raw upload (which may carry GPS).",
+  "fix": "A full story is refused before the raw file is read; the upload is marked refused and its raw file deleted, also when the story fills up during the finalise.",
+  "tests": ["tests/int/photos.int.test.ts"]
+}

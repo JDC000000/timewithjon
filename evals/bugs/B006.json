@@ -1,0 +1,9 @@
+{
+  "id": "B006",
+  "date": "2026-10-04",
+  "area": "requests/intake",
+  "title": "No daily cap on guest intake emails from the general invite",
+  "symptom": "The general link sends E1/E6 to whatever address is typed, bounded only by the per-IP limit, so the daily email budget could be spent on it.",
+  "fix": "Per general invite, at most 20 guest intake emails a day (requestSendInvite); over it the request is still stored and Jon still gets E2.",
+  "test": "tests/int/requests.int.test.ts (B006)"
+}

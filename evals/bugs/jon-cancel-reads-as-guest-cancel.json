@@ -1,0 +1,9 @@
+{
+  "id": "jon-cancel-reads-as-guest-cancel",
+  "date": "2026-10-05",
+  "task": "T2.7",
+  "area": "guest",
+  "summary": "After Jon cancelled for the guest, /manage read 'Cancelled, no guilt' (the guest's own-cancel line) and offered no way to send new times, so the guest could only start over from the menu.",
+  "fix": "A Jon cancel (cancelled_by 'jon', not closed in person) reads 'Cancelled, no problem' and offers Ask for another time; the re-request takes the same row back to requested for Jon (E16) and keeps the manage link alive. The guest's own cancel is unchanged.",
+  "tests": ["tests/int/manage.int.test.ts", "tests/e2e/guest-after/manage-jon-cancel.spec.ts"]
+}

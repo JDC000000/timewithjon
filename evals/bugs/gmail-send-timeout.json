@@ -1,0 +1,9 @@
+{
+  "id": "gmail-send-timeout",
+  "date": "2026-10-04",
+  "task": "T3.17.01",
+  "area": "email",
+  "summary": "The Gmail mailer's send had no timeout, so a hung socket held the request until the function was killed.",
+  "fix": "A 10 s timeout on every Gmail send, shortened by the tick's hard stop.",
+  "test": "src/lib/adapters/__tests__/gmail-mime.test.ts"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "B001",
+  "date": "2026-10-04",
+  "area": "requests/manage",
+  "title": "Manage link ran out while a re-requested booking was still open",
+  "symptom": "After Ask for another time on a locked booking (or its host leaving, for joined guests), every live manage link kept the old end + 7 days, so the guest saw Link expired while still waiting on Jon.",
+  "fix": "A locked booking that goes back to waiting on Jon gives its live manage links at least the unlocked lifetime (120 days from now); joined guests get the same when their host leaves.",
+  "test": "tests/int/manage.int.test.ts (B001)"
+}

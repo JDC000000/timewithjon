@@ -1,0 +1,9 @@
+{
+  "id": "B008",
+  "date": "2026-10-04",
+  "area": "sentry",
+  "title": "Scrubber missed names and free-text keys, and pg failing-row details",
+  "symptom": "Keys like contact_name, pitch_idea or before60_answer in Sentry extras/tags passed through, and a check violation's 'Failing row contains (...)' kept the row values.",
+  "fix": "SENSITIVE also matches name, pitch, need_to_know, answer, plan and detail; scrubText redacts 'Failing row contains (...)'.",
+  "test": "src/lib/__tests__/sentry-scrub.test.ts (B008)"
+}

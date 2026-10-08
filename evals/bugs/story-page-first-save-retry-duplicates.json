@@ -1,0 +1,9 @@
+{
+  "id": "story-page-first-save-retry-duplicates",
+  "date": "2026-10-04",
+  "task": "T3.12",
+  "area": "stories",
+  "summary": "A first story-page save retried after a lost answer (no twj_story yet) created a second story and spent a second place in the daily limit.",
+  "fix": "The page view's clientKey makes the first save idempotent on story(source, idempotency_key); a retry gets the same story and its twj_story back.",
+  "tests": ["tests/int/story-page-limits.int.test.ts"]
+}

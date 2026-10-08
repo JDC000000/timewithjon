@@ -1,0 +1,9 @@
+{
+  "id": "dev-outbox-unpruned",
+  "date": "2026-10-04",
+  "task": "T1.10.03",
+  "area": "jobs",
+  "summary": "dev_outbox kept every rendered prototype email, live links included, forever.",
+  "fix": "A prototype-only tick job drops rows older than 7 days.",
+  "test": "tests/int/prune-jobs.int.test.ts"
+}

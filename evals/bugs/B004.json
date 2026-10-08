@@ -1,0 +1,9 @@
+{
+  "id": "B004",
+  "date": "2026-10-04",
+  "area": "db/story",
+  "title": "story.invite_id foreign key had no index",
+  "symptom": "Removing an invite (on delete set null) and purging stories by invite scanned the story table.",
+  "fix": "Migration 20261102000740_story_invite_index.sql adds story_invite_id_idx.",
+  "test": "tests/int/schema.int.test.ts (story.invite_id has an index)"
+}

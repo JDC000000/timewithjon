@@ -1,0 +1,9 @@
+{
+  "id": "dev-post-origin",
+  "date": "2026-10-04",
+  "task": "T1.10",
+  "area": "dev",
+  "summary": "/dev POSTs authenticated by cookie had no Origin check (AD-7).",
+  "fix": "devGuard refuses a cookie-authenticated non-GET from another origin.",
+  "test": "tests/int/dev-access.int.test.ts"
+}

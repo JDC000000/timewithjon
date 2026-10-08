@@ -73,7 +73,7 @@ src/content/      Typed copy modules (AD-10). Copy is never written by AI.
 src/features/     One folder per component (see src/features/README.md)
 supabase/         Supabase CLI config + migrations (the only migration tool)
 ops/              Operator-only scripts (e.g. purge-test-data.sql, T3.16). The app never runs them.
-evals/bugs.json   Regression register: every fixed bug gets an entry and a test.
+evals/bugs/       Regression register: every fixed bug gets its own file (<id>.json) and a test.
 tests/unit/       Vitest unit tests
 tests/int/        Integration tests (real Postgres via `pnpm db:test`; never Supabase proto or production)
 docs/STACK.md     Exact versions, regions and runtime rules

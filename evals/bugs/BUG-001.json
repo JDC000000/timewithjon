@@ -1,0 +1,15 @@
+{
+  "id": "BUG-001",
+  "date": "2026-10-04",
+  "task": "T3.4",
+  "area": "calendar",
+  "summary": "A guest joining or leaving a host's locked booking never reached Google: the host-event patch sent time and text only, so a joined guest got no invite and a removed one kept theirs. The mock calendar did not model attendees, so tests could not see it.",
+  "fix": "Patch rows written for a joined-guest change carry {attendees: true}; the gateway then GETs the event and sends the new attendee list, keeping every staying attendee's entry (and responseStatus). The mock now keeps attendees the way Google does.",
+  "tests": [
+    "src/lib/adapters/__tests__/google-calendar.test.ts",
+    "src/lib/adapters/__tests__/mock-calendar.test.ts",
+    "tests/int/calendar-gateway.int.test.ts",
+    "tests/int/joined.int.test.ts",
+    "tests/int/admin-cancel.int.test.ts"
+  ]
+}

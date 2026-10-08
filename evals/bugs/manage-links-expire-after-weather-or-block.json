@@ -1,0 +1,9 @@
+{
+  "id": "manage-links-expire-after-weather-or-block",
+  "date": "2026-10-04",
+  "task": "T2.7.05",
+  "area": "requests",
+  "summary": "A Weather call, or a block/away change that sent a locked booking back to needing a new time, left its manage links (and its joined guests') expiring at the old end + 7 days while the request was still open.",
+  "fix": "Both paths reopen the live manage links of the request and its joined guests for the unlocked lifetime (reopenManageTokens, the same rule as Ask for another time).",
+  "tests": ["tests/int/pitch-weather.int.test.ts", "tests/int/admin-block-confirm.int.test.ts"]
+}
