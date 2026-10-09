@@ -1,0 +1,9 @@
+{
+  "id": "rerequest-replay-ignores-edits",
+  "date": "2026-10-08",
+  "task": "ENG-14",
+  "area": "requests/manage",
+  "summary": "Ask for another time and the new-date page kept one key per page view: a second submit with other choices after a lost answer was answered ok without applying them, and a retry was checked against the engine before the replay.",
+  "fix": "The audit row stores the hash of the choices; the same key with other choices is refused (409 replay_conflict), a retry is answered before the choices are checked again, and the forms give new choices a new key.",
+  "tests": ["tests/int/manage.int.test.ts", "tests/int/propose.int.test.ts"]
+}

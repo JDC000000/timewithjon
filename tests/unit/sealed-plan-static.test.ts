@@ -46,6 +46,8 @@ const TOUCHES_REQUEST =
 const REVIEWED_MIGRATIONS = new Set<string>([
   // T1.6.U5 "Which night?": one nullable text column; reads no row, never names the plan.
   '20261102000700_request_overnight_night.sql',
+  // ENG-01/ENG-14: one nullable hash column (and the audit detail key); reads no row, never names the plan.
+  '20261102000750_client_payload_hash.sql',
 ]);
 const migrationHits = (name: string, text: string) => [
   ...(PLAN.test(text) ? [`${name}: names the plan`] : []),

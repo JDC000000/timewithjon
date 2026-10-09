@@ -155,6 +155,29 @@ describe('POST /api/requests (route level)', () => {
     expect(await outboxFor(b.email as string)).toEqual(['E6']);
   });
 
+  it('ENG-03/ENG-01: a retry gets its saved request even after its time went; an edited body under its key is refused', async () => {
+    await q(`delete from rate_limit`); // off Vercel every caller shares one bucket
+    const friLunch = (
+      await q<{ id: string }>(`select id from slot where date = '2027-04-23' and window_kind = 'lunch'`)
+    )[0]!.id;
+    const b = body({ email: email('retry'), slotIds: [friLunch] });
+    expect((await post(b, { cookie })).res.status).toBe(200);
+    // The time goes (a block here; a lock does the same): the retry still answers with the saved request.
+    await q(
+      `insert into availability_block (start_date, end_date, kind, note) values ('2027-04-23', '2027-04-23', 'blocked', 'route test')`,
+    );
+    const again = await post(b, { cookie });
+    expect([again.res.status, again.json.ok]).toEqual([200, true]);
+    expect(await requestFor(b.email as string)).toHaveLength(1);
+    // The guest fixed a typo in the email under the same key: refused, never "sent to" an address nothing went to.
+    const fixed = email('fixed');
+    const edited = await post({ ...b, email: fixed }, { cookie });
+    expect(edited.res.status).toBe(409);
+    expect(edited.json).toMatchObject({ ok: false, code: 'replay_conflict' });
+    expect(await requestFor(fixed)).toEqual([]);
+    await q(`delete from rate_limit`);
+  });
+
   // T3.8 AC3 end to end: the limiter runs before the invite check, so even refused probes count.
   it('the 11th request from one IP in an hour → the friendly 429', async () => {
     await q(`delete from rate_limit`);

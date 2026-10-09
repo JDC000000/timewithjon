@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { pool, q, withTx } from '@/lib/db';
-import { createRequest, createRequestTx, ReplayConflictError } from '@/features/requests/create';
+import { createRequest, createRequestTx, findReplay, ReplayConflictError } from '@/features/requests/create';
 import { RequestBody } from '@/features/requests/schema';
 import { saveAfterSendStory } from '@/features/photos/after-send';
 import { deliverRequestEmails, queueEmail, sendTemplate } from '@/features/email/send';
@@ -69,6 +69,35 @@ describe('request intake', () => {
     const a2 = await create(args(b));
     expect(a2).toEqual({ requestId: a1.requestId, created: false });
     expect(await todayCount('request_sent')).toBe(sent + 1); // T3.11: a replay isn't a second request
+  });
+  it('ENG-01: the same key with an edited body (another email, other times) is refused, never replayed as the first', async () => {
+    const b = mk();
+    const first = await create(args(b));
+    expect(await findReplay(b, inviteId)).toBe(first.requestId); // the same body: the saved request (ENG-03)
+    for (const edited of [
+      { ...b, email: `fixed+${randomUUID().slice(0, 6)}@example.com` },
+      { ...b, slotIds: [slotIds[1]!] },
+    ]) {
+      await expect(findReplay(edited, inviteId)).rejects.toBeInstanceOf(ReplayConflictError);
+      await expect(create(args(edited))).rejects.toBeInstanceOf(ReplayConflictError);
+    }
+    // The one-use Turnstile token isn't part of the body: a retry carries a fresh one.
+    expect(await findReplay({ ...b, turnstileToken: 'a-new-token' }, inviteId)).toBe(first.requestId);
+    expect(await q(`select 1 from request where client_key = $1`, [b.clientKey])).toHaveLength(1);
+    // A row saved before the hash was stored replays as before.
+    await q(`update request set client_payload_hash = null where id = $1`, [first.requestId]);
+    expect(await findReplay({ ...b, note: 'edited' }, inviteId)).toBe(first.requestId);
+    expect(await findReplay(mk(), inviteId)).toBeNull(); // a new key: nothing to replay
+  });
+  it('ENG-12: a guest stand-by request does not wait on Jon (no E3 nudge); a plain request does', async () => {
+    const standby = await create(args(mk({ slotIds: [], standbyWeek: '2027-05-10' }), false, 'standby'));
+    const plain = await create(args(mk()));
+    const waits = async (id: string) =>
+      (
+        await q<{ w: boolean }>(`select awaiting_jon_since is not null as w from request where id = $1`, [id])
+      )[0]!.w;
+    expect(await waits(standby.requestId)).toBe(false);
+    expect(await waits(plain.requestId)).toBe(true);
   });
   it('L3 a client_key replayed from another invite is refused', async () => {
     const b = mk();

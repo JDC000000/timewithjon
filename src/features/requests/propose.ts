@@ -8,11 +8,17 @@
 // A refusal inside rerequestTx rolls everything back, so the token stays usable. A spent, released or expired
 // link answers with the current state (the route reads L3's page models).
 import 'server-only';
-import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 import { consumeToken, findToken, tokenState } from '@/features/invites/action-tokens';
 import { pool, withTx } from '@/lib/db';
-import { checkRerequest, RerequestBody, rerequestTx, type RerequestResult } from './rerequest';
+import {
+  checkRerequest,
+  choicesHash,
+  RerequestBody,
+  replayOf,
+  rerequestTx,
+  type RerequestResult,
+} from './rerequest';
 import { lockHostOf, runAfterCommit } from './side-effects';
 
 export const ProposeBody = RerequestBody.extend({ token: z.string().max(100) }).strict();
@@ -32,15 +38,6 @@ class Refused extends Error {
   }
 }
 
-/** The same submit already went through (a retry after a lost answer, or a double tap): its original success. */
-async function isReplay(db: Pool | PoolClient, requestId: string, clientKey: string): Promise<boolean> {
-  const { rowCount } = await db.query(
-    `select 1 from audit_log where request_id = $1 and action = $2 and detail->>'client_key' = $3`,
-    [requestId, PROPOSE_ACTION, clientKey],
-  );
-  return Boolean(rowCount);
-}
-
 export async function proposeTimes(b: ProposeBody, spam = false, now = new Date()): Promise<ProposeResult> {
   const { token, clientKey } = b;
   const choices = {
@@ -53,8 +50,12 @@ export async function proposeTimes(b: ProposeBody, spam = false, now = new Date(
   const found = await findToken(token); // read only: which request, which page
   if (!found) return 'spent';
   if (!PROPOSE_PURPOSES.has(found.purpose)) return { ok: false, status: 400, reason: 'invalid' };
-  // pr56-review F2: the same clientKey again gets the original success, not "that one went".
-  if (await isReplay(pool(), found.request_id, clientKey)) return { ok: true };
+  // pr56-review F2: the same clientKey again gets the original success, not "that one went"; ENG-14: other
+  // choices under it are refused, never answered as if they went.
+  const hash = choicesHash(choices);
+  const replay = await replayOf(pool(), found.request_id, PROPOSE_ACTION, clientKey, hash);
+  if (replay === 'same') return { ok: true };
+  if (replay === 'conflict') return { ok: false, status: 409, reason: 'replay_conflict' };
   // F3: a used or expired link answers with the state before any engine or Google free/busy read.
   if (tokenState(found, now) !== 'valid') return 'spent';
   const checked = await checkRerequest(found.request_id, choices, now);
@@ -74,8 +75,9 @@ export async function proposeTimes(b: ProposeBody, spam = false, now = new Date(
       } = await c.query<{ status: string }>(`select r.status from request r where r.id = $1 for update`, [
         found.request_id,
       ]);
-      if (await isReplay(c, found.request_id, clientKey))
-        return { result: { ok: true } as const, after: null };
+      const again = await replayOf(c, found.request_id, PROPOSE_ACTION, clientKey, hash);
+      if (again === 'same') return { result: { ok: true } as const, after: null };
+      if (again === 'conflict') throw new Refused({ ok: false, status: 409, reason: 'replay_conflict' });
       const t = await consumeToken(c, token);
       if (!t) return 'spent' as const;
       // pr56-review F1: from an offer or weather-call page only `requested` / `needs_new_time` / `standby` →
@@ -87,6 +89,7 @@ export async function proposeTimes(b: ProposeBody, spam = false, now = new Date(
         checked,
         now,
         clientKey,
+        payloadHash: hash,
         action: PROPOSE_ACTION,
         spam,
       });

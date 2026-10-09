@@ -774,6 +774,29 @@ describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6
     expect(noKey.status).toBe(400);
   });
 
+  it('ENG-03/ENG-14: a retry is answered from what it did, even once its time went; other choices under its key are refused', async () => {
+    const id = await newRequest([]);
+    const token = await manageToken(id);
+    const asked = await slotId('2027-06-24', 'lunch');
+    const body = { slotIds: [asked], clientKey: randomUUID() };
+    expect((await anotherTimeRoute(post('/api/manage/another-time', token, body))).status).toBe(200);
+    // Someone else's booking takes that time: the retry still gets its original success, not "that one went".
+    const { id: other } = await lockedRequest('2027-06-24');
+    expect((await anotherTimeRoute(post('/api/manage/another-time', token, body))).status).toBe(200);
+    const edited = await anotherTimeRoute(
+      post('/api/manage/another-time', token, { ...body, slotIds: [await slotId('2027-06-25', 'lunch')] }),
+    );
+    expect(edited.status).toBe(409);
+    expect(await edited.json()).toMatchObject({ code: 'replay_conflict', message: ERRORS.generic });
+    const picks = await q<{ slot_id: string }>(
+      `select slot_id from request_slot_choice where request_id = $1`,
+      [id],
+    );
+    expect(picks.map((p) => p.slot_id)).toEqual([asked]);
+    expect(await templates(id)).toEqual(['E16']);
+    await q(`update request set status = 'cancelled' where id = $1`, [other]);
+  });
+
   it('rule 5: a joined guest who asks for another time detaches; the host keeps its event without them', async () => {
     const patch = vi.spyOn(mockCalendar, 'patch');
     const { id: host } = await lockedRequest('2027-04-01', 'evening');

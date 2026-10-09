@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
   if (res.ok) return tokenNoStore(NextResponse.json({ ok: true, status: 'requested' }));
   if (res.status === 400 || res.status === 404)
     return tokenNoStore(jsonError(res.status, res.reason, ERRORS.generic));
-  if (res.reason === 'not_changeable') return tokenNoStore(jsonError(409, res.reason, ERRORS.generic));
+  if (res.reason === 'not_changeable' || res.reason === 'replay_conflict')
+    return tokenNoStore(jsonError(409, res.reason, ERRORS.generic));
   return tokenNoStore(jsonError(409, res.reason, VALIDATION_MESSAGE[res.reason]));
 }

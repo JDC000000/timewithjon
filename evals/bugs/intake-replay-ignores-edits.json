@@ -1,0 +1,14 @@
+{
+  "id": "intake-replay-ignores-edits",
+  "date": "2026-10-08",
+  "task": "ENG-01",
+  "area": "requests/intake",
+  "summary": "After a lost answer the form re-sent its first key with the guest's edits (a fixed email, other times); the server replayed the first request and answered 'sent to' the new address while every email went to the old one.",
+  "fix": "The key is stored with a hash of the body it was sent with; the same key with another body is refused (409 replay_conflict), and the form gives an edited body a new key.",
+  "tests": [
+    "tests/int/requests.int.test.ts",
+    "tests/route/requests.route.test.ts",
+    "src/app/book/[dish]/__tests__/SendDetails.dom.test.tsx",
+    "tests/unit/client-key.test.ts"
+  ]
+}

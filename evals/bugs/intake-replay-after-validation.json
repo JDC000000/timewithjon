@@ -1,0 +1,9 @@
+{
+  "id": "intake-replay-after-validation",
+  "date": "2026-10-08",
+  "task": "ENG-03",
+  "area": "requests/intake",
+  "summary": "A retried Send of a saved request was validated against the engine first, so once its time had gone (or its week reopened) it answered 'One of those times just went' though the request and its E1 existed; the guest then made a duplicate.",
+  "fix": "The client key is looked up before validation (findReplay); a replay answers from the saved request.",
+  "tests": ["tests/int/requests.int.test.ts", "tests/route/requests.route.test.ts"]
+}

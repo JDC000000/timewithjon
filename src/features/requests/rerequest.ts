@@ -8,7 +8,7 @@
 // Lane L1's T2.4.08 (the guest proposes new times from an offer or weather-call page) reuses checkRerequest()
 // (before its transaction: it may read Google free/busy, L-3) and rerequestTx() (inside it).
 import 'server-only';
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 import { dishBySlug, dishInSentence } from '@/content/menu-helpers';
 import { getBusy } from '@/features/availability/busy';
@@ -18,7 +18,8 @@ import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { findInviteById } from '@/features/invites/repo';
-import { q, withTx } from '@/lib/db';
+import { pool, q, withTx } from '@/lib/db';
+import { payloadHash } from '@/lib/payload-hash';
 import { isJonCancelled, isLazilyDone } from './guest-cancel';
 import { hostLeft } from './joined-cascade';
 import { releaseLiveOffers } from './offers';
@@ -54,7 +55,7 @@ export const RerequestBody = RerequestChoices.extend({ clientKey: z.uuid(), hp: 
 export type RerequestResult =
   | { ok: true }
   | { ok: false; status: 404; reason: 'request_not_found' }
-  | { ok: false; status: 409; reason: 'not_changeable' }
+  | { ok: false; status: 409; reason: 'not_changeable' | 'replay_conflict' }
   | { ok: false; status: 409; reason: ValidationCode };
 
 const CHANGEABLE = new Set(['requested', 'needs_new_time', 'standby', 'locked']);
@@ -107,9 +108,45 @@ export async function checkRerequest(
 }
 
 /** Step 2, inside the caller's transaction. */
+/**
+ * ENG-14: the guest's submit this key already made: 'none', 'same' (a retry or a double tap: its original success)
+ * or 'conflict' (other choices under the same key: refused, never answered as if they went). An audit row from
+ * before the hash was recorded replays as before.
+ */
+export async function replayOf(
+  db: Pool | PoolClient,
+  requestId: string,
+  action: string,
+  clientKey: string,
+  hash: string,
+): Promise<'none' | 'same' | 'conflict'> {
+  const { rows } = await db.query<{ payload_hash: string | null }>(
+    `select detail->>'payload_hash' as payload_hash from audit_log
+      where request_id = $1 and action = $2 and detail->>'client_key' = $3`,
+    [requestId, action, clientKey],
+  );
+  if (rows.length === 0) return 'none';
+  return rows.some((r) => r.payload_hash === null || r.payload_hash === hash) ? 'same' : 'conflict';
+}
+
+/** The choices a client key stands for (ENG-14). */
+export function choicesHash(choices: RerequestChoices): string {
+  return payloadHash(choices);
+}
+
+const REPLAY_CONFLICT = { ok: false, status: 409, reason: 'replay_conflict' } as const;
+
 export async function rerequestTx(
   c: PoolClient,
-  a: { requestId: string; checked: Checked; now: Date; clientKey: string; action?: string; spam?: boolean },
+  a: {
+    requestId: string;
+    checked: Checked;
+    now: Date;
+    clientKey: string;
+    payloadHash: string;
+    action?: string;
+    spam?: boolean;
+  },
 ): Promise<{ result: RerequestResult; after: AfterCommit }> {
   const { requestId, checked, now } = a;
   const none = noSideEffects();
@@ -119,11 +156,9 @@ export async function rerequestTx(
   } = await c.query<Row>(`${ROW} for update of r`, [requestId]);
   if (!r) return { result: { ok: false, status: 404, reason: 'request_not_found' }, after: none };
   // The same submit again (under the row lock, so a concurrent double tap waits and lands here): nothing to do.
-  const replay = await c.query(
-    `select 1 from audit_log where request_id = $1 and action = $2 and detail->>'client_key' = $3`,
-    [requestId, a.action ?? 'request_rerequested', a.clientKey],
-  );
-  if (replay.rowCount) return { result: { ok: true }, after: none };
+  const replay = await replayOf(c, requestId, a.action ?? 'request_rerequested', a.clientKey, a.payloadHash);
+  if (replay === 'same') return { result: { ok: true }, after: none };
+  if (replay === 'conflict') return { result: REPLAY_CONFLICT, after: none };
   const jonCancelled = isJonCancelled(r);
   if (!(CHANGEABLE.has(r.status) || jonCancelled) || isLazilyDone(r, now))
     return { result: { ok: false, status: 409, reason: 'not_changeable' }, after: none };
@@ -135,7 +170,12 @@ export async function rerequestTx(
     [
       requestId,
       a.action ?? 'request_rerequested',
-      JSON.stringify({ from_status: r.status, to_status: 'requested', client_key: a.clientKey }),
+      JSON.stringify({
+        from_status: r.status,
+        to_status: 'requested',
+        client_key: a.clientKey,
+        payload_hash: a.payloadHash,
+      }),
     ],
   );
   const after = noSideEffects();
@@ -250,6 +290,12 @@ export async function rerequest(
   now = new Date(),
   opts: { clientKey: string; spam?: boolean },
 ): Promise<RerequestResult> {
+  // ENG-03/ENG-14: a retry is answered from what it already did, before the choices are checked again (the time
+  // may have gone since); other choices under the same key are refused.
+  const hash = choicesHash(choices);
+  const replay = await replayOf(pool(), requestId, 'request_rerequested', opts.clientKey, hash);
+  if (replay === 'same') return { ok: true };
+  if (replay === 'conflict') return REPLAY_CONFLICT;
   const checked = await checkRerequest(requestId, choices, now);
   if ('code' in checked) {
     return checked.code === 'request_not_found'
@@ -257,7 +303,14 @@ export async function rerequest(
       : { ok: false, status: 409, reason: checked.code };
   }
   const { result, after } = await withTx((c) =>
-    rerequestTx(c, { requestId, checked, now, clientKey: opts.clientKey, spam: opts.spam }),
+    rerequestTx(c, {
+      requestId,
+      checked,
+      now,
+      clientKey: opts.clientKey,
+      payloadHash: hash,
+      spam: opts.spam,
+    }),
   );
   await runAfterCommit(after, 'rerequest');
   return result;

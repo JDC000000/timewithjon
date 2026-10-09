@@ -165,7 +165,12 @@ describe('T2.4.08 the guest proposes new times → the same row, E16', () => {
     );
     expect(a).toEqual({
       actor: 'guest',
-      detail: { from_status: 'needs_new_time', to_status: 'requested', client_key: clientKey },
+      detail: {
+        from_status: 'needs_new_time',
+        to_status: 'requested',
+        client_key: clientKey,
+        payload_hash: expect.stringMatching(/^[0-9a-f]{64}$/), // ENG-14: what the key was sent with
+      },
     });
     expect(await q(`select 1 from offer where id = $1 and released_at is not null`, [offerId])).toHaveLength(
       1,
@@ -174,6 +179,12 @@ describe('T2.4.08 the guest proposes new times → the same row, E16', () => {
     const again = await proposeRoute(post({ token, slotIds: [other!], clientKey }));
     expect(again.status).toBe(200);
     expect(await again.json()).toMatchObject({ ok: true, status: 'requested' });
+    expect(await e16(id)).toHaveLength(1);
+    // ENG-14: other choices under the same key are refused, never answered as if they went.
+    const edited = await proposeRoute(post({ token, slotIds: [offer!], clientKey }));
+    expect(edited.status).toBe(409);
+    expect(await edited.json()).toMatchObject({ code: 'replay_conflict' });
+    expect(await choices(id)).toEqual([other]);
     expect(await e16(id)).toHaveLength(1);
   });
 
