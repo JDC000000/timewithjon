@@ -61,7 +61,15 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return noStore(jsonError(400, 'invalid', ERRORS.generic));
   const { hp, turnstileToken, edit, clientKey, name, ...fields } = parsed.data;
   // AD-9: a filled honeypot is stored, same answer. A personal link's story is named by its invite (M4).
-  const story = { ...fields, name: invite.kind === 'general' ? name : undefined, spam: isHoneypotFilled(hp) };
+  // A personal link names its own guest (M4), unless the browser was just switched to it from another invite: then
+  // the visitor gives their own name (the page asks) and nothing of the invite's is put on the story.
+  const switched = gate.switched;
+  const story = {
+    ...fields,
+    name: invite.kind === 'general' || switched ? name : undefined,
+    spam: isHoneypotFilled(hp),
+    switched,
+  };
 
   if (edit) {
     // An edit never creates: its story is the one this page view's key made, through this invite, while twj_story

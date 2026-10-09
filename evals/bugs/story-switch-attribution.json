@@ -1,0 +1,13 @@
+{
+  "id": "story-switch-attribution",
+  "date": "2026-10-09",
+  "task": "T3.12",
+  "area": "guest",
+  "summary": "After a link switched the browser to another personal invite, the story page put that invite's own name and email on a story the visitor sent, with no name box to give their own.",
+  "fix": "On a switched session the story page asks for a name (as the general link does), and the story gets the typed name and no name or email from the invite; the invite's own guest is unchanged.",
+  "tests": [
+    "tests/int/stories.int.test.ts",
+    "src/app/story/__tests__/story-page.test.ts",
+    "tests/route/story-page.route.test.ts"
+  ]
+}

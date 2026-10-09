@@ -381,6 +381,27 @@ describe('T3.12.01 the story page (no booking)', () => {
       'Pia P',
     );
   });
+  it('a switched session: no name or email from the invite on the story; a typed name is kept', async () => {
+    const row = async (id: string) =>
+      (
+        await q<{ from_name: string | null; from_email: string | null }>(
+          `select from_name, from_email::text from story where id = $1`,
+          [id],
+        )
+      )[0]!;
+    const blank = await createStory(INVITE, { body: `${tag} sw1`, consent: false, switched: true });
+    expect(await row(blank)).toEqual({ from_name: null, from_email: null });
+    const typed = await createStory(INVITE, {
+      body: `${tag} sw2`,
+      consent: false,
+      switched: true,
+      name: 'Sam',
+    });
+    expect(await row(typed)).toEqual({ from_name: 'Sam', from_email: null });
+    // not switched: the invite's own guest, as before
+    const own = await createStory(INVITE, { body: `${tag} sw3`, consent: false });
+    expect(await row(own)).toEqual({ from_name: 'Pia', from_email: 'pia@example.com' });
+  });
   it('a capability for another kind of story never lets the page write to it, nor makes a new one', async () => {
     const emailedId = await addEmailed();
     const id = await saveStoryPageStory(emailedId, INVITE, { body: `${tag} sp3`, consent: false });
