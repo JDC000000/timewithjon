@@ -116,10 +116,18 @@ describe('checkLock (QA4 H1)', () => {
       message: 'That day already has a booking. Tick Book anyway to go ahead.',
       nth: null,
     };
-    const encore = await request({ counts_toward: 'none' });
-    const evening = { ...encoreOn('2027-06-20'), countsToward: 'none' as const };
+    const encore = await request({});
+    const evening = encoreOn('2027-06-20');
     expect(await checkLock(encore, evening, NO)).toEqual(clash);
-    expect(await checkLock(encore, evening, { ...NO, bookAnyway: true })).toMatchObject({ ok: true });
+    // Book anyway clears the clash (this week is also full above, so Override this week too).
+    expect(await checkLock(encore, evening, { bookAnyway: true, overrideWeek: true })).toMatchObject({
+      ok: true,
+    });
+    // A phone call (counts toward nothing) isn't an outing: no clash with the Big Day (operator pick).
+    const call = await request({ dish: 'the-long-distance', counts_toward: 'none' });
+    expect(await checkLock(call, { ...evening, countsToward: 'none' as const }, NO)).toMatchObject({
+      ok: true,
+    });
     const ride = await request({ dish: 'the-shore-ride', counts_toward: 'big_day' });
     const afternoon = {
       startsAt: vancouverInstant('2027-06-20', '13:00'),
