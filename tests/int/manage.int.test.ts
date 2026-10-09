@@ -53,6 +53,7 @@ let rotatedId = '';
 const DAYS = [
   '2027-04-01',
   '2027-04-02',
+  '2027-04-16',
   '2027-05-06',
   '2027-05-07',
   '2027-05-13',
@@ -533,6 +534,9 @@ describe('guest cancel (T2.7.04, E11 + E12, AC5)', () => {
 });
 
 describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6)', () => {
+  // CR-04: three routes end to end (picker, re-request, calendar delete), so on a loaded runner it outgrows the
+  // 5 s default (its own timeout below). The next case keeps its second lock out of this week, so a half-done run
+  // here (its lock left behind) can't make that case find the week full.
   it('AC6: after the general link is rotated, the manage link still opens the picker and re-requests end to end', async () => {
     const remove = vi.spyOn(mockCalendar, 'remove');
     const { id, slot } = await lockedRequest('2027-05-13');
@@ -580,7 +584,7 @@ describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6
     expect(choices.map((c) => c.slot_id)).toEqual([target]);
     expect(await templates(id)).toContain('E16');
     expect(await isOpen(slot)).toBe(true);
-  });
+  }, 60_000);
 
   it('refuses a body request_id, a gone time and a done booking; nothing changes', async () => {
     const { id } = await lockedRequest('2027-05-13', 'evening');
@@ -589,7 +593,8 @@ describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6
       post('/api/manage/another-time', token, { slotIds: [], requestId: randomUUID() }),
     );
     expect(bad.status).toBe(400);
-    const { slot: taken } = await lockedRequest('2027-05-14');
+    // CR-04: a week of its own (Fri Apr 16), not AC6's, which may still hold a lock if AC6 failed half-way.
+    const { slot: taken } = await lockedRequest('2027-04-16');
     const gone = await anotherTimeRoute(
       post('/api/manage/another-time', token, { slotIds: [taken], clientKey: randomUUID() }),
     );

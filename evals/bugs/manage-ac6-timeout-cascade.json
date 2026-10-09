@@ -1,0 +1,9 @@
+{
+  "id": "manage-ac6-timeout-cascade",
+  "date": "2026-10-08",
+  "task": "CR-04",
+  "area": "tests",
+  "summary": "manage.int's AC6 case (three routes end to end) outgrew the 5 s default on a loaded runner, and the lock it left behind filled the week the next case locks in, so that case failed too.",
+  "fix": "AC6 has its own 60 s timeout and the next case's taken time is in a week of its own, so one slow case can't fail another.",
+  "tests": ["tests/int/manage.int.test.ts"]
+}
