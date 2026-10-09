@@ -5,12 +5,13 @@ import { NextRequest } from 'next/server';
 import { SITE } from '../../../tests/fixtures/unit-env';
 import { ERRORS } from '@/content';
 
-const db = vi.hoisted(() => ({ counts: new Map<string, number>(), fail: false }));
+const db = vi.hoisted(() => ({ counts: new Map<string, number>(), fail: false, failGiveBack: false }));
 vi.mock('@/lib/db', () => ({
   q: vi.fn(async (sql: string, [scope, key]: [string, string]) => {
     if (db.fail) throw new Error('connection refused');
     const k = `${scope}|${key}`;
     if (sql.trim().startsWith('update rate_limit set count = count - 1')) {
+      if (db.failGiveBack) throw new Error('connection reset');
       db.counts.set(k, db.counts.get(k)! - 1); // a refused sliding try gives its count back
       return [];
     }
@@ -32,6 +33,7 @@ const post = () => new NextRequest(`${SITE}/api/requests`, { method: 'POST', hea
 beforeEach(() => {
   db.counts.clear();
   db.fail = false;
+  db.failGiveBack = false;
   report.mockClear();
 });
 
@@ -45,6 +47,17 @@ describe('limitByIp (T3.8.02)', () => {
     // QA4 M3: the refused tries never count, so the block doesn't grow with each retry.
     for (let i = 0; i < 5; i++) await limitByIp(post(), 'requestSend');
     expect([...db.counts.values()]).toEqual([30]);
+  });
+
+  it('a refused sliding try stays refused when giving its count back fails (never let through by the error)', async () => {
+    for (let i = 0; i < 30; i++) await limitByIp(post(), 'requestSend');
+    db.failGiveBack = true;
+    expect((await limitByIp(post(), 'requestSend'))?.status).toBe(429);
+    expect(report).toHaveBeenCalledWith(expect.any(Error), {
+      area: 'ratelimit',
+      scope: 'requestSend',
+      step: 'give_back',
+    });
   });
 
   it('keeps separate buckets per scope', async () => {

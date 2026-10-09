@@ -215,6 +215,12 @@ describe('POST /api/requests (route level)', () => {
     const elsewhere = await post({ ...b, clientKey: randomUUID() }, { cookie });
     expect(elsewhere.res.status).toBe(200);
     expect(await requestFor(b.email as string)).toHaveLength(3);
+    // ...and that browser never gets the first guest's request cookie (it names its own request).
+    const theirs = elsewhere.res.headers
+      .getSetCookie()
+      .find((c) => c.startsWith('twj_req='))!
+      .split(';')[0]!;
+    expect(theirs).not.toBe(req);
     await q(`delete from rate_limit`);
   });
 

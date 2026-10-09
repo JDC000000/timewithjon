@@ -188,6 +188,30 @@ describe('T2.4.08 the guest proposes new times → the same row, E16', () => {
     expect(await e16(id)).toHaveLength(1);
   });
 
+  it('a pitch proposing new dates with its shorter version: the new pitch is kept, never dropped', async () => {
+    const { id } = await newRequest();
+    await q(
+      `update request set dish = 'pitch-me', mode = 'dates', status = 'needs_new_time', pitch_idea = 'A week away',
+              date_prefs = '{"dates":["2027-05-15"]}' where id = $1`,
+      [id],
+    );
+    const offerId = await withTx((c) => createOffer(c, { requestId: id, kind: 'weather_call' }));
+    const token = await withTx((c) =>
+      issueToken(c, {
+        purpose: 'pick_new_date',
+        requestId: id,
+        offerId,
+        expiresAt: new Date(NOW.getTime() + 864e5),
+      }),
+    );
+    const res = await proposeRoute(
+      post({ token, dates: ['2027-05-22'], pitchIdea: 'A long weekend instead', clientKey: randomUUID() }),
+    );
+    expect(res.status).toBe(200);
+    const [r] = await q<{ pitch_idea: string }>(`select pitch_idea from request where id = $1`, [id]);
+    expect(r!.pitch_idea).toBe('A long weekend instead');
+  });
+
   it('from a weather call: the pick_new_date link proposes new dates for the same row', async () => {
     const [mine, next] = await freeLunches(2);
     const { id } = await newRequest([mine!]);
