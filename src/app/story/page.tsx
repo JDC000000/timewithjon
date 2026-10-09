@@ -32,6 +32,7 @@ export default async function StoryPage() {
         <Story
           before60={(await loadSettings()).before60_enabled}
           general={session.invite.kind === 'general'}
+          askName={session.invite.kind === 'general' || Boolean(session.switched)}
         />
       ) : (
         <StaleState />
@@ -41,7 +42,7 @@ export default async function StoryPage() {
   );
 }
 
-function Story({ before60, general }: { before60: boolean; general: boolean }) {
+function Story({ before60, general, askName }: { before60: boolean; general: boolean; askName: boolean }) {
   const siteKey = general ? getEnv().NEXT_PUBLIC_TURNSTILE_SITE_KEY : undefined;
   return (
     <main id="main">
@@ -55,7 +56,7 @@ function Story({ before60, general }: { before60: boolean; general: boolean }) {
           maxPhotos={MAX_PHOTOS.story_page}
           before60={before60}
           skipHref={ROUTES.home}
-          storyPage={general ? { siteKey, askName: true } : {}}
+          storyPage={{ ...(general ? { siteKey } : {}), ...(askName ? { askName: true } : {}) }}
         />
       </div>
     </main>

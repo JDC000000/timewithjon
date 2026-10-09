@@ -9,9 +9,11 @@ import { findInviteById, type Invite } from './repo';
 
 export { MANAGE_HEADER };
 
-export async function requireInvite(): Promise<{ invite: Invite } | { response: NextResponse }> {
+export async function requireInvite(): Promise<
+  { invite: Invite; /** session.ts SWITCHED_COOKIE */ switched: boolean } | { response: NextResponse }
+> {
   const s = await getInviteSession();
-  if (s.state === 'valid') return { invite: s.invite };
+  if (s.state === 'valid') return { invite: s.invite, switched: s.switched ?? false };
   const response = NextResponse.json(
     { ok: false, code: 'invite_required', message: s.state === 'stale' ? ERRORS.stale : ERRORS.noInvite },
     { status: 403 },
