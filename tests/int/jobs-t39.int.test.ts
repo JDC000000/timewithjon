@@ -249,6 +249,11 @@ describe('E13: the 18:00 PT story digest', () => {
     }
     return s!.id;
   }
+  // Each case starts with no E13 row: a tick earlier in the run that ran on the real clock after 18:00 PT writes
+  // today's E13, which would otherwise be read back as this case's (CI flake, 2026-10-09).
+  beforeEach(async () => {
+    await q(`delete from email_log where template = 'E13'`);
+  });
   afterAll(async () => {
     await q(`delete from story where created_at < '2027-06-01'`);
     await q(`delete from email_log where template = 'E13'`);
@@ -270,8 +275,8 @@ describe('E13: the 18:00 PT story digest', () => {
     expect(e13[0]![0].text).toBe(
       `- Dave, The Long Lunch: The lake at dawn\n- Kim: ${'x'.repeat(119)}…\n- Photos: 3\nhttp://localhost:3000/admin/stories\n`,
     );
-    const [row] = await q<{ event_key: string }>(`select event_key from email_log where template = 'E13'`);
-    expect(row!.event_key).toBe('2027-03-14');
+    const rows = await q<{ event_key: string }>(`select event_key from email_log where template = 'E13'`);
+    expect(rows.map((r) => r.event_key)).toEqual(['2027-03-14']);
   });
   it('no photos: no photo line', async () => {
     await story('2027-04-10T20:00:00Z', 'Just words', null);
