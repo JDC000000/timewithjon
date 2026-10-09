@@ -4,13 +4,10 @@
 
 export type SweepEnv = 'staging' | 'production';
 
-/**
- * The R2 backup bucket of each env (bucket names aren't secret). Production gets its bucket at T3.1: until the
- * name is written here, a production sweep is refused.
- */
-export const R2_BACKUP_BUCKETS: Record<SweepEnv, string | null> = {
+/** The R2 backup bucket of each env (bucket names aren't secret). Production's was registered at T3.1. */
+export const R2_BACKUP_BUCKETS: Record<SweepEnv, string> = {
   staging: 'timewithjon-photos-staging',
-  production: null,
+  production: 'timewithjon-photos-production',
 };
 
 /** Without an explicit --max-delete, a sweep may remove at most this many objects per store... */
@@ -58,9 +55,7 @@ export function checkSweepTargets(t: {
   if (!dbRef || !storeRef)
     return 'refusing: cannot read the Supabase project ref from DATABASE_URL and SUPABASE_URL';
   if (dbRef !== storeRef) return 'refusing: SUPABASE_URL is a different Supabase project than DATABASE_URL';
-  const bucket = R2_BACKUP_BUCKETS[t.env];
-  if (!bucket) return `refusing: no R2 backup bucket is registered for ${t.env} (sweep-guard.ts)`;
-  if (t.r2Bucket !== bucket) return `refusing: R2_BACKUP_BUCKET is not the ${t.env} bucket`;
+  if (t.r2Bucket !== R2_BACKUP_BUCKETS[t.env]) return `refusing: R2_BACKUP_BUCKET is not the ${t.env} bucket`;
   return null;
 }
 

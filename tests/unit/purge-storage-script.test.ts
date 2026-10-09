@@ -70,11 +70,11 @@ describe('ops/purge-storage.ts', () => {
     ).rejects.toThrow(/different Supabase project/);
     untouched();
   });
-  it('another R2 bucket, or production (no registered bucket): refused with zero calls', async () => {
+  it("another R2 bucket, or production with staging's bucket: refused with zero calls", async () => {
     await expect(
       run(['--env=staging', '--apply'], { R2_BACKUP_BUCKET: 'timewithjon-photos' }),
     ).rejects.toThrow(/not the staging bucket/);
-    await expect(run(['--env=production', '--apply'])).rejects.toThrow(/no R2 backup bucket/);
+    await expect(run(['--env=production', '--apply'])).rejects.toThrow(/not the production bucket/);
     untouched();
   });
   it('a bad --max-delete: refused with zero calls', async () => {
