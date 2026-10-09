@@ -187,6 +187,35 @@ describe('validateRequest', () => {
     expect(dated('the-long-distance', 1)).toMatchObject({ ok: true });
     expect(dated('the-long-distance', 2)).toEqual({ ok: false, code: 'crew_out_of_range' });
   });
+  it('a re-request keeps the stored crew: no range check, either side of it; a first Send still checks', () => {
+    const dated = (crew: number, opts?: { keepStoredCrew?: boolean }) =>
+      validateRequest(
+        body({ dish: 'the-double-date', dates: ['2027-05-14'], crew }),
+        dishBySlug('the-double-date')!,
+        engineFor('the-double-date'),
+        season,
+        now,
+        opts,
+      );
+    // Rows saved before the range existed carry crew 1 on a serves-4 dish; a later trim can strand the other side.
+    for (const crew of [1, 3, 4, 5])
+      expect(dated(crew, { keepStoredCrew: true }), `crew ${crew}`).toMatchObject({
+        ok: true,
+        mode: 'dates',
+      });
+    expect(dated(1)).toEqual({ ok: false, code: 'crew_out_of_range' });
+    expect(dated(5)).toEqual({ ok: false, code: 'crew_out_of_range' });
+    // Only the crew check is skipped: the rest still applies.
+    const outOfSeason = validateRequest(
+      body({ dish: 'the-double-date', dates: ['2027-07-02'], crew: 1 }),
+      dishBySlug('the-double-date')!,
+      engineFor('the-double-date'),
+      season,
+      now,
+      { keepStoredCrew: true },
+    );
+    expect(outOfSeason).toEqual({ ok: false, code: 'out_of_season' });
+  });
   it('T1.6 AC2 out-of-season dates are rejected; AC3 Surprise Me needs need-to-know', () => {
     expect(
       validateRequest(

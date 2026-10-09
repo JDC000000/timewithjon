@@ -50,11 +50,14 @@ export const NO_GUEST: GuestView = { name: '', email: '', general: false };
 export function guestView(
   invite: Pick<Invite, 'kind' | 'prefill_name' | 'prefill_email'>,
   siteKey: string | undefined,
+  /** The session was just switched to this invite from another one (session.ts SWITCHED_COOKIE): no prefill. */
+  switched = false,
 ): GuestView {
   const personal = invite.kind === 'personal';
+  const prefill = personal && !switched;
   return {
-    name: (personal && invite.prefill_name) || '',
-    email: (personal && invite.prefill_email) || '',
+    name: (prefill && invite.prefill_name) || '',
+    email: (prefill && invite.prefill_email) || '',
     general: !personal,
     ...(personal || !siteKey ? {} : { siteKey }),
   };

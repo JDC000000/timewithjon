@@ -26,6 +26,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+const SEASON = { start: '2027-04-01', end: '2027-06-30' };
+
 function renderActions() {
   const f = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
   vi.stubGlobal('fetch', f);
@@ -33,6 +35,7 @@ function renderActions() {
     <ManageActions
       token="tok"
       header="x-twj-manage"
+      season={SEASON}
       dish={lunch}
       form="slots"
       frees={null}
@@ -94,6 +97,7 @@ describe('S17 Cancel asks first (QA B)', () => {
       <ManageActions
         token="tok"
         header="x-twj-manage"
+        season={SEASON}
         dish={lunch}
         form="pitch"
         frees={null}

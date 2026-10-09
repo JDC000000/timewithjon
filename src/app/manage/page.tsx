@@ -15,6 +15,7 @@ import { SENT_UI, STALE } from '@/content/ui/guest-after';
 import { loadManageModel, type ManageModel } from '@/features/invites/manage-model';
 import { MANAGE_HEADER } from '@/features/invites/require';
 import { MAX_PHOTOS } from '@/features/photos/limits';
+import { loadSettings } from '@/lib/settings';
 import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { SentReceipt } from '../_guest/sent-receipt';
@@ -42,7 +43,7 @@ export default async function ManagePage({ searchParams }: { searchParams: Searc
       {model.kind === 'expired' ? (
         <Expired message={model.message} />
       ) : (
-        <Manage model={model} token={token!} sent={await sentLines(model)} />
+        <Manage model={model} token={token!} sent={await sentLines(model)} season={await seasonSpan()} />
       )}
       <SiteFooter />
     </>
@@ -75,7 +76,23 @@ function Expired({ message }: { message: string }) {
 
 type Open = Extract<ManageModel, { kind: 'manage' }>;
 
-function Manage({ model, token, sent }: { model: Open; token: string; sent: string[] }) {
+/** The season from settings: the range the server's out_of_season check uses (validate.ts). */
+async function seasonSpan(): Promise<{ start: string; end: string }> {
+  const s = await loadSettings();
+  return { start: s.season_start, end: s.season_end };
+}
+
+function Manage({
+  model,
+  token,
+  sent,
+  season,
+}: {
+  model: Open;
+  token: string;
+  sent: string[];
+  season: { start: string; end: string };
+}) {
   const dish = dishBySlug(model.dish.slug);
   const locked = model.status === 'locked';
   return (
@@ -133,6 +150,7 @@ function Manage({ model, token, sent }: { model: Open; token: string; sent: stri
           canCancel={model.canCancel}
           canAskAnother={model.canAskAnother}
           canAddStory={model.canAddStory}
+          season={season}
         />
       </div>
     </main>

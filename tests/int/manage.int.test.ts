@@ -946,3 +946,98 @@ describe('after Jon cancels for the guest (2026-10-05): "Cancelled, no problem" 
     expect((await row(id)).status).toBe('cancelled');
   });
 });
+
+describe('a re-request keeps the stored details: rows saved under older rules can still ask for another time', () => {
+  /** A Double Date asked by date, then put in the shape an older release stored. */
+  async function storedDoubleDate(over: { crew?: number; name?: string }) {
+    const body = RequestBody.parse({
+      clientKey: randomUUID(),
+      dish: 'the-double-date',
+      name: 'Dana Guest',
+      email: `dana+${randomUUID().slice(0, 8)}@example.com`,
+      crew: 4,
+      dates: ['2027-05-26'],
+    });
+    const { requestId } = await withTx((c) =>
+      createRequestTx(c, {
+        body,
+        inviteId: generalId,
+        isTest: true,
+        spam: false,
+        mode: 'dates',
+        status: 'requested',
+        countsToward: 'big_day',
+        bigCrew: false,
+        dishName: 'The Double Date',
+      }),
+    );
+    made.push(requestId);
+    if (over.crew !== undefined)
+      await q(`update request set crew_size = $2 where id = $1`, [requestId, over.crew]);
+    if (over.name !== undefined)
+      await q(`update request set contact_name = $2 where id = $1`, [requestId, over.name]);
+    return requestId;
+  }
+  const stored = async (id: string) =>
+    (
+      await q<{ status: string; crew_size: number; contact_name: string; date_prefs: { dates: string[] } }>(
+        `select status, crew_size, contact_name, date_prefs from request where id = $1`,
+        [id],
+      )
+    )[0]!;
+
+  it('a Double Date stored at crew 1 (before the serves-4 range) re-requests (200) and keeps crew 1', async () => {
+    const id = await storedDoubleDate({ crew: 1 });
+    const res = await anotherTimeRoute(
+      post('/api/manage/another-time', await manageToken(id), {
+        slotIds: [],
+        dates: ['2027-05-27'],
+        clientKey: randomUUID(),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await stored(id)).toMatchObject({
+      status: 'requested',
+      crew_size: 1,
+      date_prefs: { dates: ['2027-05-27'] },
+    });
+    expect(await templates(id)).toContain('E16');
+  });
+
+  it('the other side of the range too: a stored crew above servesMax (a later trim) re-requests and is kept', async () => {
+    const id = await storedDoubleDate({ crew: 6 });
+    const res = await rerequest(id, { slotIds: [], dates: ['2027-05-28'], overnight: false }, NOW, {
+      clientKey: randomUUID(),
+    });
+    expect(res).toEqual({ ok: true });
+    expect((await stored(id)).crew_size).toBe(6);
+  });
+
+  it('a stored name with a right-to-left override (saved before names refused them) re-requests (200), unchanged', async () => {
+    const name = 'Dana \u202Eetad elbuod'; // U+202E, written escaped
+    const id = await storedDoubleDate({ name });
+    const res = await anotherTimeRoute(
+      post('/api/manage/another-time', await manageToken(id), {
+        slotIds: [],
+        dates: ['2027-05-27'],
+        clientKey: randomUUID(),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await stored(id)).toMatchObject({ status: 'requested', contact_name: name });
+  });
+
+  it('the new choices are still checked: an out-of-season date is refused (409) and nothing changes', async () => {
+    const id = await storedDoubleDate({ crew: 1 });
+    const res = await anotherTimeRoute(
+      post('/api/manage/another-time', await manageToken(id), {
+        slotIds: [],
+        dates: ['2027-07-02'],
+        clientKey: randomUUID(),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'out_of_season' });
+    expect((await stored(id)).date_prefs.dates).toEqual(['2027-05-26']);
+  });
+});

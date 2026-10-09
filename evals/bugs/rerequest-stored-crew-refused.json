@@ -1,0 +1,9 @@
+{
+  "id": "rerequest-stored-crew-refused",
+  "date": "2026-10-09",
+  "task": "T2.7.05",
+  "area": "requests",
+  "summary": "Ask for another time (and proposing new times from an offer) re-checked the stored crew against the dish's current range, so every Double Date saved at crew 1 before the range existed was refused every time.",
+  "fix": "A re-request never changes the crew, so it no longer re-checks it (validateRequest keepStoredCrew); the new times and dates are still checked.",
+  "test": "tests/int/manage.int.test.ts"
+}

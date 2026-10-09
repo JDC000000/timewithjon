@@ -29,7 +29,7 @@ import { Button, Field } from '@/ui';
 import { MANAGE_ANOTHER_ANCHOR } from '@/ui/routes';
 import { announce, moveFocus } from '@/ui/focus';
 import { StoryForm } from '../_guest/story-form';
-import { seasonOf } from './_lib/season';
+import { seasonOf, type Season } from './_lib/season';
 import { DateGrid } from '../book/[dish]/DateGrid';
 import { TimePicker } from '../book/[dish]/TimePicker';
 import { calMonths, initialCalMonth, toggleDate, type CalDay } from '../book/[dish]/_lib/date-grid';
@@ -57,6 +57,8 @@ export interface ManageActionsProps {
   canAskAnother: boolean;
   canAddStory: boolean;
   maxPhotos: number;
+  /** The season from settings (the server's out_of_season range): the date grid stays inside it. */
+  season: Season;
 }
 
 type Open = null | 'another' | 'story';
@@ -172,6 +174,7 @@ export function ManageActions(p: ManageActionsProps) {
           dish={p.dish}
           form={p.form}
           pitch={p.pitch ?? null}
+          season={p.season}
           onDone={() => {
             setOpen(null);
             router.refresh();
@@ -253,6 +256,7 @@ function AnotherTime(p: {
   dish: DishView;
   form: 'slots' | 'dates' | 'pitch';
   pitch: { idea: string; when: string } | null;
+  season: Season;
   onDone: () => void;
 }) {
   const [engine, setEngine] = useState<EngineOutput | 'error' | null>(
@@ -287,15 +291,15 @@ function AnotherForm(p: {
   dish: DishView;
   form: 'slots' | 'dates' | 'pitch';
   pitch: { idea: string; when: string } | null;
+  season: Season;
   engine: EngineOutput;
   onDone: () => void;
 }) {
   const months = useMemo(() => tilesOnly(pickerMonths(p.engine.weeks)), [p.engine]);
-  const cal = useMemo(
-    () =>
-      p.form === 'dates' ? calMonths(seasonOf(p.engine), p.engine.unavailableDates, p.dish.dateRule) : [],
-    [p.form, p.engine, p.dish.dateRule],
-  );
+  const cal = useMemo(() => {
+    const span = p.form === 'dates' ? seasonOf(p.engine, p.season) : null;
+    return span ? calMonths(span, p.engine.unavailableDates, p.dish.dateRule) : [];
+  }, [p.form, p.engine, p.season, p.dish.dateRule]);
   const [selection, dispatch] = useReducer(selectionReducer, EMPTY_SELECTION);
   const [shownMonth, setShownMonth] = useState(() => initialMonth(months, [], null) ?? '');
   const [order, setOrder] = useState<string[]>([]);

@@ -1,0 +1,9 @@
+{
+  "id": "photo-upload-attempts-unlimited",
+  "date": "2026-10-09",
+  "task": "T3.6.02",
+  "area": "photos",
+  "summary": "A story could repeat sign, upload and a refused finalise without end: a refused upload frees its place and finalise counts only successes, so each round cost a full download and a parse.",
+  "fix": "sign counts the story's upload attempts that ended without a photo (refused, or expired unfinished) over its whole life; at MAX_PHOTOS x 5 it answers 409 too_many_attempts. Successful uploads never count.",
+  "test": "tests/int/photos.int.test.ts"
+}
