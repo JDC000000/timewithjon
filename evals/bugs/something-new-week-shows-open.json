@@ -1,0 +1,9 @@
+{
+  "id": "something-new-week-shows-open",
+  "date": "2026-10-08",
+  "task": "ENG-06",
+  "area": "availability",
+  "summary": "Jon's stand-by sheet showed a week open for Something New after its one-a-week was locked, while the lock refused a second with week_full.",
+  "fix": "dateWeekStatus applies the dish's maxPerWeek (dishWeekCount), as canLock does.",
+  "tests": ["src/features/availability/__tests__/date-dish.test.ts"]
+}

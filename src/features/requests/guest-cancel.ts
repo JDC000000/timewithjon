@@ -68,6 +68,15 @@ export function isLazilyDone(r: Pick<Row, 'status' | 'ends_at'>, now: Date): boo
   return r.status === 'done' || (r.status === 'locked' && r.ends_at !== null && r.ends_at <= now);
 }
 
+/**
+ * ENG-13 (operator pick): a booking under way (locked, its start passed) is no longer the guest's to cancel or
+ * re-ask: the event would go mid-meeting. The manage page hides both; the server refuses them (as when it's done).
+ * Jon's own Cancel for the guest is not limited by it.
+ */
+export function hasStarted(r: { status: string; starts_at: Date | null }, now: Date): boolean {
+  return r.status === 'locked' && r.starts_at !== null && r.starts_at <= now;
+}
+
 type CancelledBy = 'guest' | 'jon';
 
 async function cancelTx(
@@ -90,7 +99,7 @@ async function cancelTx(
   );
   if (!r) return { result: { ok: false, status: 404, reason: 'request_not_found' }, after: noSideEffects() };
   if (r.status === 'cancelled') return { result: { ok: true, already: true }, after: noSideEffects() };
-  if (isLazilyDone(r, now))
+  if (isLazilyDone(r, now) || (by === 'guest' && hasStarted(r, now)))
     return { result: { ok: false, status: 409, reason: 'already_done' }, after: noSideEffects() };
 
   await c.query(

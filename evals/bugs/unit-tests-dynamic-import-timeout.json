@@ -1,0 +1,9 @@
+{
+  "id": "unit-tests-dynamic-import-timeout",
+  "date": "2026-10-08",
+  "task": "ENG-17",
+  "area": "tests",
+  "summary": "Two unit tests imported modules inside the test body and timed out at the 5 s default on a loaded host.",
+  "fix": "The imports are at module scope.",
+  "tests": ["src/content/__tests__/content.test.ts", "src/app/book/[dish]/_lib/__tests__/date-grid.test.ts"]
+}

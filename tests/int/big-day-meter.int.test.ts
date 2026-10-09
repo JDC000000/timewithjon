@@ -36,7 +36,7 @@ describe('the Big Days meter (QA M2)', () => {
       createRequestTx(c, {
         body,
         inviteId,
-        isTest: true,
+        isTest: false, // a real guest's booking (ENG-04: a test invite's never counts)
         spam: false,
         mode: 'dates',
         status: 'requested',
@@ -65,5 +65,10 @@ describe('the Big Days meter (QA M2)', () => {
       requestId,
     ]);
     expect(row!.counts_toward).toBe('big_day');
+    // ENG-04: a test-invite or spam-suspect booking stays off the meter, as it stays out of the export.
+    await q(`update request set is_test = true where id = $1`, [requestId]);
+    expect(await bigDayMeter()).toEqual(before);
+    await q(`update request set is_test = false, spam_suspect = true where id = $1`, [requestId]);
+    expect(await bigDayMeter()).toEqual(before);
   });
 });

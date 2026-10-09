@@ -165,7 +165,17 @@ function dateWeeks(
       weekStart: w,
       firstDate: dates[0]!,
       lastDate: dates.at(-1)!,
-      state: dateWeekStatus(w, input, { countsToward: r.counts_toward, dateRule: dish?.dateRule }, bigDays),
+      state: dateWeekStatus(
+        w,
+        input,
+        {
+          countsToward: r.counts_toward,
+          dateRule: dish?.dateRule,
+          slug: r.dish,
+          maxPerWeek: dish?.maxPerWeek,
+        },
+        bigDays,
+      ),
     };
   });
 }

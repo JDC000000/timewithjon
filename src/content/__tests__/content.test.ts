@@ -6,6 +6,9 @@ import * as content from '@/content';
 import * as inviteText from '@/content/invite-text';
 import * as guestAfter from '@/content/ui/guest-after';
 import { ADMIN_SIGN_IN_EMAIL, DISHES, HERO_BODY, OPEN_LINE } from '@/content';
+// ENG-17: module-scope imports, not `await import` inside a test (a cold import timed out at 5 s on a loaded host).
+import { dishAfterPossessive, dishBySlug, dishInSentence, inSentence } from '../menu-helpers';
+import { PERSONAL } from '../site';
 
 // Machine keys (enums, slugs) are data, not copy; everything else is scanned.
 const DATA_KEYS = new Set([
@@ -148,8 +151,7 @@ describe('T0.3 content', () => {
 });
 
 describe('QA r2 L2: the booking screens write lunch as the menu does', () => {
-  it('no dish detail says "12–2"; the lunch dishes say "noon–2 pm"', async () => {
-    const { DISHES } = await import('../menu');
+  it('no dish detail says "12–2"; the lunch dishes say "noon–2 pm"', () => {
     for (const d of DISHES) expect(d.detail, d.slug).not.toMatch(/\b12–2\b/);
     const lunch = DISHES.filter((d) => ['the-flat-white', 'the-long-lunch'].includes(d.slug));
     expect(lunch.map((d) => d.detail.includes('Thu/Fri, noon–2 pm'))).toEqual([true, true]);
@@ -157,9 +159,7 @@ describe('QA r2 L2: the booking screens write lunch as the menu does', () => {
 });
 
 describe('the hike inside a sentence (Jon, 2026-10-05)', () => {
-  it('its title keeps the capital; in a sentence it is lowercase; after a possessive it drops its article', async () => {
-    const { dishBySlug, dishAfterPossessive, dishInSentence, inSentence } = await import('../menu-helpers');
-    const { PERSONAL } = await import('../site');
+  it('its title keeps the capital; in a sentence it is lowercase; after a possessive it drops its article', () => {
     const hike = dishBySlug('the-grind')!;
     expect(hike.name).toBe('A hike or nature moment');
     expect(inSentence(hike)).toBe('a hike or nature moment');

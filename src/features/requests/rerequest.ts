@@ -20,7 +20,7 @@ import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { findInviteById } from '@/features/invites/repo';
 import { pool, q, withTx } from '@/lib/db';
 import { payloadHash } from '@/lib/payload-hash';
-import { isJonCancelled, isLazilyDone } from './guest-cancel';
+import { hasStarted, isJonCancelled, isLazilyDone } from './guest-cancel';
 import { hostLeft } from './joined-cascade';
 import { releaseLiveOffers } from './offers';
 import { honeypotField } from '@/lib/honeypot';
@@ -71,6 +71,7 @@ interface Row {
   surprise_need_to_know: string | null;
   joined_to_request_id: string | null;
   ends_at: Date | null;
+  starts_at: Date | null;
   google_event_id: string | null;
   calendar_state: string;
   cancelled_by: 'guest' | 'jon' | null;
@@ -88,6 +89,7 @@ export interface Checked {
 
 const ROW = `select r.status, r.dish, r.invite_id, r.contact_name, r.crew_size, r.guest_time_zone, r.pitch_idea,
             r.surprise_need_to_know, r.joined_to_request_id, coalesce(h.locked_ends_at, r.locked_ends_at) as ends_at,
+            coalesce(h.locked_starts_at, r.locked_starts_at) as starts_at,
             r.google_event_id, r.calendar_state, r.cancelled_by::text as cancelled_by, r.closed_in_person
        from request r left join request h on h.id = r.joined_to_request_id
       where r.id = $1`;
@@ -160,7 +162,7 @@ export async function rerequestTx(
   if (replay === 'same') return { result: { ok: true }, after: none };
   if (replay === 'conflict') return { result: REPLAY_CONFLICT, after: none };
   const jonCancelled = isJonCancelled(r);
-  if (!(CHANGEABLE.has(r.status) || jonCancelled) || isLazilyDone(r, now))
+  if (!(CHANGEABLE.has(r.status) || jonCancelled) || isLazilyDone(r, now) || hasStarted(r, now))
     return { result: { ok: false, status: 409, reason: 'not_changeable' }, after: none };
 
   const {

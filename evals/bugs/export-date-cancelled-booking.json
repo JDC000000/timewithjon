@@ -1,0 +1,9 @@
+{
+  "id": "export-date-cancelled-booking",
+  "date": "2026-10-08",
+  "task": "ENG-05",
+  "area": "export",
+  "summary": "A story on a cancelled booking was dated by the cancelled booking's time (a cancel keeps its locked range), not by the day the story came in.",
+  "fix": "The export dates a story by its booking only when the booking (and a joined guest's host) is locked or done; otherwise by the day the story came in.",
+  "tests": ["tests/int/export.int.test.ts"]
+}

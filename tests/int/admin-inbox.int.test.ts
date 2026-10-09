@@ -162,8 +162,11 @@ describe('GET /api/admin/requests (T2.2 AC4–AC6)', () => {
       `bigday+${randomUUID().slice(0, 8)}@example.com`,
     ]);
     guests.push(g!.id);
-    const big = { counts_toward: 'big_day', guest_id: g!.id };
+    const big = { counts_toward: 'big_day', guest_id: g!.id, is_test: false }; // real guests' bookings
     const host = await makeRequest({ ...big, status: 'locked', ...lockRange(2032) });
+    // ENG-04: a test invite's or a spam suspect's Big Day never counts.
+    await makeRequest({ ...big, is_test: true, status: 'locked', ...lockRange(2033) });
+    await makeRequest({ ...big, spam_suspect: true, status: 'locked', ...lockRange(2035) });
     await makeRequest({ ...big, status: 'done', ...lockRange(2018) });
     await makeRequest({ ...big, status: 'locked', joined_to_request_id: host });
     await makeRequest({ ...big, status: 'requested' });
