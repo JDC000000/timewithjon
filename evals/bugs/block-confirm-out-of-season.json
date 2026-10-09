@@ -1,0 +1,9 @@
+{
+  "id": "block-confirm-out-of-season",
+  "date": "2026-10-08",
+  "task": "ENG-18",
+  "area": "admin/blocks",
+  "summary": "Block confirm let Jon offer a time outside the season; E5b then told the guest it was open and their tap failed at canLock. Suggest another time refuses the same time.",
+  "fix": "confirmTx refuses an offered time outside the season (409 out_of_season) before anything is written.",
+  "tests": ["tests/int/admin-block-confirm.int.test.ts"]
+}

@@ -7,7 +7,8 @@
 //     (a guest cancel or a lock that committed while we waited: pr59 H1), nothing happens and the new list
 //     comes back (409 locked_bookings), so Jon confirms what is really there;
 //   - an offered time inside the block being added, or any other block, is refused (409 in_block, pr59 M1): the
-//     guest's tap would fail at canLock; so is a slot the booking's dish can't use (409 not_for_this_dish, CR-05);
+//     guest's tap would fail at canLock; so is a slot the booking's dish can't use (409 not_for_this_dish, CR-05)
+//     and a time outside the season (409 out_of_season, ENG-18), as Suggest another time refuses them;
 //   - an identical block (same dates and kind) already there is reused, not added twice (pr59 L2);
 //   - the block row is added;
 //   - each booking goes to needs_new_time with its range cleared (the window frees at once), its live offers
@@ -47,7 +48,8 @@ import {
 } from '@/features/requests/suggest';
 import { withTx } from '@/lib/db';
 import { loadEngineData } from '@/features/availability/load';
-import { blockedBy } from '@/features/availability/rules';
+import { blockedBy, inSeason } from '@/features/availability/rules';
+import { vancouverDate } from '@/lib/time';
 import type { Block } from '@/features/availability/types';
 import {
   type AffectedBooking,
@@ -88,7 +90,7 @@ export type ConfirmBlockInput = Omit<z.infer<typeof ConfirmBlockBody>, 'block'> 
 export type ConfirmBlockResult =
   | SeasonResult<{ id: string; moved: string[]; underWay: AffectedBooking[] }>
   | { ok: false; status: 404; reason: 'slot_not_found' }
-  | { ok: false; status: 409; reason: 'in_the_past' | 'in_block' | 'not_for_this_dish' };
+  | { ok: false; status: 409; reason: 'in_the_past' | 'in_block' | 'not_for_this_dish' | 'out_of_season' };
 
 /** A booking's choice as offer options, or null for none; undefined when a range isn't a real Vancouver time. */
 function optionsOf(b: ConfirmBlockInput['bookings'][number]): SuggestOptions | null | undefined {
@@ -217,6 +219,12 @@ async function inABlock(
   return windows.some((w) => blockedBy({ range: w }, blocks, loaded.settings) !== null);
 }
 
+/** ENG-18: an offered time that starts outside the season (judged on its start date, as canLock does). */
+async function outsideSeason(c: PoolClient, times: OfferedTime[], now: Date): Promise<boolean> {
+  const { settings } = await loadEngineData(now, c);
+  return times.some((t) => !inSeason(vancouverDate(t.startsAt), settings));
+}
+
 /** The block being added, as the engine sees one: a single-window block carries its slot's times. */
 async function engineBlock(c: PoolClient, block: ConfirmBlockInput['block']): Promise<Block> {
   const window = block.window ?? null;
@@ -262,6 +270,9 @@ async function confirmTx(
     const times = options ? await offeredTimes(c, options, a.dish, now) : [];
     if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
     if (typeof times === 'string') return { result: { ok: false, status: 409, reason: times }, after: none };
+    // ENG-18: outside the season, as Suggest another time refuses it (E5b would offer a time the take refuses).
+    if (times.length && (await outsideSeason(c, times, now)))
+      return { result: { ok: false, status: 409, reason: 'out_of_season' }, after: none };
     if (options && (await inABlock(c, input.block, options, now)))
       return { result: { ok: false, status: 409, reason: 'in_block' }, after: none };
     plans.push({ id: a.id, options, times });

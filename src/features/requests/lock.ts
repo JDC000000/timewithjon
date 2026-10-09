@@ -14,7 +14,7 @@ import {
 } from '@/features/availability/canLock';
 import { dishBySlug } from '@/content/menu-helpers';
 import { loadEngineData } from '@/features/availability/load';
-import { slotCountsToward } from '@/features/availability/rules';
+import { offersHolding, slotCountsToward } from '@/features/availability/rules';
 import type { CountsToward, RequestStatus, Slot } from '@/features/availability/types';
 import { countEvent } from '@/features/analytics/count';
 import { manageLink, type EmailVar } from '@/features/email/link-vars';
@@ -24,7 +24,8 @@ import { withTx } from '@/lib/db';
 import { datesTouched, dayLabel, weekStartOf } from '@/lib/time';
 import { guestWhen } from '@/lib/when';
 import { dishName } from './joined-cascade';
-import { releaseLiveOffers } from './offers';
+import { report } from '@/lib/report';
+import { releaseLiveOffers, withdrawStandbyOffers } from './offers';
 import { enqueueCalendar, noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
 
 export type LockTarget =
@@ -77,7 +78,15 @@ export function refused(reason: LockRefusal): LockResult {
 }
 
 export type TxOutcome =
-  LockResult | { ok: true; warnings: LockWarning[]; after: AfterCommit; auditId: string };
+  | LockResult
+  | {
+      ok: true;
+      warnings: LockWarning[];
+      after: AfterCommit;
+      auditId: string;
+      /** ENG-02: other guests' live stand-by offers on this window, withdrawn once the lock commits. */
+      heldOffers?: string[];
+    };
 /** The in-transaction outcome of a lock (T2.4.07 composes it with spending the offer token; afterLock runs it). */
 export type LockTxOutcome = TxOutcome;
 
@@ -219,6 +228,7 @@ export async function applyLock(
   });
   if (!verdict.ok) return refused(verdict.reason);
   if (i.takenOffer && verdict.warnings.includes('standby_offer_live')) return refused('time_taken');
+  const heldOffers = offersHolding(slot?.id ?? null, range, loaded.offers, now, i.requestId).map((o) => o.id);
 
   await c.query(
     `update request
@@ -283,7 +293,7 @@ export async function applyLock(
     ),
   );
   await countEvent('locked', c); // T3.11, in the lock transaction
-  return { ok: true, warnings: verdict.warnings, after, auditId: audit!.id };
+  return { ok: true, warnings: verdict.warnings, after, auditId: audit!.id, heldOffers };
 }
 
 export function isRangeTaken(e: unknown): boolean {
@@ -304,11 +314,23 @@ export async function lockRequest(i: LockInput): Promise<LockResult> {
   return afterLock(out);
 }
 
+/**
+ * ENG-02, after a lock (or a promote) commits: the stand-by offers it overrode go first, so "It's withdrawn" is
+ * true when Jon reads it. A failure here leaves them to expire (48 h) as before; the lock stands.
+ */
+export async function withdrawHeldOffers(out: { heldOffers?: string[] }): Promise<void> {
+  if (!out.heldOffers?.length) return;
+  await withdrawStandbyOffers(out.heldOffers).catch((e: unknown) =>
+    report(e, { area: 'lock', step: 'withdraw' }),
+  );
+}
+
 /** After commit, awaited: the calendar rows and the emails of a committed lock (T2.4.07 calls it too). */
 export async function afterLock(out: LockTxOutcome): Promise<LockResult> {
   if (!out.ok || !('after' in out)) return out;
   // After commit, awaited (L-3); the calendar rows and the emails side by side, so a slow Google call doesn't hold
   // up the email (review L4). A failure leaves the rows for the tick jobs; the lock itself stands.
+  await withdrawHeldOffers(out);
   await runAfterCommit(out.after, 'lock');
   return { ok: true, warnings: out.warnings };
 }

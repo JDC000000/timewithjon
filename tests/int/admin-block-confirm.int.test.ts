@@ -257,6 +257,13 @@ describe('T2.5.02: confirm a block over locked bookings (T2.5 AC3)', () => {
     expect((await confirm({ block: WEEK, bookings: [unknown] })).status).toBe(404);
     expect((await confirm({ block: WEEK, bookings: [past] })).status).toBe(409);
     expect((await confirm({ block: WEEK, bookings: [dstGap] })).status).toBe(400);
+    // ENG-18: a time outside the season (Thu Jul 8) is refused, as Suggest another time refuses it.
+    const july = { requestId: a, ranges: [{ date: '2027-07-08', start: '12:00', lengthMinutes: 120 }] };
+    const offSeason = await confirm({ block: WEEK, bookings: [july] });
+    expect([offSeason.status, (await json<{ code: string }>(offSeason)).code]).toEqual([
+      409,
+      'out_of_season',
+    ]);
     // Malformed: a duplicate booking, an unknown key, a bad block.
     expect((await confirm({ block: WEEK, bookings: [{ requestId: a }, { requestId: a }] })).status).toBe(400);
     expect((await confirm({ block: WEEK, bookings: [{ requestId: a, lead: 'x' }] })).status).toBe(400);

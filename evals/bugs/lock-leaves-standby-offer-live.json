@@ -1,0 +1,9 @@
+{
+  "id": "lock-leaves-standby-offer-live",
+  "date": "2026-10-08",
+  "task": "ENG-02",
+  "area": "requests/lock",
+  "summary": "Jon's lock over a window another guest's stand-by offer held said 'It's withdrawn', but the offer stayed live: that guest's E7 link failed and Jon could not offer them another window for 48 h (a generic error).",
+  "fix": "After the lock commits, the overridden stand-by offers are released, their links spent and their guests put back in Needs a reply (also after Promote to host).",
+  "tests": ["tests/int/standby.int.test.ts"]
+}
