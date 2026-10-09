@@ -8,7 +8,8 @@ import { cx } from './cx';
 type Native = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'disabled' | 'className' | 'children'>;
 
 export type ButtonProps = Native & {
-  variant?: 'default' | 'commit';
+  /** 'gold': the open landing's one call to action (Jon, 2026-10-09), a gilt fill behind ink */
+  variant?: 'default' | 'commit' | 'gold';
   size?: 'sm';
   block?: boolean;
   /** two-part label (<span>Lock in</span> <span>date</span>) */
@@ -40,6 +41,7 @@ export function Button({
   const cls = cx(
     'btn',
     variant === 'commit' && 'btn--commit',
+    variant === 'gold' && 'btn--gold',
     size === 'sm' && 'btn--sm',
     block && 'btn--block',
     dt && 'btn--dt',

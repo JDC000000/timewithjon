@@ -4,14 +4,16 @@ export const WORDMARK = 'TIME WITH JON'; // NAMING.md: all caps only for the wor
  * The hero line, FIXED by Jon and the SAME for everyone (2026-10-05): every personal link, the general link and a
  * visitor with no link. An invite's "our things" are no longer shown anywhere.
  */
-export const OPEN_LINE = 'We keep saying we should get or do that epic trip.'; // approved: Jon (2026-10-05)
+export const OPEN_LINE = 'We keep saying we should get together or do that epic trip.'; // approved: Jon (2026-10-09)
 export const LEAD_IN = OPEN_LINE;
 export const HEADLINE = 'How about now?';
 export const HERO_DATE_LINE = 'I turn 50 on April 1. No joke.';
 /** Jon's own words (creative v1.4 §2.2): "epic" is allowed ONLY in the hero lines. */
 export const HERO_BODY =
   'We see each other at plenty of parties, which is great. This time I’d rather do something epic with you, or you and a small group, even if epic is a long lunch. Pick something off the menu and I’ll lock in a time.';
-export const SEE_THE_MENU = 'See the activity menu'; // v2.1 COPY (decision 37b)
+export const SEE_THE_MENU = 'See the activity menu'; // v2.1 COPY (decision 37b); E9's button (the landing uses BOOK_A_TIME)
+/** The open landing's one call to action (the gold primary button), to the activity menu as before. */
+export const BOOK_A_TIME = 'Book a Time with Jon'; // approved: Jon (2026-10-09)
 export const PERSONAL = {
   pickedLine: (dish: string) => `I was thinking ${dish}, but anything on the menu is yours.`,
   book: (dish: string) => `Book ${dish}`,
