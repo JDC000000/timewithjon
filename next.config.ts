@@ -69,6 +69,10 @@ export const baseConfig: NextConfig = {
   env: { NEXT_PUBLIC_APP_MODE: process.env.APP_MODE ?? '' },
   // Files named page.dev.tsx / route.dev.ts only exist in APP_MODE=prototype builds.
   pageExtensions: isProto ? ['dev.tsx', 'dev.ts', 'tsx', 'ts'] : ['tsx', 'ts'],
+  // r5 N-L10: some crawlers ask for the root /apple-touch-icon.png; it is the same file as the App Router's apple-icon.png
+  async rewrites() {
+    return [{ source: '/apple-touch-icon.png', destination: '/apple-icon.png' }];
+  },
   async headers() {
     return [
       { source: '/:path*', headers: SECURITY_HEADERS },
