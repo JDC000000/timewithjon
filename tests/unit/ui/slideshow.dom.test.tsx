@@ -15,7 +15,7 @@ import {
   type PhotoSlots,
   type PhotoViews,
 } from '@/ui/photo-slots';
-import { onAt, SLIDE_MS } from '@/ui/Slideshow';
+import { slideState, SLIDE_MS } from '@/ui/Slideshow';
 
 const FIXTURE: PhotoSlots = {
   show: { file: 'show', w: [480, 800], alt: '', slides: 3 },
@@ -50,10 +50,16 @@ afterEach(() => {
 });
 
 const imgs = (c: HTMLElement) => [...c.querySelectorAll('figure img')] as HTMLImageElement[];
+/** the photo on top (1-based): the slide marked is-top, else photo 1 */
 const onTop = (c: HTMLElement) => {
-  const on = [...c.querySelectorAll('figure .ph-slide.is-on')];
-  return on.length === 0 ? 1 : on.length + 1; // photo n is on top when photos 2..n are faded in
+  const slides = [...c.querySelectorAll('figure .ph-slide')];
+  return slides.findIndex((s) => s.classList.contains('is-top')) + 2;
 };
+/** each slide's state class, photos 2..n */
+const states = (c: HTMLElement) =>
+  [...c.querySelectorAll('figure .ph-slide')].map((s) =>
+    s.classList.contains('is-on') ? 'on' : s.classList.contains('is-out') ? 'out' : 'off',
+  );
 function pageLoads() {
   readyState = 'complete';
   act(() => {
@@ -340,13 +346,44 @@ describe('photo framing (photo-views.json)', () => {
   });
 });
 
-describe('slideshow stacking (photo round 3, PH-07)', () => {
-  it('only the top photo and the one directly under it are on; the loop back shows the last one fading alone', () => {
-    const on = (active: number) => [1, 2, 3, 4, 5].filter((p) => onAt(p, active));
-    expect(on(0)).toEqual([]); // photo 1 (the base) on top: no slide on, so the last one fades out alone
-    expect(on(1)).toEqual([1]);
-    expect(on(2)).toEqual([1, 2]);
-    expect(on(5)).toEqual([4, 5]); // never slides 2..6 stacked
+describe('slideshow stacking (photo rounds 3 and 4, PH-07)', () => {
+  it('two photos at a time: the incoming one over the one it replaced; the loop back fades the last one alone', () => {
+    const at = (active: number, from: number) => [1, 2, 3, 4, 5].map((p) => slideState(p, active, from));
+    expect(at(0, 0)).toEqual(['off', 'off', 'off', 'off', 'off']); // photo 1 alone
+    expect(at(1, 0)).toEqual(['on', 'off', 'off', 'off', 'off']); // photo 2 fades in over photo 1
+    expect(at(2, 1)).toEqual(['on', 'on', 'off', 'off', 'off']); // photo 3 over photo 2
+    expect(at(5, 4)).toEqual(['off', 'off', 'off', 'on', 'on']); // never slides 2..6 stacked
+    // the loop back: photo 6 fades out over photo 1, and photo 5 (under it) is gone at once, so it never shows through
+    expect(at(0, 5)).toEqual(['off', 'off', 'off', 'off', 'out']);
+    // photo 4 failed to load and is passed over: photo 5 fades in over photo 3, never over the bad photo 4
+    expect(at(4, 2)).toEqual(['off', 'on', 'off', 'on', 'off']);
+  });
+
+  it('only a photo fading in or out has an opacity transition; a photo turning off goes at once', () => {
+    const css = readFileSync('src/ui/site.css', 'utf8');
+    // every rule for the selector, joined
+    const rule = (sel: string) =>
+      [...css.matchAll(new RegExp(`^${sel.replace(/[.()]/g, '\\$&')} \\{([^}]*)\\}`, 'gm'))]
+        .map((m) => m[1])
+        .join('');
+    expect(rule('.ph .ph-slide')).not.toMatch(/opacity \d/);
+    expect(rule('.ph .ph-slide:is(.is-on, .is-out)')).toMatch(/opacity 1\.2s/);
+    expect(rule('.ph .ph-slide.is-on')).toMatch(/opacity: 1;/);
+  });
+
+  it('the rotation: each step marks the incoming photo over the one it replaced; the loop back fades out the last', () => {
+    vi.useFakeTimers();
+    readyState = 'complete';
+    const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
+    slidesLoad(container);
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    slidesLoad(container);
+    expect(states(container)).toEqual(['on', 'off']); // photo 2 over photo 1
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(states(container)).toEqual(['on', 'on']); // photo 3 over photo 2
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(states(container)).toEqual(['off', 'out']); // loop back: photo 3 fades out alone; photo 2 is gone at once
+    expect(onTop(container)).toBe(1);
   });
 
   it('the framing fallback ratios match the --ph-ratio-* tokens', () => {

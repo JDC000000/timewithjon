@@ -38,8 +38,9 @@ test.beforeEach(async ({ context, baseURL }) => {
 const show = (page: Page) => page.locator('figure[data-slot="show"]');
 const card = (page: Page) => page.locator('li.dish');
 
+/** the photo on top (1-based): the slide marked is-top, else photo 1 */
 async function onTop(fig: Locator): Promise<number> {
-  return 1 + (await fig.locator('.ph-slide.is-on').count());
+  return fig.locator('.ph-slide').evaluateAll((s) => s.findIndex((e) => e.classList.contains('is-top')) + 2);
 }
 /** photo 1 + the photos in the page so far (one ahead of the rotation) are there and loaded */
 async function slidesLoaded(fig: Locator, n = 2) {

@@ -31,6 +31,8 @@ type SlideshowState = {
   on: boolean;
   /** 0-based index of the photo on top */
   active: number;
+  /** 0-based index of the photo it replaced (the one under it while it fades in) */
+  from: number;
   paused: boolean;
   /** how many of photos 2..n are in the page (the ones reached so far, plus the next one) */
   mounted: number;
@@ -66,8 +68,9 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   const [reduced, setReduced] = useState(true);
   const [hidden, setHidden] = useState(false);
   const [paused, setPaused] = useState(false);
-  // the photo on top, and the furthest the rotation has reached (photos up to reach + 1 stay in the page)
-  const [{ active, reach }, setShow] = useState({ active: 0, reach: 0 });
+  // the photo on top, the one it replaced, and the furthest the rotation has reached (photos up to reach + 1 stay in
+  // the page)
+  const [{ active, from, reach }, setShow] = useState({ active: 0, from: 0, reach: 0 });
   // on screen: until the sentinel reports, unknown (false): nothing is fetched for a figure no one has scrolled to
   const [visible, setVisible] = useState(false);
   const [everSeen, setEverSeen] = useState(false);
@@ -108,10 +111,10 @@ export function SlideshowScope({ count, children }: { count: number; children: R
         for (let step = 1; step < count; step++) {
           const next = (s.active + step) % count;
           if (broken.current[next]) {
-            if (next > s.reach) return { active: s.active, reach: next };
+            if (next > s.reach) return { ...s, reach: next };
             continue;
           }
-          return ready.current[next] ? { active: next, reach: Math.max(s.reach, next) } : s;
+          return ready.current[next] ? { active: next, from: s.active, reach: Math.max(s.reach, next) } : s;
         }
         return s;
       });
@@ -132,8 +135,19 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   // photos reached so far + the next one; none until the figure has been on screen
   const mounted = on && everSeen ? Math.min(count - 1, reach + 1) : 0;
   const value = useMemo(
-    () => ({ count, on, active: on ? active : 0, paused, mounted, toggle, loaded, failed, seen }),
-    [count, on, active, paused, mounted, toggle, loaded, failed, seen],
+    () => ({
+      count,
+      on,
+      active: on ? active : 0,
+      from: on ? from : 0,
+      paused,
+      mounted,
+      toggle,
+      loaded,
+      failed,
+      seen,
+    }),
+    [count, on, active, from, paused, mounted, toggle, loaded, failed, seen],
   );
   return <SlideshowContext.Provider value={value}>{children}</SlideshowContext.Provider>;
 }
@@ -178,13 +192,20 @@ function SlideshowSentinel({ seen }: { seen: (visible: boolean) => void }) {
 }
 
 /**
- * Photo `p` (1-based slide = photo index; photo 0 is the base image, always there) is shown when it is on top, or
- * directly under the top one: the incoming photo fades in over a photo that stays opaque, and nothing older stays
- * stacked. On the loop back to photo 1 only the last photo fades out, so slides 2..n never cross-fade at once as a
- * multi-exposure (photo round 3, PH-07). An older photo turns off while fully covered by the two above it.
+ * How photo `p` (1-based slide = photo index; photo 0 is the base image, always there, under every slide) shows, with
+ * `active` on top after a change from `from`. Every frame is a crossfade of exactly two photos (photo round 4, PH-07):
+ * - 'on': opaque, or fading in (site.css transitions opacity only on the way in);
+ * - 'out': the photo fading out, over photo 1, on the loop back to photo 1;
+ * - 'off': gone AT ONCE (no transition). A photo turns off only while an opaque photo covers it: the one under the
+ *   incoming photo, or, on the loop back, the one under the outgoing one, which so never shows through it.
+ * The photo under the incoming one is the one it replaced (`from`), never simply the one before it: a photo that
+ * failed to load is passed over and never shows.
  */
-export function onAt(p: number, active: number): boolean {
-  return p === active || p === active - 1;
+export type SlideState = 'on' | 'out' | 'off';
+export function slideState(p: number, active: number, from: number): SlideState {
+  if (p === active) return 'on';
+  if (p === from) return active === 0 ? 'out' : 'on';
+  return 'off';
 }
 
 function renderSlides(
@@ -196,7 +217,11 @@ function renderSlides(
   return slides.map((s, i) => (
     <span
       key={s.src}
-      className={cx('ph-slide', onAt(i + 1, show.active) && 'is-on')}
+      className={cx(
+        'ph-slide',
+        `is-${slideState(i + 1, show.active, show.from)}`,
+        i + 1 === show.active && 'is-top',
+      )}
       style={s.style as CSSProperties | undefined}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
