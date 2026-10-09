@@ -8,6 +8,7 @@ import { TAG_UI } from '@/content/ui/tag';
 import { ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { noWidow } from '../_landing/text';
 import { PrintButton } from './print-button';
+import { SheetFit } from './SheetFit';
 
 export const metadata: Metadata = { title: 'Wine tag · Time with Jon' };
 
@@ -28,13 +29,7 @@ export default function TagPage() {
               <span className="ui muted">{TAG_UI.printAlt}</span>
             </p>
           </div>
-          <div
-            className="sheet-fit"
-            style={{ marginTop: 'var(--s7)' }}
-            role="img"
-            aria-label={TAG_UI.sheetLabel}
-            aria-describedby="tag-words"
-          >
+          <SheetFit style={{ marginTop: 'var(--s7)' }} label={TAG_UI.sheetLabel} describedBy="tag-words">
             <div className="sheet-letter">
               {CELLS.map((c) => (
                 <div className="cell" key={c}>
@@ -47,7 +42,7 @@ export default function TagPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </SheetFit>
           <p className="ui muted no-print" id="tag-words" style={{ marginTop: 'var(--s3)' }}>
             {noWidow(TAG_UI.words)}
           </p>
