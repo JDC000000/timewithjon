@@ -4,7 +4,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFocusGuard } from '@/ui/focus';
-import { LOCK } from '@/content/ui/admin-requests';
+import { DETAIL, LOCK, SHEETS } from '@/content/ui/admin-requests';
 import { DetailPane, type DetailPaneProps } from './DetailPane';
 import type { DetailView } from './detail-view';
 import { sendLock } from './lock-logic';
@@ -43,6 +43,8 @@ const view: DetailView = {
   bigDayLocked: false,
   cancelWords: null,
   failed: [],
+  joinedTo: null,
+  canPromote: false,
 };
 const props: DetailPaneProps = {
   requestId: 'r1',
@@ -51,7 +53,6 @@ const props: DetailPaneProps = {
   dish: 'the-long-lunch',
   dishName: 'The Long Lunch',
   season: { start: '2027-04-01', end: '2027-06-30' },
-  joinedToRequestId: null,
   pitchLength: '',
   view,
   options: null,
@@ -189,5 +190,58 @@ describe('a stand-by request (Jon, 2026-10-04)', () => {
     expect(screen.getByRole('menuitem', { name: 'Copy their email' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Move to stand-by' })).toBeNull();
     expect(container.querySelector(`#more-r1`)?.textContent).not.toContain('Move to stand-by');
+  });
+});
+
+describe('a shared booking (QA4b M3)', () => {
+  it('the joined guest links to the booking it rides on; the host lists them, each a link', () => {
+    const joined: DetailPaneProps = {
+      ...props,
+      view: {
+        ...view,
+        filter: 'locked',
+        open: false,
+        facts: [{ label: 'When', value: 'Thu May 27 · noon–2 pm' }],
+        joinedTo: { text: SHEETS.join.joined('Bea'), href: '/admin/requests/h1' },
+      },
+    };
+    const { container, unmount } = render(<DetailPane {...joined} />);
+    expect(screen.getByRole('link', { name: SHEETS.join.joined('Bea') }).getAttribute('href')).toBe(
+      '/admin/requests/h1',
+    );
+    expect(container.querySelector('dl.kv')?.textContent).toContain('Thu May 27');
+    unmount();
+    const host: DetailPaneProps = {
+      ...props,
+      view: {
+        ...view,
+        filter: 'locked',
+        open: false,
+        facts: [
+          {
+            label: DETAIL.labels.with,
+            value: 'Priya, Sam',
+            links: [
+              { text: 'Priya', href: '/admin/requests/g1' },
+              { text: 'Sam', href: '/admin/requests/g2' },
+            ],
+          },
+        ],
+      },
+    };
+    render(<DetailPane {...host} />);
+    expect(screen.getByRole('link', { name: 'Priya' }).getAttribute('href')).toBe('/admin/requests/g1');
+    expect(screen.getByRole('link', { name: 'Sam' }).getAttribute('href')).toBe('/admin/requests/g2');
+  });
+
+  it('Make {name} the host is in the ⋯ menu and the More sheet once the host has left, never before', async () => {
+    const user = userEvent.setup({ delay: null });
+    const { container, unmount } = render(<DetailPane {...props} view={{ ...view, canPromote: true }} />);
+    await user.click(container.querySelector('button[aria-haspopup="menu"]')!);
+    expect(screen.getByRole('menuitem', { name: SHEETS.join.promote('Priya') })).toBeTruthy();
+    expect(container.querySelector('#more-r1')?.textContent).toContain(SHEETS.join.promote('Priya'));
+    unmount();
+    const { container: c2 } = render(<DetailPane {...props} />);
+    expect(c2.textContent).not.toContain(SHEETS.join.promote('Priya'));
   });
 });

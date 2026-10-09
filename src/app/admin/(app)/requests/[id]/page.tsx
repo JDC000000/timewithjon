@@ -61,7 +61,6 @@ export default async function RequestPage({ params }: Props) {
           dish={d.dish}
           dishName={d.dishName ?? d.dish}
           season={{ start: settings.season_start, end: settings.season_end }}
-          joinedToRequestId={d.joinedToRequestId}
           phone={d.contact.phone}
           pitchLength=""
           options={options}

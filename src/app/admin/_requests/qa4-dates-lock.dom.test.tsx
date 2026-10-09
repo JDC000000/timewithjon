@@ -36,6 +36,8 @@ const view = (over: Partial<DetailView> = {}): DetailView => ({
   bigDayLocked: false,
   cancelWords: null,
   failed: [],
+  joinedTo: null,
+  canPromote: false,
   ...over,
 });
 const props = (v: DetailView): DetailPaneProps => ({
@@ -45,7 +47,6 @@ const props = (v: DetailView): DetailPaneProps => ({
   dish: 'the-shore-ride',
   dishName: 'The Shore Ride',
   season: { start: '2027-04-01', end: '2027-06-30' },
-  joinedToRequestId: null,
   pitchLength: '',
   view: v,
   options: null,

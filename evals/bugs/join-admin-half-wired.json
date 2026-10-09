@@ -1,0 +1,13 @@
+{
+  "id": "join-admin-half-wired",
+  "date": "2026-10-09",
+  "task": "QA4b-M3",
+  "area": "admin/requests",
+  "summary": "After Join to booking, neither admin page showed the other person: the joined guest's detail had no time, no host and read 'Not on the calendar'; the host's had no 'with'; and Make host could only be found by opening the orphan's ⋯ menu.",
+  "fix": "The joined guest's page shows the host's time and calendar state and 'Joined to {host}'s booking.' linking to the host; the host's lists its guests, each a link; Make {name} the host shows (⋯ menu and More sheet) once the host has left, as the server allows it.",
+  "tests": [
+    "tests/int/joined.int.test.ts",
+    "src/app/admin/_requests/detail-view.test.ts",
+    "src/app/admin/_requests/DetailPane.dom.test.tsx"
+  ]
+}
