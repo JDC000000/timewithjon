@@ -50,15 +50,20 @@ jobs:
               - '!docs/**'
 
       # The E2E smoke runs only when something it drives changed: any app source (pages, UI, copy, features, proxy,
-      # config), the build config, the DB schema + seed, the test DB / placeholder env scripts, dependencies, the Node
-      # version, the suite or this workflow. Docs-only PRs skip it. Any match counts, unlike `code` above.
+      # config), the public files (photos, fonts), the build config and the photo scripts `pnpm build` runs, the DB
+      # schema + seed, the test DB / placeholder env scripts, dependencies, the Node version, the suite or this
+      # workflow. Docs-only PRs skip it. Any match counts, unlike `code` above. tests/unit/ci-paths.test.ts keeps the
+      # build's own scripts on this list.
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: e2e-filter
         with:
           filters: |
             e2e:
               - 'src/**'
+              - 'public/**'
               - 'next.config.ts'
+              - 'scripts/*photos*'
+              - 'scripts/private-overrides*'
               - 'supabase/**'
               - 'scripts/test-db.sh'
               - 'scripts/ci-placeholder-env.sh'
