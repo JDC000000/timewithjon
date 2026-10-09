@@ -1,5 +1,6 @@
 // T3.6.03/.08 (AC2): every stored photo is a clean JPEG: no EXIF, no GPS; HEIC and PNG are converted;
 // orientation is baked in; C-5 caps the long edge at 3000 px.
+import { crc32, deflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import {
@@ -10,7 +11,30 @@ import {
   noisyJpeg,
   png,
 } from '../../../../tests/fixtures/images';
-import { isHeif, toCleanJpeg, UnreadableImageError } from '../reencode';
+import { MAX_INPUT_PIXELS } from '../limits';
+import { isHeif, sniffFormat, toCleanJpeg, UnreadableImageError } from '../reencode';
+
+/** A few-hundred-byte PNG whose header claims width x height (one deflated row of pixels follows). */
+function pngClaiming(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8); // 8-bit RGB, no interlace
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(Buffer.alloc(1 + Math.min(width, 64) * 3))),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
 
 describe('toCleanJpeg', () => {
   it('strips EXIF and GPS and applies the orientation (AC2)', async () => {
@@ -95,6 +119,47 @@ describe('toCleanJpeg', () => {
       .webp()
       .toBuffer();
     expect((await toCleanJpeg(webp)).width).toBe(30);
+  });
+
+  it('accepts an AVIF, as before the leading-bytes check', async () => {
+    const avif = await sharp({ create: { width: 30, height: 20, channels: 3, background: '#fff' } })
+      .avif()
+      .toBuffer();
+    expect(sniffFormat(avif)).toBe('heif');
+    const out = await toCleanJpeg(avif);
+    expect([out.width, out.height]).toEqual([30, 20]);
+    expect((await sharp(out.data).metadata()).format).toBe('jpeg');
+  });
+
+  it('the leading-bytes check passes every accepted fixture', async () => {
+    expect(sniffFormat(await jpegWithGps())).toBe('jpeg');
+    expect(sniffFormat(await png())).toBe('png');
+    expect(sniffFormat(HEIC())).toBe('heif');
+    const webp = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#fff' } })
+      .webp()
+      .toBuffer();
+    expect(sniffFormat(webp)).toBe('webp');
+  });
+
+  it('the pixel ceiling still takes a 48 MP phone photo (8064 x 6048)', () => {
+    expect(MAX_INPUT_PIXELS).toBeGreaterThanOrEqual(8064 * 6048);
+  });
+
+  // The PNG reader itself refuses a 100,000 px edge from the header; the others get past it and the pixel ceiling
+  // refuses them before decoding.
+  it.each([
+    ['100,000 x 100,000', 100_000, 100_000, /^$/],
+    ['just over the ceiling (7072 x 7071)', 7072, 7071, /pixel limit/i],
+    ['one very long edge (1,000,000 x 60)', 1_000_000, 60, /pixel limit/i],
+  ])('refuses a tiny PNG that claims %s pixels from its header, at once', async (_name, w, h, cause) => {
+    const bomb = pngClaiming(w, h);
+    expect(bomb.length).toBeLessThan(1024);
+    expect(w * h).toBeGreaterThan(MAX_INPUT_PIXELS);
+    const started = Date.now();
+    const refused = await toCleanJpeg(bomb).catch((e: unknown) => e);
+    expect(Date.now() - started).toBeLessThan(2_000); // refused from the header: no pixels were allocated
+    expect(refused).toBeInstanceOf(UnreadableImageError);
+    expect(String((refused as Error).cause ?? '')).toMatch(cause); // the ceiling refused it, not a broken body
   });
 
   it('refuses a decompression bomb (more than 50 MP)', async () => {

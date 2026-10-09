@@ -25,6 +25,16 @@ vi.mock('@/lib/adapters/photos', async (orig) => ({
   ...(await orig<typeof import('@/lib/adapters/photos')>()),
   photoStore: () => mem.store,
 }));
+// Counts every sharp() call (the real sharp still runs), so a test can prove some bytes never reached it.
+const sharpCalls = vi.hoisted(() => ({ n: 0 }));
+vi.mock('sharp', async (orig) => {
+  const real = (await orig<typeof import('sharp')>()).default;
+  const counted = (...args: Parameters<typeof real>) => {
+    sharpCalls.n++;
+    return real(...args);
+  };
+  return { default: Object.assign(counted, real) };
+});
 const dbFault = vi.hoisted(() => ({ failNextTx: false }));
 vi.mock('@/lib/db', async (orig) => {
   const real = await orig<typeof import('@/lib/db')>();
@@ -247,6 +257,32 @@ describe('finalise (T3.6.03)', () => {
     }
     expect(await q(`select 1 from photo where story_id = $1`, [storyId])).toHaveLength(3);
   }, 60_000);
+  it('a WebP and an AVIF finalise too (every format accepted before the leading-bytes check)', async () => {
+    const storyId = (
+      await q<{ id: string }>(`insert into story (source) values ('email_in') returning id`)
+    )[0]!.id;
+    const { default: sharp } = await import('sharp');
+    const make = () => sharp({ create: { width: 40, height: 30, channels: 3, background: '#468' } });
+    for (const bytes of [await make().webp().toBuffer(), await make().avif().toBuffer()]) {
+      const out = await finalisePhotoUpload(await upload(storyId, bytes), storyId, mem.store);
+      expect(out.ok).toBe(true);
+    }
+    expect(await q(`select 1 from photo where story_id = $1`, [storyId])).toHaveLength(2);
+  });
+  it.each([
+    ['an SVG', '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle r="9"/></svg>'],
+    ['an HTML page', '<!doctype html><html><body><p>Not a photo</p></body></html>'],
+  ])('%s stored as image/jpeg is refused and deleted without reaching sharp', async (_name, body) => {
+    const storyId = await newStory();
+    const uploadId = await upload(storyId, Buffer.from(body)); // upload() stores it as image/jpeg
+    sharpCalls.n = 0;
+    expect(await finalisePhotoUpload(uploadId, storyId, mem.store)).toEqual({
+      ok: false,
+      code: 'unreadable',
+    });
+    expect(sharpCalls.n).toBe(0);
+    expect(mem.store.objects.size).toBe(0);
+  });
   it("another story's upload id is refused and left alone (AC6)", async () => {
     const mine = await newStory();
     const theirs = await newStory();
