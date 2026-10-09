@@ -1,0 +1,14 @@
+{
+  "id": "date-lock-full-week-no-override",
+  "date": "2026-10-09",
+  "task": "QA4",
+  "area": "admin",
+  "summary": "Locking a date dish in a full week showed “Locked in… invite goes out in 10 s”, then the server refused (“Tick Override this week”) but the dates Lock sheet had no such tick, so Jon could not lock it; leaving inside the 10 s made the refusal silent.",
+  "fix": "A read-only pre-check (POST /api/admin/requests/[id]/lock-check, the same canLock verdict) runs before any undo window; the dates sheet shows the refusal and the time lock’s own tick (Override this week / Book anyway); a refusal that still comes back after Jon left waits in sessionStorage and shows when he opens the request again (the request stays in Needs a reply).",
+  "tests": [
+    "src/app/admin/_requests/qa4-h1-lock-check.dom.test.tsx",
+    "src/app/admin/_requests/lock-logic.test.ts",
+    "tests/int/lock-check.int.test.ts",
+    "tests/e2e/admin/qa4-h1-full-week.spec.ts"
+  ]
+}

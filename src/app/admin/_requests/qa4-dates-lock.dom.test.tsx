@@ -12,7 +12,11 @@ import { sendLock } from './lock-logic';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
-vi.mock('./lock-logic', () => ({ sendLock: vi.fn(async () => ({ ok: true, standbyOfferLive: false })) }));
+vi.mock('./lock-logic', async (orig) => ({
+  ...(await orig<typeof import('./lock-logic')>()),
+  sendLock: vi.fn(async () => ({ ok: true, standbyOfferLive: false })),
+  checkLock: vi.fn(async () => ({ ok: true })),
+}));
 
 const view = (over: Partial<DetailView> = {}): DetailView => ({
   who: 'Sam',

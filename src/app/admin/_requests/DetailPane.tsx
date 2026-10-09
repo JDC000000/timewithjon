@@ -9,7 +9,7 @@
 // Focus never goes by hand: the focus helper moves it (after Undo, a refusal, the send, a confirm) and the bar
 // never covers the focused control (site.css scroll-padding, FOC-05). The sealed plan is never here (C4).
 import { useRouter } from 'next/navigation';
-import { type ComponentProps, useEffect, useRef, useState } from 'react';
+import { type ComponentProps, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button, KeepWhole, Menu, Sheet, TextButton, Toast } from '@/ui';
 import { announce, keepVisible, moveFocus } from '@/ui/focus';
 import { JON_FLAGS } from '@/content';
@@ -20,7 +20,8 @@ import { DateLockSheet, type DatesTarget } from './DateLockSheet';
 import type { DetailView, Fact } from './detail-view';
 import { whenLabel } from './format';
 import { send } from './api';
-import { type LockOutcome, type LockTicks, sendLock } from './lock-logic';
+import { checkLock, type LockCheckOutcome, type LockOutcome, type LockTicks, sendLock } from './lock-logic';
+import { clearRefusal, onRefusal, readRefusal, saveRefusal } from './refusal-store';
 import { commitOnLeave, createPendingCommit } from './pending-lock';
 import { NoteField } from './NoteField';
 import { CheckActions } from '../(app)/requests/_check/CheckActions';
@@ -59,7 +60,10 @@ export function DetailPane(p: DetailPaneProps) {
   const [ticks, setTicks] = useState<LockTicks>({ overrideWeek: false, bookAnyway: false });
   // A3b: 'window' = the toast counts down; 'sending' = the POST is out; 'locked'/'undone'/'refused' = a line in
   // the page (a refusal is an alert and takes focus: never a silent no-op).
-  const [phase, setPhase] = useState<'idle' | 'window' | 'sending' | 'locked' | 'undone' | 'refused'>('idle');
+  // QA4 H1: 'checking' = the pre-check is out (read only), before any window opens.
+  const [phase, setPhase] = useState<
+    'idle' | 'checking' | 'window' | 'sending' | 'locked' | 'undone' | 'refused'
+  >('idle');
   const [lockedLine, setLockedLine] = useState<string | null>(null);
   // QA r3 L1: "Locked in. Invite sent." belongs to this lock only. Once the page has read the request as locked and
   // then reads it otherwise (Cancel for the guest, a Weather call), the line goes. Adjusted while rendering, as
@@ -72,6 +76,12 @@ export function DetailPane(p: DetailPaneProps) {
   }
   const [pending, setPending] = useState<{ target: Target; label: string } | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // QA4 H1 (c): a refusal that came back after Jon had left this page (refusal-store.ts), shown when he's back.
+  const leftRefused = useSyncExternalStore(
+    onRefusal,
+    () => readRefusal(requestId),
+    () => null,
+  );
   const capRef = useRef<HTMLParagraphElement>(null);
   const noteRef = useRef<HTMLParagraphElement>(null);
   const copiedRef = useRef<HTMLParagraphElement>(null);
@@ -115,15 +125,45 @@ export function DetailPane(p: DetailPaneProps) {
     moveFocus(capRef.current, 'script');
   }, [view.filter]);
 
-  const startWindow = (target: Target, label: string) => {
-    if (locking || !lockCtl.start({ requestId, target, ticks })) return;
+  /**
+   * QA4 H1 (b): the rule check runs first (read only); only a lock that would go through opens the undo window. A
+   * refusal shows at once: on the page (a time), or in the dates sheet, which then offers its tick (`inSheet`).
+   */
+  const startWindow = async (
+    target: Target,
+    label: string,
+    withTicks: LockTicks = ticks,
+    inSheet = false,
+  ): Promise<LockCheckOutcome | null> => {
+    if (locking || phase === 'checking') return null;
+    clearRefusal(requestId);
     setRefusal(null);
     setLockedLine(null);
+    setPhase('checking');
+    const check = await checkLock(requestId, target, withTicks);
+    if (!mounted.current) return check;
+    if (!check.ok) {
+      if (inSheet) setPhase('idle');
+      else {
+        setRefusal(check.message);
+        setPhase('refused');
+      }
+      return check;
+    }
+    if (!lockCtl.start({ requestId, target, ticks: withTicks })) {
+      setPhase('idle');
+      return null;
+    }
     setPending({ target, label });
     setPhase('window');
+    return check;
   };
   const settle = (res: LockOutcome) => {
-    if (!mounted.current) return; // left the page: the keepalive POST landed on its own
+    if (!mounted.current) {
+      // left the page: the keepalive POST landed on its own. A refusal waits for Jon's return (QA4 H1 c).
+      if (!res.ok) saveRefusal(requestId, res.message);
+      return;
+    }
     if (res.ok) {
       setLockedLine(res.standbyOfferLive ? `${LOCK.sent} ${LOCK.standbyOfferLive}` : LOCK.sent);
       setPhase('locked');
@@ -224,6 +264,11 @@ export function DetailPane(p: DetailPaneProps) {
             role={phase === 'refused' ? 'alert' : undefined}
           >
             {phase === 'undone' ? LOCK.undone(view.who) : refusal}
+          </p>
+        ) : null}
+        {leftRefused && view.open && phase === 'idle' ? (
+          <p className="notice" role="alert">
+            {leftRefused}
           </p>
         ) : null}
         {/* The lock's own words, spoken politely as they change: the window opening, Sending…, then Locked in
@@ -524,12 +569,12 @@ export function DetailPane(p: DetailPaneProps) {
               <Button
                 variant="commit"
                 dt
-                disabled={datesMode ? false : !canLockSlot}
+                disabled={phase === 'checking' || (datesMode ? false : !canLockSlot)}
                 aria-haspopup={datesMode ? 'dialog' : undefined}
                 onClick={() =>
                   datesMode
                     ? setSheet('lock')
-                    : pickedTime && startWindow({ slotId: pickedTime.slotId }, pickedTime.label)
+                    : pickedTime && void startWindow({ slotId: pickedTime.slotId }, pickedTime.label)
                 }
               >
                 {datesMode && !lockWhen ? (
@@ -641,7 +686,7 @@ export function DetailPane(p: DetailPaneProps) {
           overnight={view.overnight}
           open={sheet === 'lock'}
           onClose={close}
-          onCommit={(target, label) => startWindow(target, label)}
+          onCommit={(target, label, t) => startWindow(target, label, t, true)}
         />
       ) : null}
       {view.pitch ? (
