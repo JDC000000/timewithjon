@@ -143,6 +143,12 @@ describe('Cancel for the guest (T2.9.03, AC3)', () => {
     expect(await isOpen(slot)).toBe(true);
     expect(await q(`select 1 from offer where request_id = $1 and released_at is null`, [id])).toEqual([]);
     expect(await emails(id)).toEqual([{ template: 'E17', to_email: await guestEmail(id), status: 'sent' }]);
+    // Q8: E17 carries the manage link (opening "Ask for another time"), drawn as "Pick a new date".
+    const [e17] = await q<{ vars: Record<string, unknown> }>(
+      `select vars from email_log where request_id = $1 and template = 'E17'`,
+      [id],
+    );
+    expect(e17!.vars).toEqual({ manageLink: { link: 'manage', requestId: id, anchor: 'another' } });
     expect(
       await q(`select actor::text from audit_log where request_id = $1 and action = 'request_cancelled'`, [
         id,

@@ -27,9 +27,18 @@ describe('rangeLabel / whenLabel', () => {
     expect(rangeLabel(at('2027-05-08', '11:00'), at('2027-05-08', '12:00'))).toBe('11 am–noon');
     expect(rangeLabel(at('2027-05-08', '12:00'), at('2027-05-08', '13:30'))).toBe('noon–1:30 pm');
   });
-  it('a range of 12 hours or more is shown by its start', () => {
-    expect(rangeLabel(at('2027-05-08', '07:00'), at('2027-05-08', '19:00'))).toBe('7 am');
+  it('a long range within one day shows both ends; one into another day shows start AND end (Q11)', () => {
+    expect(rangeLabel(at('2027-05-08', '07:00'), at('2027-05-08', '19:00'))).toBe('7 am–7 pm');
     expect(rangeLabel(at('2027-05-08', '07:00'), at('2027-05-08', '18:59'))).toBe('7 am–6:59 pm');
+    expect(whenLabel(at('2027-06-24', '15:00'), at('2027-06-25', '11:00'))).toBe(
+      'Thu Jun 24 · 3 pm to Fri 11 am',
+    );
+    expect(whenLabel(at('2027-06-24', '08:00'), at('2027-07-02', '08:00'))).toBe(
+      'Thu Jun 24 · 8 am to Fri Jul 2 8 am',
+    );
+    expect(whenLabel(at('2027-06-24', '19:00'), at('2027-06-25', '00:00'))).toBe(
+      'Thu Jun 24 · 7 pm–midnight',
+    );
   });
   it('the day is the Vancouver day, even late in the evening UTC', () => {
     expect(whenLabel(at('2027-06-03', '19:00'), at('2027-06-03', '22:00'))).toBe('Thu Jun 3 · 7 pm');

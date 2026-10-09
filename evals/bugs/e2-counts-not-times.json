@@ -1,0 +1,9 @@
+{
+  "id": "e2-counts-not-times",
+  "date": "2026-10-09",
+  "task": "QA4 M1-M2, Q5",
+  "area": "email",
+  "summary": "E2 said \"2 times\" instead of the times; a window-only date request read \"0 dates.\"; the night and a Long Distance zone were missing.",
+  "fix": "E2's summary lists the times or dates, the guest's rough window, \"It’s one night away\" with their night, and the guest's zone.",
+  "tests": ["src/features/requests/__tests__/intake-emails.test.ts"]
+}

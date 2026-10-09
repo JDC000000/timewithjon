@@ -194,6 +194,7 @@ describe('Join to booking (T2.10.01, rule 1)', () => {
     expect(await templates(joined)).toEqual(['E4:sent']);
     const body = (await sentBody(joined, 'E4'))!;
     expect(body).not.toContain('{manageLink}');
+    expect(body).not.toContain('You pick the place'); // Q1: a joined guest doesn't pick the place
     const token = tokenIn(body);
     const hostRow = await row(host);
     expect(await loadManageModel(token)).toMatchObject({

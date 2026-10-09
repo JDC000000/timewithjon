@@ -3,9 +3,10 @@
 // event_key per §6: E1/E2 = the request id; E6 = the triggering audit id.
 import { formatInTimeZone } from 'date-fns-tz';
 import { TZ, vancouverInstant } from '@/lib/time';
-import { guestWhen } from '@/lib/when';
-import { ROW } from '@/content/ui/admin-requests';
-import { DATES } from '@/content/ui/booking';
+import { guestWhen, whenLabel } from '@/lib/when';
+import { DETAIL, ROW } from '@/content/ui/admin-requests';
+import { DATES, TIME_ZONE } from '@/content/ui/booking';
+import { manageLink } from '@/features/email/link-vars';
 import type { EmailArgs } from '@/features/email/send';
 
 export interface IntakeEmailInput {
@@ -22,11 +23,60 @@ export interface IntakeEmailInput {
   choiceKind: 'times' | 'dates';
   /** The guest ticked "It’s one night away" (QA4 M1: E2 says so, in the guest's own words). */
   overnight: boolean;
+  /** E2's details for Jon (Q5, DEV6 follow-up): see jonDetails. Absent (Not spam's E2) = the counts. */
+  jon?: JonDetails;
   standbyWeek: string | null;
   /** E1: the requested times (slots mode) or dates (dates mode), one line each; see requestedTimeLines. */
   requestedTimes: string[];
   jonEmail: string;
   siteUrl: string;
+}
+
+/** What Jon's E2 shows besides the crew: the actual times or dates, the guest's rough window, the night, the zone. */
+export interface JonDetails {
+  /** Vancouver time, as the admin writes it ("Fri May 14 · noon–2 pm", "Sat May 8"), in order. */
+  times: string[];
+  windowText: string | null;
+  overnightNight: string | null;
+  guestTimeZone: string | null;
+}
+
+/** E2's details from the request body as sent (create.ts). */
+export function jonDetails(
+  b: { windowText?: string; overnightNight?: string; guestTimeZone?: string },
+  slots: { startsAt: Date; endsAt: Date }[],
+  dates: string[],
+): JonDetails {
+  return {
+    times: [
+      ...[...slots]
+        .sort((x, y) => x.startsAt.getTime() - y.startsAt.getTime())
+        .map((s) => whenLabel(s.startsAt, s.endsAt)),
+      ...[...dates].sort().map((d) => formatInTimeZone(vancouverInstant(d, '12:00'), TZ, 'EEE MMM d')),
+    ],
+    windowText: b.windowText?.trim() || null,
+    overnightNight: b.overnightNight?.trim() || null,
+    guestTimeZone: b.guestTimeZone && b.guestTimeZone !== TZ ? b.guestTimeZone : null,
+  };
+}
+
+const zoneName = (zone: string) =>
+  TIME_ZONE.options.find((o) => o.value === zone)?.label ?? zone.replace(/_/g, ' ');
+
+/**
+ * E2's {summary}: "Crew 2. Fri May 14 · noon–2 pm, Thu May 20 · noon–2 pm." (Q5, approved: Jon 2026-10-09: the
+ * times, not "2 times"), then the guest's own rough window in quotes, "It’s one night away" with their "Which
+ * night?" answer, and a Long Distance guest's time zone (DEV6 follow-up). Without details, the counts (QA r2 L3).
+ */
+function choicesLine(i: IntakeEmailInput): string {
+  const j = i.jon;
+  const parts: string[] = [];
+  if (j?.times.length) parts.push(`${j.times.join(', ')}.`);
+  if (j?.windowText) parts.push(`“${j.windowText}”.`);
+  if (!parts.length) parts.push(`${ROW[i.choiceKind](i.choiceCount)}.`);
+  if (i.overnight) parts.push(`${DATES.oneNight}${j?.overnightNight ? ` (“${j.overnightNight}”)` : ''}.`);
+  if (j?.guestTimeZone) parts.push(`${DETAIL.labels.zone}: ${zoneName(j.guestTimeZone)}.`);
+  return parts.join(' ');
 }
 
 export function standbyWeekLabel(weekStart: string): string {
@@ -65,13 +115,12 @@ export function intakeEmails(i: IntakeEmailInput): EmailArgs[] {
           to: i.guestEmail,
           requestId: i.requestId,
           eventKey: i.requestId,
-          vars: { dish: i.dishName, times: i.requestedTimes.join('\n') },
+          // UX-09 / F20: E1 carries the manage link too, a "Change or cancel" button.
+          vars: { dish: i.dishName, times: i.requestedTimes.join('\n'), manageLink: manageLink(i.requestId) },
         };
   const summary = `Crew ${i.crew}${i.bigCrew ? ' (big crew)' : ''}. ${
-    i.status === 'standby'
-      ? `Stand-by, week of ${standbyWeekLabel(i.standbyWeek!)}.`
-      : `${ROW[i.choiceKind](i.choiceCount)}.`
-  }${i.overnight ? ` ${DATES.oneNight}.` : ''}`;
+    i.status === 'standby' ? `Stand-by, week of ${standbyWeekLabel(i.standbyWeek!)}.` : choicesLine(i)
+  }`;
   const jon: EmailArgs = {
     template: 'E2',
     to: i.jonEmail,

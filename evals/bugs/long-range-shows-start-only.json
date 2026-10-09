@@ -1,0 +1,9 @@
+{
+  "id": "long-range-shows-start-only",
+  "date": "2026-10-09",
+  "task": "QA EML-18",
+  "area": "time",
+  "summary": "A day-long or overnight booking read as its start only (\"Thu Jun 24 · 3 pm\").",
+  "fix": "A range into another day reads start AND end (\"Thu Jun 24 · 3 pm to Fri 11 am\"), in emails, /manage and admin.",
+  "tests": ["src/lib/__tests__/when.test.ts", "src/app/admin/_requests/format.test.ts"]
+}

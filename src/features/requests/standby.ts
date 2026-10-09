@@ -20,6 +20,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { addDays, TZ, vancouverDate, weekStartOf } from '@/lib/time';
 import { standbyWeekLabel } from './intake-emails';
 import { lockWeeksOf } from './lock';
+import { guestAt } from '@/lib/when';
 import { createOffer, STANDBY_OFFER_HOURS, type OfferRange } from './offers';
 import { noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
 import { audit, requestForOffer, timeLabel, type OfferActionResult } from './suggest';
@@ -142,11 +143,12 @@ async function offerTx(
   if (!verdict.ok) return refuse(verdict.reason);
   if (verdict.warnings.includes('standby_offer_live')) return refuse('held_by_offer');
 
+  const expiresAt = new Date(a.now.getTime() + STANDBY_OFFER_HOURS * HOUR_MS);
   const offerId = await createOffer(c, {
     requestId: a.requestId,
     kind: 'standby_open',
     ...(slot ? { slotIds: [slot.id] } : { ranges: [a.window as OfferRange] }),
-    expiresAt: new Date(a.now.getTime() + STANDBY_OFFER_HOURS * HOUR_MS),
+    expiresAt,
   });
   await c.query(`update request set awaiting_jon_since = null where id = $1`, [a.requestId]);
   await audit(c, a.requestId, 'standby_offered', {
@@ -165,6 +167,7 @@ async function offerTx(
         vars: {
           weekday: weekdayName(range.startsAt),
           when: timeLabel(range, r.guest_time_zone),
+          until: guestAt(expiresAt, r.guest_time_zone), // Q4: the offer's real expiry
           takeLink: takeLink(offerId),
         },
       }),
