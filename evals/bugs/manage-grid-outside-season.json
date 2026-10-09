@@ -1,0 +1,9 @@
+{
+  "id": "manage-grid-outside-season",
+  "date": "2026-10-09",
+  "task": "T2.7.05",
+  "area": "manage",
+  "summary": "The Ask for another time date grid on /manage started today and ran past the season, so a guest opening it before April saw months of pickable dates the server then refused as out of season.",
+  "fix": "The grid's range is clamped to the season from settings (the range the server checks); it opens on the season's first month and offers nothing once the season is over.",
+  "test": "src/app/manage/__tests__/season.test.ts"
+}
