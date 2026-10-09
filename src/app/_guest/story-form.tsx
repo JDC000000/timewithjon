@@ -71,7 +71,14 @@ export function StoryForm(p: StoryFormProps) {
     [p.endpoint, p.target.headers, isStoryPage, takeToken, reset],
   );
   const uploader = useMemo(
-    () => photoUploader(p.target, isStoryPage ? saver.open : undefined),
+    () =>
+      photoUploader(
+        // S19: the photo calls name this page view's story by its key (?key=), as its saves do
+        isStoryPage && saver.clientKey
+          ? { ...p.target, query: `${p.target.query ?? ''}&key=${saver.clientKey}` }
+          : p.target,
+        isStoryPage ? saver.open : undefined,
+      ),
     [p.target, isStoryPage, saver],
   );
   const photos = usePhotos(p.maxPhotos, uploader);
