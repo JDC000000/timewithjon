@@ -279,3 +279,30 @@ for (const path of ['/', '/menu'] as const)
       expect(rh, `${slot} height`).toBeCloseTo(fh, 0);
     }
   });
+
+// The closing photo (a .ph--close figure: its height comes from a token, not an aspect ratio) is drawn and decoded at
+// every width: a size container must never resolve its height to 0 (the framing CSS once drew it at 0 x 0).
+test("framing: the closing photo is decoded and drawn at its figure's size at 375/768/1024/1440", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+  });
+  await page.goto('/');
+  const fig = page.locator('figure[data-slot="close"]');
+  for (const width of [375, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await fig.scrollIntoViewIfNeeded();
+    const got = await fig.evaluate(async (f) => {
+      const img = f.querySelector<HTMLImageElement>(':scope > img')!;
+      await img.decode();
+      const r = img.getBoundingClientRect();
+      const b = f.getBoundingClientRect();
+      return { natural: img.naturalWidth, w: r.width, h: r.height, fw: b.width, fh: b.height };
+    });
+    expect(got.natural, `${width}: decoded`).toBeGreaterThan(0);
+    expect(got.fh, `${width}: figure height`).toBeGreaterThan(100);
+    expect(got.w, `${width}: width`).toBeCloseTo(got.fw, 0);
+    expect(got.h, `${width}: height`).toBeCloseTo(got.fh, 0);
+  }
+});
