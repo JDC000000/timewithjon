@@ -15,6 +15,7 @@ import type { CrewRange } from '@/content/menu-helpers';
 import { DETAILS } from '@/content/ui/booking';
 import { stripBidiControls } from '@/lib/bidi';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
+import { TURNSTILE_ACTION } from '@/lib/turnstile-actions';
 import { HoneypotField } from '../../_guest/honeypot';
 import { clearDraft, draftStore } from './_lib/draft';
 import { errorFor, FIELD_IDS, type FormError } from './_lib/form-errors';
@@ -51,7 +52,7 @@ export function useSend(
    * refusal the server answered, gets a new one. */
   const keyed = useRef<KeyedBody | null>(null);
   const [send] = useState(() => createSender());
-  const turnstile = useGuestTurnstile(guest.general ? guest.siteKey : undefined);
+  const turnstile = useGuestTurnstile(guest.general ? guest.siteKey : undefined, TURNSTILE_ACTION.request);
 
   async function submit(picks: Picks): Promise<void> {
     if (busy.current) return;

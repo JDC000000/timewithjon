@@ -10,7 +10,7 @@ import { ERRORS } from '@/content';
 import { applyOutcome, type DeliveryEvent } from '@/features/email/outcome';
 import { verifySvix } from '@/lib/adapters/resend/webhook';
 import { withTx } from '@/lib/db';
-import { jsonError } from '@/lib/http';
+import { jsonError, readBytesAtMost, tooLarge } from '@/lib/http';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,11 +28,10 @@ const EmailPayload = z.object({ data: z.object({ email_id: z.string().min(1).max
 export async function POST(req: NextRequest) {
   const secret = getEnv().RESEND_WEBHOOK_SECRET;
   if (!secret) return jsonError(404, 'not_found', ERRORS.generic);
-  // pr34 L3: refuse a declared oversize before buffering; then count bytes, not UTF-16 units.
-  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY)
-    return jsonError(413, 'too_large', ERRORS.generic);
-  const body = await req.text();
-  if (Buffer.byteLength(body) > MAX_BODY) return jsonError(413, 'too_large', ERRORS.generic);
+  // pr34 L3: a declared oversize is refused before any read, and a chunked body is read only up to MAX_BODY.
+  // The signature is checked over these exact bytes, before any decoding.
+  const body = await readBytesAtMost(req, MAX_BODY);
+  if (body === null) return tooLarge(ERRORS.generic);
   const svix = {
     id: req.headers.get('svix-id'),
     timestamp: req.headers.get('svix-timestamp'),
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   let json: unknown;
   try {
-    json = JSON.parse(body);
+    json = JSON.parse(body.toString('utf8'));
   } catch {
     return jsonError(400, 'bad_payload', ERRORS.generic);
   }

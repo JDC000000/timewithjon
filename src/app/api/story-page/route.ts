@@ -21,9 +21,10 @@ import {
 } from '@/features/photos/story-page';
 import { hasBidiControl } from '@/lib/bidi';
 import { isHoneypotFilled, honeypotField } from '@/lib/honeypot';
-import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
+import { BODY_TOO_LARGE, clientIp, jsonError, noStore, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { hit, limitByIp } from '@/lib/ratelimit';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { TURNSTILE_ACTION } from '@/lib/turnstile-actions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,7 +53,9 @@ export async function POST(req: NextRequest) {
   const gate = await requireInvite();
   if ('response' in gate) return noStore(gate.response);
   const { invite } = gate;
-  const parsed = Body.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return noStore(tooLarge(ERRORS.generic));
+  const parsed = Body.safeParse(body);
   if (!parsed.success) return noStore(jsonError(400, 'invalid', ERRORS.generic));
   const { hp, turnstileToken, edit, clientKey, name, ...fields } = parsed.data;
   // AD-9: a filled honeypot is stored, same answer. A personal link's story is named by its invite (M4).
@@ -75,7 +78,10 @@ export async function POST(req: NextRequest) {
     return withStory(made);
   }
 
-  if (invite.kind === 'general' && !(await verifyTurnstile(turnstileToken, clientIp(req))))
+  if (
+    invite.kind === 'general' &&
+    !(await verifyTurnstile(turnstileToken, clientIp(req), TURNSTILE_ACTION.story))
+  )
     return noStore(jsonError(400, 'bot_check', ERRORS.botCheck));
   if (!(await hit('storyPageNew', invite.id)))
     return noStore(jsonError(429, 'rate_limited', ERRORS.rateLimited));

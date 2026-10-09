@@ -1,0 +1,13 @@
+{
+  "id": "public-body-read-whole",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "api",
+  "summary": "A public form's body was read whole (up to the platform's 4.5 MB) before its size was checked.",
+  "fix": "Every public route reads its body through one bounded reader (64 KB; a declared or streamed body past it gets 413, read no further). The largest real request is about half of that.",
+  "tests": [
+    "src/lib/__tests__/http.test.ts",
+    "tests/unit/bounded-bodies.test.ts",
+    "tests/route/requests.route.test.ts"
+  ]
+}

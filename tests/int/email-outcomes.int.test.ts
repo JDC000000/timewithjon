@@ -540,7 +540,7 @@ describe('pr34 review: read key, latch, timeout, pacing, claims, races', () => {
 const withBounce = (resendId: string) => applyOutcome(pool(), resendId, 'bounced');
 
 describe('webhook mode', () => {
-  const call = (body: string, opts: { id?: string; ts?: number; sig?: string } = {}) => {
+  const call = (body: string | Uint8Array, opts: { id?: string; ts?: number; sig?: string } = {}) => {
     const id = opts.id ?? `msg_${randomUUID()}`;
     const ts = String(opts.ts ?? Math.floor(Date.now() / 1000));
     const sig = opts.sig ?? `v1,${svixSign(SECRET, id, ts, body)}`;
@@ -553,7 +553,7 @@ describe('webhook mode', () => {
           'svix-signature': sig,
           'content-type': 'application/json',
         },
-        body,
+        body: typeof body === 'string' ? body : new Uint8Array(body),
       }),
     );
   };
@@ -644,5 +644,37 @@ describe('webhook mode', () => {
       }),
     );
     expect(declared.status).toBe(413);
+  });
+
+  it('the signature is checked over the raw bytes as sent; a chunked body is never read past the limit', async () => {
+    envOverride.RESEND_WEBHOOK_SECRET = SECRET;
+    // Bytes that are not valid UTF-8, signed as sent: verified over the bytes, so the real sender is accepted.
+    const raw = Buffer.concat([
+      Buffer.from('{"type":"contact.created","data":{"id":"'),
+      Buffer.from([0xff]),
+      Buffer.from('"}}'),
+    ]);
+    expect(await (await call(raw)).json()).toEqual({ ok: true, ignored: true });
+    // The same bytes under a signature made over their decoded text: refused.
+    const decodedSig = `v1,${svixSign(SECRET, 'msg_decoded', String(Math.floor(Date.now() / 1000)), raw.toString('utf8'))}`;
+    expect((await call(raw, { id: 'msg_decoded', sig: decodedSig })).status).toBe(401);
+    // 1 MB streamed with no Content-Length: 413, and the stream is cancelled near 64 KB.
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulled += 8192;
+        if (pulled > 1024 * 1024) return c.close();
+        c.enqueue(new Uint8Array(8192).fill(0x20));
+      },
+    });
+    const chunked = await webhook(
+      new NextRequest(`${getEnv().NEXT_PUBLIC_SITE_URL}/api/webhooks/resend`, {
+        method: 'POST',
+        body: stream,
+        duplex: 'half',
+      } as ConstructorParameters<typeof NextRequest>[1]),
+    );
+    expect(chunked.status).toBe(413);
+    expect(pulled).toBeLessThan(128 * 1024);
   });
 });

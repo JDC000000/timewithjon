@@ -234,6 +234,15 @@ export function getSiteUrl(): URL | undefined {
   return parsed.success ? new URL(parsed.data) : undefined;
 }
 
+/**
+ * SUPABASE_URL's origin on its own (the CSP names this one project for photos and uploads, src/proxy.ts). Like
+ * getSiteUrl it must not need the rest of the env; unset or not a URL = no Supabase origin in the CSP.
+ */
+export function getSupabaseOrigin(): string | undefined {
+  const parsed = z.url().safeParse(process.env.SUPABASE_URL);
+  return parsed.success ? new URL(parsed.data).origin : undefined;
+}
+
 /** `next dev` (T4.1.05: the CSP adds 'unsafe-eval' there for React's dev build only). */
 export function isDevServer(): boolean {
   return process.env.NODE_ENV === 'development';

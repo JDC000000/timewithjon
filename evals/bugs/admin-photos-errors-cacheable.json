@@ -1,0 +1,9 @@
+{
+  "id": "admin-photos-errors-cacheable",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "admin",
+  "summary": "The admin photo list's refusals (signed out, a bad id) carried no no-store header.",
+  "fix": "Every answer of that route is uncached.",
+  "tests": ["tests/unit/admin-photos-route.test.ts"]
+}

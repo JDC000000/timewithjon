@@ -6,7 +6,7 @@ import { ERRORS } from '@/content';
 import { callerStoryForFinalise } from '@/features/photos/caller-story';
 import { finalisePhotoUpload } from '@/features/photos/finalise';
 import { photoStore } from '@/lib/adapters/photos';
-import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
+import { BODY_TOO_LARGE, clientIp, jsonError, noStore, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { hit, overLimitByIp } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
   if (limited) return noStore(limited);
   const caller = await callerStoryForFinalise(req);
   if ('response' in caller) return noStore(caller.response);
-  const parsed = Body.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return noStore(tooLarge(ERRORS.generic));
+  const parsed = Body.safeParse(body);
   if (!parsed.success) return noStore(jsonError(400, 'invalid', ERRORS.generic));
   if (!caller.storyId) return noStore(jsonError(404, 'not_found', ERRORS.stale));
   const out = await finalisePhotoUpload(parsed.data.photoUploadId, caller.storyId, photoStore());

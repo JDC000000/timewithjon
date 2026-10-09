@@ -91,3 +91,55 @@ export function safeRedirectTarget(next: string | null, siteUrl: string): URL {
   const url = new URL(next, site);
   return url.origin === site.origin ? url : home;
 }
+
+/**
+ * The most a public JSON body may be: the largest real one (a request with every field at its limit, in 3-byte
+ * characters) is about 31 KB, so 64 KB leaves room and still stops a body near the platform's 4.5 MB ceiling
+ * from being read whole.
+ */
+export const MAX_JSON_BYTES = 64 * 1024;
+
+/**
+ * The body's bytes, or null once it passes `max` bytes. A declared Content-Length over `max` is refused before any
+ * read; a chunked body (no Content-Length) is read only up to `max`, never buffered whole.
+ */
+export async function readBytesAtMost(req: Request, max: number): Promise<Buffer | null> {
+  if (Number(req.headers.get('content-length') ?? 0) > max) return null;
+  if (!req.body) return Buffer.alloc(0);
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
+/** readJson's answer for a body over its limit (the route answers 413 with tooLarge()). */
+export const BODY_TOO_LARGE: unique symbol = Symbol('body_too_large');
+
+/**
+ * The body parsed as JSON, read through readBytesAtMost: null when it isn't JSON (the route's Zod parse then
+ * refuses it, as `req.json().catch(() => null)` did), BODY_TOO_LARGE past `max`.
+ */
+export async function readJson(req: Request, max = MAX_JSON_BYTES): Promise<unknown> {
+  const bytes = await readBytesAtMost(req, max);
+  if (bytes === null) return BODY_TOO_LARGE;
+  try {
+    return JSON.parse(bytes.toString('utf8')) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** The 413 answer for a body over its limit. */
+export function tooLarge(message: string) {
+  return jsonError(413, 'too_large', message);
+}

@@ -8,13 +8,19 @@ export function scrubUrl(url: string | undefined): string | undefined {
   const i = url.indexOf('?');
   return i === -1 ? url : url.slice(0, i);
 }
-/** Sensitive keys become '[scrubbed]'; every other string leaf loses query strings, emails and IPs (N3). */
+/** A URL's query or fragment under its own key (a breadcrumb's `http.query`, `http.fragment`): dropped whole. */
+const QUERY_KEY = /query|fragment/i;
+/** Sensitive keys become '[scrubbed]', query/fragment keys go; every other string leaf loses query strings,
+ * secrets, emails and IPs (N3). */
 export function scrubObject<T>(v: T): T {
   if (typeof v === 'string') return scrubSpanText(v) as T;
   if (Array.isArray(v)) return v.map(scrubObject) as T;
   if (v && typeof v === 'object') {
     const out: Record<string, unknown> = {};
-    for (const [k, x] of Object.entries(v)) out[k] = SENSITIVE.test(k) ? '[scrubbed]' : scrubObject(x);
+    for (const [k, x] of Object.entries(v)) {
+      if (QUERY_KEY.test(k)) continue;
+      out[k] = SENSITIVE.test(k) ? '[scrubbed]' : scrubObject(x);
+    }
     return out as T;
   }
   return v;
@@ -38,15 +44,19 @@ const HEADER_ALLOWLIST = new Set(['user-agent', 'content-type', 'accept', 'accep
 // Spans (T4.2.01a H1). Sentry v11 streams spans past beforeSend, and Next.js's own span attributes (http.target,
 // the span name) carry the raw path + query, which includes the invite secret (?for=) and any query-string PII.
 const QUERY_IN_TEXT = /\?[^\s#"']*/g; // "GET /?for=x" -> "GET /"
+// The same secrets written without a "?" ("bad t=abc", a breadcrumb's bare query value): the value goes.
+const SECRET_PARAM = /\b(t|for|token)=[^\s&#"']+/gi;
 const IPV4 = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
 const IPV6 = /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{0,4}\b/gi;
 const SPAN_KEY_DROP =
-  /cookie|authorization|client\.address|peer\.address|net\.sock\.peer|client_ip|real[_-]ip|forwarded|^user\.|url\.query|\.query$|referer/i;
+  /cookie|authorization|client\.address|peer\.address|net\.sock\.peer|client_ip|real[_-]ip|forwarded|^user\.|url\.query|\.query$|url\.fragment|\.fragment$|referer/i;
 const SPAN_HEADER = /^http\.(request|response)\.header\.(.+)$/i;
 
 /** Query strings, emails, pg key values and IPs out of any free text that describes a request. */
 export function scrubSpanText(text: string): string {
-  return scrubText(text.replace(QUERY_IN_TEXT, '')).replace(IPV4, '[ip]').replace(IPV6, '[ip]');
+  return scrubText(text.replace(QUERY_IN_TEXT, '').replace(SECRET_PARAM, '$1=[scrubbed]'))
+    .replace(IPV4, '[ip]')
+    .replace(IPV6, '[ip]');
 }
 function scrubSpanValue(v: unknown): unknown {
   if (typeof v === 'string') return scrubSpanText(v);

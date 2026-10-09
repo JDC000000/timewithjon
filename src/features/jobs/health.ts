@@ -186,16 +186,11 @@ export async function healthReport(
 
 export interface PublicHealthBody {
   ok: boolean;
-  checks: Record<CheckName, 'ok' | 'fail'>;
-  failing: CheckName[];
 }
 
-/** what anyone may see: ok/fail per check ('skipped' counts as ok), no reason codes, no warnings. */
+/** What anyone may see: up or not (the 200/503 says the same). Which check failed, and why, needs the cron secret. */
 export function publicHealthBody(r: HealthReport): PublicHealthBody {
-  const checks = Object.fromEntries(
-    (Object.keys(r.checks) as CheckName[]).map((k) => [k, r.failing.includes(k) ? 'fail' : 'ok']),
-  ) as Record<CheckName, 'ok' | 'fail'>;
-  return { ok: r.ok, checks, failing: r.failing };
+  return { ok: r.ok };
 }
 
 export const HEALTH_CACHE_MS = 15_000;

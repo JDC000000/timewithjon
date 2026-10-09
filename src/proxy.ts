@@ -2,12 +2,12 @@
 // matched path, routing ?for= to the resolver, and an admin page's own path for its sign-in ?next= (EML-11).
 import { NextResponse, type NextRequest } from 'next/server';
 import { buildCsp, newNonce } from '@/config/csp';
-import { isDevServer } from '@/config/env';
+import { getSupabaseOrigin, isDevServer } from '@/config/env';
 import { ADMIN_PATH_HEADER } from '@/features/admin/next-path';
 
 export function proxy(req: NextRequest) {
   const nonce = newNonce();
-  const csp = buildCsp(nonce, isDevServer());
+  const csp = buildCsp(nonce, isDevServer(), getSupabaseOrigin());
   // Next reads the nonce from the request's CSP header while rendering and stamps it on its own <script> tags.
   const headers = new Headers(req.headers);
   headers.set('x-nonce', nonce);

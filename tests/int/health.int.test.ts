@@ -395,14 +395,14 @@ describe('GET /api/health', () => {
     await failedEmail(4);
     expect((await GET()).status).toBe(200); // the route serves the 15 s cached report (pr61 F6)
     resetHealthCacheForTests();
-    const bad = await GET();
+    const bad = await GET(WITH_SECRET); // which check failed: the cron secret's view
     expect(bad.status).toBe(503);
     const text = await bad.text();
     expect(JSON.parse(text)).toMatchObject({ ok: false, failing: ['tick', 'signin_email'] });
     expect(text).not.toMatch(/@|example\.com|jon/i);
   });
 
-  it('the public body says only ok/fail per check; the reason codes and warnings need the cron secret', async () => {
+  it('the public body is only {ok} (and the 200/503); the checks, failing names, reasons and warnings need the cron secret', async () => {
     const now = new Date();
     await healthy(now);
     await google(now, 'invalid_grant');
@@ -411,10 +411,8 @@ describe('GET /api/health', () => {
     const pub = await GET();
     expect(pub.status).toBe(503);
     const body = (await pub.json()) as Record<string, unknown>;
-    expect(Object.keys(body).sort()).toEqual(['checks', 'failing', 'ok']);
-    expect(body).toMatchObject({ ok: false, failing: ['google'], checks: { google: 'fail', tick: 'ok' } });
-    expect(Object.values(body.checks as object).every((v) => v === 'ok' || v === 'fail')).toBe(true);
-    expect(JSON.stringify(body)).not.toMatch(/broken|disconnected|present|skipped|not delivered/);
+    expect(body).toEqual({ ok: false }); // no checks, no failing names
+    expect((await (await GET()).json()) as unknown).toEqual({ ok: false });
     const wrong: Record<string, string>[] = [
       { 'x-cron-secret': 'wrong' },
       { authorization: `Bearer ${'c'.repeat(32)}` },
@@ -422,7 +420,12 @@ describe('GET /api/health', () => {
     for (const headers of wrong) expect(await (await GET(headers)).json()).toEqual(body);
     const full = await GET(WITH_SECRET);
     expect(full.status).toBe(503);
-    const detail = (await full.json()) as { checks: Record<string, string>; warnings: string[] };
+    const detail = (await full.json()) as {
+      checks: Record<string, string>;
+      failing: string[];
+      warnings: string[];
+    };
+    expect(detail.failing).toEqual(['google']); // the monitoring checks still read every check with the secret
     expect(detail.checks.google).toBe('broken');
     expect(detail.warnings.some((w) => w.startsWith('failed_emails: '))).toBe(true);
     expect(
@@ -432,17 +435,16 @@ describe('GET /api/health', () => {
         failing: [],
         warnings: ['x'],
       }),
-    ).toEqual({
-      ok: true,
-      checks: expect.objectContaining({ google: 'ok' }),
-      failing: [],
-    });
+    ).toEqual({ ok: true });
   });
 
   it('503 database when the DB is down', async () => {
     failDb.next = true;
-    const res = await GET();
+    const res = await GET(WITH_SECRET);
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ failing: ['database'] });
+    failDb.next = true;
+    resetHealthCacheForTests();
+    expect(await (await GET()).json()).toEqual({ ok: false });
   });
 });

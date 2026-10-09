@@ -10,7 +10,7 @@ import { getEnv } from '@/config/env';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { completeSignIn } from '@/features/admin/verify';
-import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
+import { clientIp, jsonError, noStore, readBytesAtMost, sameOrigin } from '@/lib/http';
 import { check } from '@/lib/ratelimit';
 import {
   ADMIN_HOME,
@@ -29,6 +29,21 @@ function one(form: FormData, name: string): string | null {
   return all.length === 1 && typeof all[0] === 'string' ? all[0] : null;
 }
 
+/** The confirm form (two short fields), read through the bounded reader, then parsed as the browser sent it. */
+const MAX_FORM_BYTES = 4 * 1024;
+async function boundedForm(req: NextRequest): Promise<FormData | null> {
+  const bytes = await readBytesAtMost(req, MAX_FORM_BYTES);
+  if (bytes === null) return null;
+  const type = req.headers.get('content-type') ?? '';
+  return new Request('http://form.invalid', {
+    method: 'POST',
+    headers: { 'content-type': type },
+    body: new Uint8Array(bytes),
+  })
+    .formData()
+    .catch(() => null);
+}
+
 function see(path: string): NextResponse {
   // 303: the browser follows with a GET, so a refresh never re-posts the spent token.
   return noStore(NextResponse.redirect(new URL(path, getEnv().NEXT_PUBLIC_SITE_URL), 303));
@@ -39,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (off) return off;
   if (!sameOrigin(req)) return noStore(jsonError(403, 'bad_origin', ERRORS.generic));
 
-  const form = await req.formData().catch(() => null);
+  const form = await boundedForm(req);
   const tokenHash = form && one(form, 'token_hash');
   const csrf = form && one(form, 'csrf');
   if (!tokenHash || !csrf || !TOKEN_HASH.test(tokenHash)) {
