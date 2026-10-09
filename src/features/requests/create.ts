@@ -193,6 +193,7 @@ export async function createRequestTx(
       auditId: audit!.id,
       status: a.status,
       dishName: a.dishName,
+      dishSlug: b.dish, // r6 Q3c: E1's wording for a pitch with only a rough window
       guestEmail: b.email,
       guestName: b.name,
       crew: b.crew,

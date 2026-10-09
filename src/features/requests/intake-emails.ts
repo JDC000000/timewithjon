@@ -6,6 +6,7 @@ import { TZ, vancouverInstant } from '@/lib/time';
 import { guestWhen, whenLabel } from '@/lib/when';
 import { DETAIL, ROW } from '@/content/ui/admin-requests';
 import { DATES, TIME_ZONE } from '@/content/ui/booking';
+import { dishBySlug } from '@/content/menu-helpers';
 import { manageLink } from '@/features/email/link-vars';
 import type { EmailArgs } from '@/features/email/send';
 
@@ -22,6 +23,8 @@ export interface IntakeEmailInput {
   choiceKind: 'times' | 'dates';
   /** The guest ticked "It’s one night away" (QA4 M1: E2 says so, in the guest's own words). */
   overnight: boolean;
+  /** The dish (a Pitch Me request with nothing to list gets its own E1 wording, r6 Q3c). */
+  dishSlug?: string;
   /** E2's details for Jon (Q5, DEV6 follow-up): see jonDetails. Absent (Not spam's E2) = the counts. */
   jon?: JonDetails;
   standbyWeek: string | null;
@@ -107,7 +110,7 @@ export function intakeEmails(i: IntakeEmailInput): EmailArgs[] {
           to: i.guestEmail,
           requestId: i.requestId,
           eventKey: i.auditId,
-          vars: { week: standbyWeekLabel(i.standbyWeek!) },
+          vars: { week: standbyWeekLabel(i.standbyWeek!), manageLink: manageLink(i.requestId) }, // r6 Q4
         }
       : {
           template: 'E1',
@@ -115,7 +118,15 @@ export function intakeEmails(i: IntakeEmailInput): EmailArgs[] {
           requestId: i.requestId,
           eventKey: i.requestId,
           // UX-09 / F20: E1 carries the manage link too, a "Change or cancel" button.
-          vars: { dish: i.dishName, times: i.requestedTimes.join('\n'), manageLink: manageLink(i.requestId) },
+          vars: {
+            dish: i.dishName,
+            times: i.requestedTimes.join('\n'),
+            manageLink: manageLink(i.requestId),
+            // r6 Q3c: a pitch with only a rough window has nothing to list: "Email me your idea, or let’s talk."
+            ...(i.dishSlug && dishBySlug(i.dishSlug)?.flow === 'pitch' && i.requestedTimes.length === 0
+              ? { pitchWindowOnly: 1 }
+              : {}),
+          },
         };
   const summary = `Crew ${i.crew}. ${
     i.status === 'standby' ? `Stand-by, week of ${standbyWeekLabel(i.standbyWeek!)}.` : choicesLine(i)

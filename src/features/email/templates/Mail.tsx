@@ -1,9 +1,10 @@
 // src/features/email/templates/Mail.tsx — T3.2.U2: one template's HTML on the #107 Layout. The copy is the text
 // part's (copyFor, src/content); Jon-facing templates have no "Jon" sign-off, as the text part. The closing
 // `{…Link}` line is a Button with its label from src/content (EML-03: a guest's long token URL is never shown
-// bare; the text part keeps the URL on its own line). An empty link var (E5b with no offer) draws nothing.
+// bare; the text part keeps the URL on its own line). An empty link var (E5b with no offer) draws nothing. A line
+// after the link line (E6's and E5j's "Or just call me.", r6 Q4) is a small note under the button.
 import { JON_FACING, copyFor, fill, type TemplateId } from '@/content/emails';
-import { Body, Button, Layout } from './Layout';
+import { Body, Button, INK_2, Layout } from './Layout';
 
 type Vars = Record<string, string | number>;
 const LINK_LINE = /^\{(\w+Link)\}$/;
@@ -29,14 +30,22 @@ export function Mail({
   button?: string;
 }) {
   const lines = copy.split('\n');
-  const linkVar = LINK_LINE.exec(lines.at(-1)!.trim())?.[1];
+  const at = lines.map((l) => LINK_LINE.test(l.trim())).lastIndexOf(true);
+  const linkVar = at >= 0 ? LINK_LINE.exec(lines[at]!.trim())?.[1] : undefined;
   const href = linkVar ? String(vars[linkVar] ?? '') : '';
-  const body = linkVar ? lines.slice(0, -1).join('\n') : copy;
+  const body = at >= 0 ? lines.slice(0, at).join('\n') : copy;
+  const notes = at >= 0 ? lines.slice(at + 1).filter((l) => l.trim()) : [];
   if (href && !button) throw new MissingButtonLabelError(id);
   return (
     <Layout title={fill(copyFor(id, vars).subject, vars)} signOff={!JON_FACING.includes(id)}>
       <Body copy={body} vars={vars} lists={lists} />
       {href && <Button href={href}>{button}</Button>}
+      {href &&
+        notes.map((note, i) => (
+          <p key={i} style={{ margin: '8px 0 0', fontSize: 15, color: INK_2 }}>
+            {fill(note, vars)}
+          </p>
+        ))}
     </Layout>
   );
 }

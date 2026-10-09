@@ -38,8 +38,8 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
     ),
     takeLink: TOKEN_URL('take'),
   },
-  E5j: { dish: 'The Long Lunch' },
-  E6: { week: 'Oct 5' },
+  E5j: { dish: 'The Long Lunch', manageLink: TOKEN_URL('manage') },
+  E6: { week: 'Oct 5', manageLink: TOKEN_URL('manage') },
   E7: {
     weekday: 'Friday',
     when: 'Fri Oct 2 · noon–2 pm Vancouver time',

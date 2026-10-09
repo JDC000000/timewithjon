@@ -133,7 +133,7 @@ describe('email audit 2026-10-08 (EML)', () => {
       { siteUrl: SITE },
     );
     expect(r.text).toBe(
-      'Sam cancelled The Long Lunch (Thu Oct 1 · noon–2 pm). Stand-by for that week: Alex, Kim\nJoined to it: Kim, Alex.\nhttps://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666\n',
+      'Sam cancelled The Long Lunch (Thu Oct 1 · noon–2 pm). Stand-by for that week: Alex, Kim.\nJoined to it: Kim, Alex.\nhttps://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666\n',
     );
     expect(words(r.html!)).toContain('Joined to it: Kim, Alex.');
     // No joined guests: the line is not there (and old rows without the var render as before).
@@ -222,7 +222,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E12": {
           "fromLocal": "admin",
           "subject": "Cancelled: The Long Lunch, Thu Oct 1 · noon–2 pm",
-          "text": "Sam cancelled The Long Lunch (Thu Oct 1 · noon–2 pm). Stand-by for that week: Alex, Kim
+          "text": "Sam cancelled The Long Lunch (Thu Oct 1 · noon–2 pm). Stand-by for that week: Alex, Kim.
       https://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666
       ",
         },
@@ -316,6 +316,8 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
           "fromLocal": "jon",
           "subject": "About The Long Lunch",
           "text": "That plan fell through, so your spot on it is off. I’ll send you a new time soon.
+      https://timewithjon.com/r/manage/tok_3f9a2b7c
+      Or just call me.
 
       Jon
       ",
@@ -324,6 +326,8 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
           "fromLocal": "jon",
           "subject": "You’re on stand-by",
           "text": "You’re on stand-by for the week of Oct 5. If something opens up, I’ll email you.
+      https://timewithjon.com/r/manage/tok_3f9a2b7c
+      Or just call me.
 
       Jon
       ",
@@ -422,5 +426,75 @@ describe('Jon’s copy answers 2026-10-09', () => {
     const e17 = await r('E17', VARS.E17);
     expect(e17.text).toBe(`${EMAIL_COPY.E17.body.split('\n')[0]}\n${VARS.E17.manageLink}\n\nJon\n`);
     expect((await r('E17', {})).text).not.toContain('{manageLink}'); // a row queued before Q8
+  });
+});
+
+describe('Jon’s answers r6 (2026-10-09)', () => {
+  const r = (id: TemplateId, vars: Record<string, string | number>) =>
+    renderEmail(id, vars, { siteUrl: SITE });
+  const one = 'Thu Oct 1 · noon–2 pm Vancouver time';
+
+  it('Q1: Jon set the place: "Where: {place}." takes the spot of "You pick the place"', async () => {
+    const e4 = await r('E4', { ...VARS.E4, placeKnown: 1, where: 'Tomahawk, North Van' });
+    expect(e4.text).toMatch(
+      /^Thu Oct 1 · noon–2 pm Vancouver time\. Where: Tomahawk, North Van\. The calendar invite comes from Time with Jon/,
+    );
+    expect(words(e4.html!)).toContain('Where: Tomahawk, North Van.');
+    expect(e4.text).not.toContain('You pick the place');
+  });
+
+  it('Q2: a call (placeKnown, no place): no place line at all', async () => {
+    const e4 = await r('E4', { ...VARS.E4, placeKnown: 1 });
+    expect(e4.text).toMatch(/^Thu Oct 1 · noon–2 pm Vancouver time\. The calendar invite comes from/);
+    expect(e4.text).not.toMatch(/You pick the place|Where:/);
+  });
+
+  it('Q3a: one offered time reads "This one’s still open:" … "Tap it and it’s yours." (E5, E5b); several keep "Tap one"', async () => {
+    const e5 = await r('E5', { ...VARS.E5, times: one });
+    expect(e5.text).toContain(`This one’s still open:\n${one}\nTap it and it’s yours.\n`);
+    expect((await r('E5', VARS.E5)).text).toContain('Tap one and it’s yours.');
+    const e5b = await r('E5b', { ...VARS.E5b, openTimes: E5B_PARTS.withTimes(one) });
+    expect(e5b.text).toContain('Tap it and it’s yours.');
+    expect(e5b.html!.match(/<li>[^<]*<\/li>/g)).toEqual([`<li>${one}</li>`]); // still the list frame
+    expect(E5B_PARTS.withTimes(`${one}\n${one}`)).toContain('Tap one and it’s yours.');
+  });
+
+  it('Q3b: a shorter pitch with only a rough window (no times or dates) reads "picked a new time"', async () => {
+    expect((await r('E16', { ...VARS.E16, count: 0 })).text).toMatch(/^Sam picked a new time for/);
+    expect((await r('E16', VARS.E16)).text).toMatch(/^Sam picked new times for/); // a row queued without a count
+  });
+
+  it('Q3c: E1 for a pitch with only a rough window: "Email me your idea, or let’s talk." (that case only)', async () => {
+    const e1 = await r('E1', {
+      dish: 'Pitch Me',
+      times: '',
+      manageLink: VARS.E1.manageLink!,
+      pitchWindowOnly: 1,
+    });
+    expect(e1.text).toMatch(/^Email me your idea, or let’s talk\.\nhttps:/);
+    expect(e1.html).toContain('Change or cancel');
+    const other = await r('E1', { dish: 'Pitch Me', times: '', manageLink: VARS.E1.manageLink! });
+    expect(other.text).toMatch(/^Got your times\. I’ll lock one in within two days\./);
+  });
+
+  it('Q3d: E12 ends its stand-by sentence with a full stop', async () => {
+    expect((await r('E12', { ...VARS.E12, standby: 'nobody' })).text).toContain(
+      'Stand-by for that week: nobody.\n',
+    );
+  });
+
+  it('Q4: E6 and E5j get "Change or cancel" with "Or just call me." under it; a row queued before has neither', async () => {
+    for (const id of ['E6', 'E5j'] as const) {
+      const m = await r(id, VARS[id]);
+      expect(m.text, id).toContain(`\n${VARS[id].manageLink}\nOr just call me.\n\nJon\n`);
+      const html = m.html!;
+      expect(html, id).toMatch(/>Change or cancel<\/a>/);
+      expect(html.indexOf('Or just call me.'), id).toBeGreaterThan(html.indexOf('Change or cancel'));
+      const old: Record<string, string | number> = { ...VARS[id] };
+      delete old.manageLink;
+      const before = await r(id, old);
+      expect(before.text, id).not.toMatch(/Or just call me|\{/);
+      expect(before.html, id).not.toContain('<a ');
+    }
   });
 });
