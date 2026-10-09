@@ -10,6 +10,7 @@ import type { PoolClient } from 'pg';
 import { E12_PARTS } from '@/content/emails';
 import { dishInSentence } from '@/content/menu-helpers';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
+import { MANAGE_ANCHOR, manageLink } from '@/features/email/link-vars';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
 import { vancouverDate, weekStartOf } from '@/lib/time';
@@ -153,7 +154,8 @@ async function cancelTx(
         to: r.contact_email,
         requestId,
         eventKey: audit!.id,
-        vars: {},
+        // Q8: E17's "Pick a new date" opens the manage page with "Ask for another time" already open.
+        vars: by === 'jon' ? { manageLink: manageLink(requestId, MANAGE_ANCHOR) } : {},
       }),
     ),
   );

@@ -30,7 +30,7 @@ export async function queueIcsEmail(c: PoolClient, requestId: string, method: Ic
   );
   if (!r) return [];
   const startsAt = r.locked_starts_at!;
-  const event = calendarEvent(requestId, r);
+  const event = calendarEvent(requestId, r, [], true); // the guest's own file: their title (Q2)
   const dish = dishInSentence(r.dish);
   // CANCEL's lead starts its sentence with the dish: a capital there ("A hike or nature moment, Sat Jun 5, is off.")
   const leadDish = method === 'CANCEL' ? dish.charAt(0).toUpperCase() + dish.slice(1) : dish;

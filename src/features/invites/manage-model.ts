@@ -168,7 +168,12 @@ export async function loadManageModel(
  */
 function currentMessage(v: RequestView): string | null {
   if (v.status === 'locked' && v.when) return ALREADY.lockedIn(v.when);
-  if (v.status === 'cancelled') return v.label === CLOSED_IN_PERSON_LABEL ? v.label : ALREADY.cancelled;
+  if (v.status === 'cancelled') {
+    if (v.label === CLOSED_IN_PERSON_LABEL) return v.label;
+    // Q7 (approved: Jon 2026-10-09): after Jon cancelled, the heading "Cancelled, no problem" says it all; the
+    // guest didn't cancel, so no "Already cancelled. No guilt." under it ('' = no line). A guest's own cancel keeps it.
+    return v.label === JON_CANCELLED_LABEL ? '' : ALREADY.cancelled;
+  }
   if (v.status === 'done') return v.label;
   if (v.status === 'requested') return null;
   return ERRORS.offerGone;

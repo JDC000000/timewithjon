@@ -1,6 +1,7 @@
 // H4: §6 state machine — (new) -> requested sends E1 + E2; (new) -> standby sends E6 + E2, never E1.
 import { describe, expect, it } from 'vitest';
-import { intakeEmails, requestedTimeLines } from '@/features/requests/intake-emails';
+import { intakeEmails, jonDetails, requestedTimeLines } from '@/features/requests/intake-emails';
+import { vancouverInstant } from '@/lib/time';
 
 const base = {
   requestId: 'req-1',
@@ -76,5 +77,54 @@ describe('requestedTimeLines (E1 lists the requested times, Jon option A; as the
       'Thu Oct 1',
       'Sat Oct 3',
     ]);
+  });
+});
+
+describe('E2 details for Jon (Q5, approved: Jon 2026-10-09; DEV6 follow-up)', () => {
+  const at = (date: string, time: string) => vancouverInstant(date, time);
+  const e2 = (over: Partial<Parameters<typeof intakeEmails>[0]>) =>
+    String(intakeEmails({ ...base, status: 'requested', ...over })[1]!.vars.summary);
+  const lunch = { startsAt: at('2027-05-14', '12:00'), endsAt: at('2027-05-14', '14:00') };
+  const lunch2 = { startsAt: at('2027-05-20', '12:00'), endsAt: at('2027-05-20', '14:00') };
+
+  it('lists the actual times (Vancouver, in order), not "2 times"', () => {
+    expect(e2({ jon: jonDetails({}, [lunch2, lunch], []) })).toBe(
+      'Crew 2. Fri May 14 · noon–2 pm, Thu May 20 · noon–2 pm.',
+    );
+  });
+  it('a date dish: its dates and the guest’s rough window; a window-only request no longer reads "0 dates."', () => {
+    expect(
+      e2({
+        choiceKind: 'dates',
+        jon: jonDetails({ windowText: 'sometime in May' }, [], ['2027-05-09', '2027-05-08']),
+      }),
+    ).toBe('Crew 2. Sat May 8, Sun May 9. “sometime in May”.');
+    expect(
+      e2({
+        choiceKind: 'dates',
+        choiceCount: 0,
+        jon: jonDetails({ windowText: 'any Saturday in June' }, [], []),
+      }),
+    ).toBe('Crew 2. “any Saturday in June”.');
+  });
+  it('one night away with the guest’s “Which night?” answer, and a Long Distance guest’s time zone', () => {
+    expect(
+      e2({
+        choiceKind: 'dates',
+        overnight: true,
+        jon: jonDetails(
+          { overnightNight: 'the Saturday', guestTimeZone: 'Europe/London' },
+          [],
+          ['2027-05-08'],
+        ),
+      }),
+    ).toMatch(/^Crew 2\. Sat May 8\. It’s one night away \(“the Saturday”\)\. Time zone: .*London.*\.$/);
+    // Vancouver (or no zone) is not worth a line.
+    expect(e2({ jon: jonDetails({ guestTimeZone: 'America/Vancouver' }, [lunch], []) })).toBe(
+      'Crew 2. Fri May 14 · noon–2 pm.',
+    );
+  });
+  it('without details (Not spam’s E2) it keeps the counts', () => {
+    expect(e2({})).toBe('Crew 2. 2 times.');
   });
 });

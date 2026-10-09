@@ -50,6 +50,7 @@ export function S18Page(p: {
 /** 'current': the request as it is now: its one line, or (no line) the receipt of what the guest sent. */
 export async function S18Current({ message, requestId }: { message: string | null; requestId: string }) {
   if (message === null) return <SentReceipt lines={await loadRequestLines(requestId)} />;
+  if (message === '') return null; // Q7: the heading is the whole message (Jon cancelled)
   return (
     <p className="lead intro s18-line" role="status">
       {message}

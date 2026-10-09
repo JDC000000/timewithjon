@@ -2,7 +2,7 @@
 // the text part's copy (src/content/emails.ts, no new copy). AC3: the text part is unchanged (renderText snapshot
 // below).
 import { describe, expect, it } from 'vitest';
-import { EMAIL_COPY, GUEST_BUTTON, JON_FACING, fill, type TemplateId } from '@/content/emails';
+import { E5B_PARTS, EMAIL_COPY, GUEST_BUTTON, JON_FACING, fill, type TemplateId } from '@/content/emails';
 import { ADMIN_SHELL } from '@/content/ui/foundation';
 import { renderEmail, renderText } from '@/features/email/registry';
 import { E2_BUTTON } from '@/features/email/templates/E2';
@@ -194,6 +194,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
       Thu Oct 1 · noon–2 pm Vancouver time
       Sat Oct 3 · 7 pm Vancouver time
       I’ll lock one in within two days.
+      https://timewithjon.com/r/manage/tok_3f9a2b7c
 
       Jon
 
@@ -251,6 +252,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
           "fromLocal": "jon",
           "subject": "I’m booked on that day. Can we try another day?",
           "text": "Hey, can you suggest one or two other times that work in your calendar? Sorry, my calendar is a little more full than I expected. I’ll be in touch.
+      https://timewithjon.com/r/manage/tok_3f9a2b7c#another
 
       Jon
       ",
@@ -329,7 +331,7 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         "E7": {
           "fromLocal": "jon",
           "subject": "Friday just opened up",
-          "text": "Fri Oct 2 · noon–2 pm Vancouver time is free now. Want it?
+          "text": "Fri Oct 2 · noon–2 pm Vancouver time is free now. Want it? It’s yours until Sun Oct 4 · 9 am Vancouver time.
       https://timewithjon.com/r/take/tok_3f9a2b7c
 
       Jon
@@ -355,5 +357,70 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
         },
       }
     `);
+  });
+});
+
+describe('Jon’s copy answers 2026-10-09', () => {
+  const r = (id: TemplateId, vars: Record<string, string | number>) =>
+    renderEmail(id, vars, { siteUrl: SITE });
+  const button = (html: string) => /<a href="([^"]+)"[^>]*display:inline-block[^>]*>([^<]+)<\/a>/.exec(html);
+
+  it('UX-09 / F20: E1 carries the manage link as a "Change or cancel" button; an old row without one still sends', async () => {
+    const e1 = await r('E1', VARS.E1);
+    expect(button(e1.html!)?.slice(1)).toEqual([VARS.E1.manageLink, 'Change or cancel']);
+    expect(e1.text).toContain(`I’ll lock one in within two days.\n${VARS.E1.manageLink}\n`);
+    const old = await r('E1', { dish: 'The Long Lunch', times: 'Thu Oct 1 · noon–2 pm Vancouver time' });
+    expect(old.text).not.toContain('{manageLink}');
+    expect(old.html).not.toContain('Change or cancel');
+  });
+
+  it('Q1: E4 drops "You pick the place" for a joined guest or a set place, and only then', async () => {
+    expect((await r('E4', VARS.E4)).text).toContain('You pick the place, just tell me where.');
+    const set = await r('E4', { ...VARS.E4, placeKnown: 1 });
+    expect(set.text).toMatch(
+      /^Thu Oct 1 · noon–2 pm Vancouver time\. The calendar invite comes from Time with Jon, so look out for it\./,
+    );
+    expect(words(set.html!)).not.toContain('You pick the place');
+  });
+
+  it('Q3: the guest buttons are "Take it", "Pick a new date" and "Change or cancel"', async () => {
+    for (const [id, label] of [
+      ['E4', 'Change or cancel'],
+      ['E5', 'Take it'],
+      ['E5b', 'Take it'],
+      ['E7', 'Take it'],
+      ['E10', 'Pick a new date'],
+      ['E17', 'Pick a new date'],
+    ] as const)
+      expect(button((await r(id, VARS[id])).html!)?.[2], id).toBe(label);
+  });
+
+  it('Q4: E7 says until when the offer is yours; an old row without {until} reads as before', async () => {
+    expect((await r('E7', VARS.E7)).text).toMatch(
+      /^Fri Oct 2 · noon–2 pm Vancouver time is free now\. Want it\? It’s yours until Sun Oct 4 · 9 am Vancouver time\.\n/,
+    );
+    const old: Record<string, string | number> = { ...VARS.E7 };
+    delete old.until;
+    expect((await r('E7', old)).text).toMatch(/Want it\?\nhttps/);
+  });
+
+  it('Q6: one item reads in the singular (E1, E5, E5b, E16)', async () => {
+    const one = 'Thu Oct 1 · noon–2 pm Vancouver time';
+    expect((await r('E1', { ...VARS.E1, times: one })).text).toMatch(/^Got your time:\n/);
+    expect((await r('E1', VARS.E1)).text).toMatch(/^Got your times:\n/);
+    expect((await r('E5', { ...VARS.E5, times: one })).text).toContain(
+      'That one went. This one’s still open:\n',
+    );
+    const e5b = await r('E5b', { ...VARS.E5b, openTimes: E5B_PARTS.withTimes(one) });
+    expect(e5b.text).toContain('This one’s still open:\nThu Oct 1');
+    expect(e5b.html!.match(/<li>[^<]*<\/li>/g)).toEqual([`<li>${one}</li>`]); // still drawn as a list
+    expect((await r('E16', { ...VARS.E16, count: 1 })).text).toMatch(/^Sam picked a new time for/);
+    expect((await r('E16', { ...VARS.E16, count: 2 })).text).toMatch(/^Sam picked new times for/);
+  });
+
+  it('Q8: E17 keeps Jon’s words and adds the button to the manage page', async () => {
+    const e17 = await r('E17', VARS.E17);
+    expect(e17.text).toBe(`${EMAIL_COPY.E17.body.split('\n')[0]}\n${VARS.E17.manageLink}\n\nJon\n`);
+    expect((await r('E17', {})).text).not.toContain('{manageLink}'); // a row queued before Q8
   });
 });

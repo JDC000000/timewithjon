@@ -12,7 +12,11 @@ import { sendLock } from './lock-logic';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
-vi.mock('./lock-logic', () => ({ sendLock: vi.fn(async () => ({ ok: true, standbyOfferLive: false })) }));
+vi.mock('./lock-logic', async (orig) => ({
+  ...(await orig<typeof import('./lock-logic')>()),
+  sendLock: vi.fn(async () => ({ ok: true, standbyOfferLive: false })),
+  checkLock: vi.fn(async () => ({ ok: true })),
+}));
 
 const view: DetailView = {
   who: 'Priya',
@@ -82,6 +86,8 @@ async function lockIn() {
   const user = userEvent.setup({ delay: null });
   const r = render(<DetailPane {...props} />);
   await user.click(screen.getByRole('button', { name: /^Lock in/ }));
+  // QA4 H1: the read-only pre-check answers first; the undo window opens after it
+  await screen.findByRole('button', { name: /Undo/ });
   return { user, ...r };
 }
 

@@ -11,6 +11,7 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
   E1: {
     dish: 'The Long Lunch',
     times: 'Thu Oct 1 · noon–2 pm Vancouver time\nSat Oct 3 · 7 pm Vancouver time',
+    manageLink: TOKEN_URL('manage'),
   },
   E2: { name: 'Sam', dish: 'The Long Lunch', summary: 'Crew 2. 2 times.', adminLink: REQ },
   E3: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
@@ -39,7 +40,12 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
   },
   E5j: { dish: 'The Long Lunch' },
   E6: { week: 'Oct 5' },
-  E7: { weekday: 'Friday', when: 'Fri Oct 2 · noon–2 pm Vancouver time', takeLink: TOKEN_URL('take') },
+  E7: {
+    weekday: 'Friday',
+    when: 'Fri Oct 2 · noon–2 pm Vancouver time',
+    until: 'Sun Oct 4 · 9 am Vancouver time',
+    takeLink: TOKEN_URL('take'),
+  },
   E8: { length: 'three nights', manageLink: TOKEN_URL('manage') },
   E9: { menuLink: TOKEN_URL('menu') },
   E10: { pickLink: TOKEN_URL('pick') },
@@ -58,7 +64,7 @@ export const VARS: Record<TemplateId, Record<string, string | number>> = {
   },
   E14: { adminLink: `${SITE}/admin/settings` },
   E16: { name: 'Sam', dish: 'The Long Lunch', adminLink: REQ },
-  E17: {},
+  E17: { manageLink: `${TOKEN_URL('manage')}#another` },
 };
 export const LINKS = (id: TemplateId) =>
   Object.entries(VARS[id])

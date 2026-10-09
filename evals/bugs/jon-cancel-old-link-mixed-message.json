@@ -1,0 +1,9 @@
+{
+  "id": "jon-cancel-old-link-mixed-message",
+  "date": "2026-10-09",
+  "task": "QA EML-16",
+  "area": "guest",
+  "summary": "After Jon cancelled, an old /offer or /new-date link read \"Cancelled, no problem\" over \"Already cancelled. No guilt.\"",
+  "fix": "After Jon's cancel the old link shows only the heading; a guest's own cancel keeps its line.",
+  "tests": ["tests/int/manage.int.test.ts"]
+}
