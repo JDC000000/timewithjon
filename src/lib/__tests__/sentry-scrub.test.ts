@@ -87,4 +87,20 @@ describe('AD-11 scrubber', () => {
     scrubEnvelopeHeader(header);
     expect(header.trace).toEqual({ trace_id: 't', public_key: 'p', transaction: 'GET /' });
   });
+
+  it('a secret written without a "?" (t=, for=, token=) loses its value; query/fragment keys go; plain text stays', () => {
+    const ev = scrubEvent({
+      exception: { values: [{ value: 'bad t=abc123 for=dave-k7q2 token=zz9 and wait for the tick' }] },
+      message: 'retry with token=qq7&next=1',
+      breadcrumbs: [
+        { data: { 'http.query': 't=abc123', 'http.fragment': 'another', method: 'GET', status: 200 } },
+      ],
+    });
+    const text = JSON.stringify(ev);
+    for (const secret of ['abc123', 'dave-k7q2', 'zz9', 'qq7']) expect(text).not.toContain(secret);
+    expect(ev.exception!.values![0]!.value).toBe(
+      'bad t=[scrubbed] for=[scrubbed] token=[scrubbed] and wait for the tick',
+    );
+    expect(ev.breadcrumbs![0]!.data).toEqual({ method: 'GET', status: 200 });
+  });
 });

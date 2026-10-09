@@ -13,6 +13,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'rea
 import { AFTER_SEND, ERRORS } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
+import { TURNSTILE_ACTION } from '@/lib/turnstile-actions';
 import { stripBidiControls } from '@/lib/bidi';
 import { Button, Field } from '@/ui';
 import { moveFocus } from '@/ui/focus';
@@ -55,7 +56,7 @@ export function StoryForm(p: StoryFormProps) {
     thanks: useId(),
     hp: useId(),
   };
-  const turnstile = useGuestTurnstile(p.storyPage?.siteKey);
+  const turnstile = useGuestTurnstile(p.storyPage?.siteKey, TURNSTILE_ACTION.story);
   const { takeToken, reset } = turnstile;
   const isStoryPage = Boolean(p.storyPage);
   const saver = useMemo(

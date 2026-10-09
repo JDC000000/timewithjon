@@ -119,6 +119,18 @@ describe('POST /api/admin/export (T3.10.U1)', () => {
     },
   );
 
+  it.each(['staging', 'production'] as const)(
+    '%s: 413 export_too_large (the generic line for now) when the zip is over the bucket limit',
+    async (mode) => {
+      h.mode = mode;
+      h.result = { ok: false, code: 'too_large', bytes: 500, maxBytes: 400 };
+      const res = await post();
+      expect(res.status).toBe(413);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.json()).toMatchObject({ ok: false, code: 'export_too_large' });
+    },
+  );
+
   it('refuses a non-admin (401) and a foreign Origin (403) before any export starts', async () => {
     h.email = 'someone@example.com';
     expect((await post()).status).toBe(401);

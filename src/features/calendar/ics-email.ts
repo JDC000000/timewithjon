@@ -2,12 +2,16 @@
 // the caller's transaction. One rule for SEQUENCE (pr39 F8): 0 for the first .ics a booking ever sends, then +1 for
 // each next one (REQUEST -> REQUEST -> CANCEL, and a re-lock after a cancel), bumped in this same transaction, so
 // it only ever goes up and a client never ignores an update. The event key is `ics:<sequence>`: one email each.
+// The ORGANIZER is fixed by the first .ics too: worked out when sequence 0 is queued, kept in that row's vars and
+// copied to every later one, so a mailer switch between a REQUEST and its CANCEL can't change the organiser of the
+// same UID (clients may ignore a CANCEL from a different organiser).
 import 'server-only';
 import type { PoolClient } from 'pg';
 import { E4C_LEAD, fill } from '@/content/emails';
 import { dishInSentence } from '@/content/menu-helpers';
 import { queueEmail } from '@/features/email/send';
 import { guestWhen } from '@/lib/when';
+import { icsOrganizer } from './ics-attachment';
 import { calendarEvent, LOCKED_COLUMNS, type LockedRow } from './event';
 import type { IcsMethod } from './ics';
 
@@ -29,6 +33,7 @@ export async function queueIcsEmail(c: PoolClient, requestId: string, method: Ic
     [requestId],
   );
   if (!r) return [];
+  const organizerEmail = await seriesOrganizer(c, requestId);
   const startsAt = r.locked_starts_at!;
   const event = calendarEvent(requestId, r, [], true); // the guest's own file: their title (Q2)
   const dish = dishInSentence(r.dish);
@@ -51,7 +56,25 @@ export async function queueIcsEmail(c: PoolClient, requestId: string, method: Ic
       summary: event.summary,
       description: event.description,
       attendeeName: r.contact_name,
+      ...(organizerEmail ? { organizerEmail } : {}),
     },
   });
   return typeof queued === 'object' ? [queued.queued] : [];
+}
+
+/**
+ * The organiser address for this booking's .ics series: the one the first E4c stored, or, for the first one, the
+ * address it is worked out to now. null for a series whose first E4c predates this (it is worked out at send time,
+ * as before).
+ */
+async function seriesOrganizer(c: PoolClient, requestId: string): Promise<string | null> {
+  const {
+    rows: [first],
+  } = await c.query<{ organizer: string | null }>(
+    `select vars->>'organizerEmail' as organizer from email_log
+      where request_id = $1 and template = 'E4c' order by created_at, id limit 1`,
+    [requestId],
+  );
+  if (first) return first.organizer;
+  return (await icsOrganizer()).email;
 }

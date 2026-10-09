@@ -1,6 +1,7 @@
 // ops/bucket-limits.ts — the Storage bucket settings the app relies on, in one tracked place. Applied to a hosted
 // project by ops/pin-bucket-limits.ts and to the local stack by supabase/config.toml ([storage.buckets.*]); a unit test
 // keeps the three in step with the app's own limits.
+import { EXPORT_MAX_BYTES } from '../src/features/export/limits';
 import { MAX_UPLOAD_BYTES } from '../src/features/photos/limits';
 
 export interface BucketLimits {
@@ -35,7 +36,7 @@ export const BUCKET_LIMITS = {
   // dashboard counts a MB. Needs a paid plan: free projects cap every upload at 50 MB (see limitsFor).
   exports: {
     public: false,
-    fileSizeLimit: 450 * MiB,
+    fileSizeLimit: EXPORT_MAX_BYTES, // 450 MiB; the export checks its zip against the same number
     allowedMimeTypes: ['application/zip'],
   },
 } as const satisfies Record<string, BucketLimits>;

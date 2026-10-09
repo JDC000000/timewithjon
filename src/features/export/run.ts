@@ -10,6 +10,7 @@ import type { ExportStore } from '@/lib/adapters/exports';
 import type { ObjectStore } from '@/lib/adapters/photos';
 import { vancouverDate } from '@/lib/time';
 import { exportStories, writeExportZip, type ExportOptions } from './build';
+import { EXPORT_MAX_BYTES } from './limits';
 
 export const EXPORT_LINK_TTL_SECONDS = 600;
 /** A running export older than this died with its function (maxDuration 300 s); it no longer blocks a new one. */
@@ -28,12 +29,15 @@ export function exportObjectPath(jobId: string): string {
 
 export type ExportResult =
   | { ok: true; jobId: string; url: string; stories: number; photos: number; bytes: number }
-  | { ok: false; code: 'busy' };
+  | { ok: false; code: 'busy' }
+  /** The zip came out bigger than the `exports` bucket takes: the job is failed and nothing was uploaded. */
+  | { ok: false; code: 'too_large'; bytes: number; maxBytes: number };
 
 export async function runExport(
   opts: ExportOptions,
   ports: { photos: ObjectStore; exports: ExportStore },
   now = new Date(),
+  maxBytes = EXPORT_MAX_BYTES,
 ): Promise<ExportResult> {
   const jobId = await withTx(async (c) => {
     await c.query(`select pg_advisory_xact_lock(hashtext('twj_export'))`);
@@ -58,6 +62,11 @@ export async function runExport(
     await removeStaleZips(); // pr50-verify N2: inside the try, so an rm error fails this job, never leaves it 'running'
     const stories = await exportStories(opts);
     const zip = await writeExportZip(stories, opts, ports.photos, file);
+    // Checked before the upload: the bucket would refuse it anyway, after the whole file was sent.
+    if (zip.bytes > maxBytes) {
+      await q(`update export_job set status = 'failed', finished_at = now() where id = $1`, [jobId]);
+      return { ok: false, code: 'too_large', bytes: zip.bytes, maxBytes };
+    }
     await ports.exports.uploadFile(objectPath, file, zip.bytes);
     await q(`update export_job set status = 'done', storage_path = $2, finished_at = now() where id = $1`, [
       jobId,

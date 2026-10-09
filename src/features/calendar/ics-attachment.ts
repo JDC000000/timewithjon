@@ -4,7 +4,10 @@
 // CR-07: the ORGANIZER is the address the guest sees the email come from, which depends on the mailer that sends
 // it: Resend sends from the guest-facing From address; Gmail rewrites From to the connected account, so under
 // gmail_api the organiser is that account (else Gmail and Outlook show the invite as sent by someone other than its
-// organiser, and replies go elsewhere). Read at send time, so a row retried after the AD-5 flip still agrees.
+// organiser, and replies go elsewhere). It is worked out once per booking, when its first .ics is queued, and kept
+// in the vars (organizerEmail, ics-email.ts): every later update or cancel of the same UID, and every retry, keeps
+// that organiser even if the mailer is switched in between. Rows queued before that carry none and are worked out
+// at send time, as before.
 import 'server-only';
 import { getEnv } from '@/config/env';
 import type { TemplateId } from '@/content/emails';
@@ -22,8 +25,10 @@ export class IcsRenderError extends Error {
  * The calendar name every invite shows as its organiser (NAMING.md), at the address the email comes from: the
  * connected Google account under the Gmail mailer (it rewrites From to it), else the guest-facing From address.
  */
+const ICS_ORGANIZER_NAME = 'Time with Jon';
+
 export async function icsOrganizer(): Promise<{ name: string; email: string }> {
-  const name = 'Time with Jon';
+  const name = ICS_ORGANIZER_NAME;
   if ((await currentMailerMode()) === 'gmail_api') {
     const account = (await loadConnection())?.account_email;
     if (account) return { name, email: account };
@@ -40,7 +45,9 @@ export async function emailAttachments(
   stampedAt: Date,
 ): Promise<OutgoingEmail['attachments']> {
   if (template !== 'E4c') return undefined;
-  const organizer = await icsOrganizer(); // a DB error here is not a render error: the row stays retryable
+  const stored = typeof vars.organizerEmail === 'string' && vars.organizerEmail ? vars.organizerEmail : null;
+  // a DB error in icsOrganizer() is not a render error: the row stays retryable
+  const organizer = stored ? { name: ICS_ORGANIZER_NAME, email: stored } : await icsOrganizer();
   const method = vars.method;
   if (method !== 'REQUEST' && method !== 'CANCEL') throw new IcsRenderError('method');
   let ics: string;

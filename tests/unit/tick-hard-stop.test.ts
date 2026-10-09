@@ -82,7 +82,7 @@ beforeEach(() => {
 });
 
 describe('runTick hard stop', () => {
-  it.each(['google', 'resend', 'gmail'] as const)(
+  it.each(['google', 'resend'] as const)(
     'a hung %s call is cut off: runTick returns in time and writes the heartbeat',
     async (hang) => {
       mode.hang = hang;
@@ -98,6 +98,18 @@ describe('runTick hard stop', () => {
     },
     10_000,
   );
+
+  it('gmail: with less than its 5 s minimum before the hard stop the send never starts; the next job still runs', async () => {
+    mode.hang = 'gmail';
+    hungFetch.mockClear();
+    const started = Date.now();
+    const result = await runTick(new Date(), BUDGET_MS);
+    expect(Date.now() - started).toBeLessThan(LIMIT_MS);
+    expect(hungFetch).not.toHaveBeenCalled(); // nothing sent: no duplicate on the next tick
+    expect(result).toEqual({ ran: ['later'], skipped: [], failed: ['hangs'] });
+    expect(db.writes).toBe(1);
+    expect(db.status.get(TICK_FAILED_KEY)).toBe('1/2');
+  });
 
   it('the jobs a slow tick skipped run first on the next tick', async () => {
     mode.hang = 'google';

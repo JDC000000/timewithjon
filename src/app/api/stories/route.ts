@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { ERRORS } from '@/content';
 import { readStoryCapability } from '@/features/invites/capability';
 import { isHoneypotFilled, honeypotField } from '@/lib/honeypot';
-import { jsonError, sameOrigin } from '@/lib/http';
+import { BODY_TOO_LARGE, jsonError, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { limitByIp } from '@/lib/ratelimit';
 import { saveAfterSendStory } from '@/features/photos/after-send';
 
@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const requestId = await readStoryCapability(req);
   if (!requestId) return jsonError(403, 'capability_expired', ERRORS.stale);
-  const parsed = Body.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return tooLarge(ERRORS.generic);
+  const parsed = Body.safeParse(body);
   if (!parsed.success) return jsonError(400, 'invalid', ERRORS.generic);
   const { hp, ...story } = parsed.data;
   await saveAfterSendStory(requestId, { ...story, spam: isHoneypotFilled(hp) }); // AD-9: stored, same answer

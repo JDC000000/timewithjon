@@ -1,0 +1,9 @@
+{
+  "id": "turnstile-token-any-form",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "api",
+  "summary": "A bot-check token solved on one form was accepted on another, and the solving-site check ran in production only.",
+  "fix": "Each widget renders with its own action and the route compares it; outside prototype both the site and the action must match.",
+  "tests": ["src/lib/__tests__/turnstile.test.ts", "src/app/book/[dish]/__tests__/turnstile.dom.test.tsx"]
+}

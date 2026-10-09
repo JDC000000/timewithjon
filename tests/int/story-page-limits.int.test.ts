@@ -179,7 +179,7 @@ describe('story-page first save', () => {
     const res = await freshSave({ body: `${tag} g-bot`, turnstileToken: 'bad' });
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: 'bot_check', message: ERRORS.botCheck });
-    expect(ts.verify).toHaveBeenCalledWith('bad', expect.any(String));
+    expect(ts.verify).toHaveBeenCalledWith('bad', expect.any(String), 'story'); // the story page's own action
     expect(await q(`select 1 from story where body = $1`, [`${tag} g-bot`])).toEqual([]);
 
     ts.verify.mockResolvedValue(true);
