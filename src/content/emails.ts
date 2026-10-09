@@ -1,7 +1,8 @@
 // src/content/emails.ts — C5 copy for the 18 templates (E1–E16 + E4c + E5b + E5j; E15 removed in TSD v1.4, E4m with Change time 2026-09-29). Sign-off "Jon" on its own line.
 // Guest emails come from jon@, Jon-facing (E2, E3, E12, E13, E14, E16) from admin@. Text only here;
 // HTML layouts are UI work after the Design Review Gate.
-import { NO_GIFTS_PS } from './site';
+import { MANAGE_UI } from './manage';
+import { NO_GIFTS_PS, SEE_THE_MENU } from './site';
 export type TemplateId =
   | 'E1'
   | 'E2'
@@ -88,12 +89,16 @@ export const EMAIL_COPY: Record<TemplateId, EmailCopy> = {
     body: 'Hey, can you suggest one or two other times that work in your calendar? Sorry, my calendar is a little more full than I expected. I’ll be in touch.', // approved: Jon (2026-10-04)
   },
 };
-/** E12 fillers when the cancelled request had no locked time, or its week has nobody on stand-by (T2.7.07). */
+/** E12 fillers when the cancelled request had no locked time, or its week has nobody on stand-by (T2.7.07).
+ *  With no locked time there is no week, so the stand-by sentence is left out (EML-15; see copyFor). */
 export const E12_PARTS = {
   noTime: 'no time locked yet',
-  noWeek: 'no week yet',
   nobody: 'nobody',
 } as const;
+/** E12 with no week (EML-15): the same body without its stand-by sentence. {standby} is '' then. */
+const E12_NO_WEEK_BODY = EMAIL_COPY.E12.body.replace(' Stand-by for that week: {standby}', '');
+/** EML-10: the hourly "What's new" digest (TSD AD-5 rule 3) reuses E13's body; its lines are emails, not stories. */
+export const E13_HOURLY_SUBJECT = 'What’s new: {count}'; // NEW COPY (needs Jon)
 /** E4c's opening line, by the attached .ics method (REQUEST adds or moves the entry, CANCEL removes it). */
 export const E4C_LEAD = {
   REQUEST:
@@ -106,6 +111,19 @@ export const E5B_PARTS = {
   noTimes: 'I’ll send you some new times soon.',
 } as const;
 export const SIGN_OFF = 'Jon';
+/**
+ * EML-03: a guest email's link line is a button with these labels in the HTML part (as Jon's mails have); the
+ * text part keeps the URL on its own line. A long token URL is never the visible text of a link.
+ */
+export const GUEST_BUTTON = {
+  E4: 'Change or cancel', // TSD C5 E4 / creative v1.4 §6.5 / design pack e4 "[Change or cancel]"
+  E5: 'Pick a time', // NEW COPY (needs Jon): E5 "Tap one and it’s yours." opens the offer page
+  E5b: 'Pick a time', // NEW COPY (needs Jon): as E5
+  E7: 'Take it', // TSD C5 E7 / creative v1.4 §6.5 / design pack e7 "Take it"
+  E8: MANAGE_UI.askAnother, // PACK v2.2 s17: the manage page's own action (it carries the pitch, EML-05)
+  E9: SEE_THE_MENU, // v2.1 COPY (decision 37b): "Pick anything else and it’s yours."
+  E10: 'Pick a new date', // TSD C5 E10 / creative v1.4 §6.5 "[Pick a new date]"
+} as const satisfies Partial<Record<TemplateId, string>>;
 /** A P.S. under the signature (Jon decisions 45 + 47a): E1 "Got it" carries the no-gifts P.S. and its tag link. */
 export const POSTSCRIPT: Partial<Record<TemplateId, typeof NO_GIFTS_PS>> = { E1: NO_GIFTS_PS };
 export function fill(template: string, vars: Record<string, string | number>): string {
@@ -114,12 +132,30 @@ export function fill(template: string, vars: Record<string, string | number>): s
 
 /**
  * AD-7: the admin sign-in email (Supabase sends it; the file is supabase/templates/admin-sign-in.html, and
- * config.toml carries the subject). The heading line was added for review M3 and needs Jon's copy sign-off.
+ * config.toml carries the subject). EML-12: word for word the signed design pack a1d (G1); the template is checked
+ * against these lines (content.test.ts). Each Supabase project's dashboard copy must be set to match.
  */
 export const ADMIN_SIGN_IN_EMAIL = {
-  subject: 'Your Time with Jon sign-in code', // TSD AD-7
-  heading: 'Time with Jon admin sign-in',
+  subject: 'Time with Jon admin sign-in', // PACK a1d (TSD AD-7 had "Your Time with Jon sign-in code")
+  heading: 'Time with Jon admin sign-in', // PACK a1d
+  code: 'Your code:', // PACK a1d
+  orButton: 'Or use the button on the device you want to sign in on:', // PACK a1d
+  button: 'Sign in', // PACK a1d
+  footer:
+    'The code and the link work once. Didn’t ask for this? Ignore it. Nobody gets in without the code or the tap.', // PACK a1d
 } as const;
 
 /** E1 with no {times} (a row queued before E1 listed them, or an empty list): the pre-option-A body. */
 export const E1_NO_TIMES_BODY = 'Got your times. I’ll lock one in within two days.';
+
+/**
+ * The copy one email renders with, for both its text and its HTML part: the template's, or its variant for these
+ * vars. E1 with no {times} keeps the pre-option-A body; E12 with no week drops the stand-by sentence (EML-15); the
+ * hourly digest ({digest: 'hourly'}) has its own subject (EML-10).
+ */
+export function copyFor(id: TemplateId, vars: Record<string, string | number>): EmailCopy {
+  if (id === 'E1' && !vars.times) return { ...EMAIL_COPY.E1, body: E1_NO_TIMES_BODY };
+  if (id === 'E12' && vars.standby === '') return { ...EMAIL_COPY.E12, body: E12_NO_WEEK_BODY };
+  if (id === 'E13' && vars.digest === 'hourly') return { ...EMAIL_COPY.E13, subject: E13_HOURLY_SUBJECT };
+  return EMAIL_COPY[id];
+}

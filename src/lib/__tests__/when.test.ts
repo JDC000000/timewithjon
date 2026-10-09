@@ -10,24 +10,25 @@ const evening = [at('2027-04-16', '19:00'), at('2027-04-16', '22:00')] as const;
 
 describe('guestWhen (QA C)', () => {
   it('a lunch and an evening read as the picker tiles do', () => {
-    expect(guestWhen(...lunch, null)).toBe('Fri May 14 · noon–2 pm');
-    expect(guestWhen(...evening, null)).toBe('Fri Apr 16 · 7 pm');
+    expect(guestWhen(...lunch, null)).toBe('Fri May 14 · noon–2 pm Vancouver time');
+    expect(guestWhen(...evening, null)).toBe('Fri Apr 16 · 7 pm Vancouver time');
   });
 
   it('a locked date-based range reads as its hours; a whole day as its start', () => {
     expect(guestWhen(at('2027-04-03', '09:00'), at('2027-04-03', '13:00'), null)).toBe(
-      'Sat Apr 3 · 9 am–1 pm',
+      'Sat Apr 3 · 9 am–1 pm Vancouver time',
     );
     expect(guestWhen(at('2027-04-03', '09:00'), at('2027-04-03', '11:30'), null)).toBe(
-      'Sat Apr 3 · 9–11:30 am',
+      'Sat Apr 3 · 9–11:30 am Vancouver time',
     );
-    expect(guestWhen(at('2027-04-03', '08:00'), at('2027-04-04', '08:00'), null)).toBe('Sat Apr 3 · 8 am');
+    expect(guestWhen(at('2027-04-03', '08:00'), at('2027-04-04', '08:00'), null)).toBe(
+      'Sat Apr 3 · 8 am Vancouver time',
+    );
   });
 
-  it('Vancouver, an unknown zone or a zone with the same clock: Vancouver only', () => {
-    expect(guestWhen(...lunch, 'America/Vancouver')).toBe('Fri May 14 · noon–2 pm');
-    expect(guestWhen(...lunch, 'America/Los_Angeles')).toBe('Fri May 14 · noon–2 pm');
-    expect(guestWhen(...lunch, 'Not/AZone')).toBe('Fri May 14 · noon–2 pm');
+  it('Vancouver, no zone, an unknown zone or a zone with the same clock: "Vancouver time" only (TSD C5 M2, EML-01)', () => {
+    for (const zone of ['America/Vancouver', 'America/Los_Angeles', 'Not/AZone', null, undefined, ''])
+      expect(guestWhen(...lunch, zone)).toBe('Fri May 14 · noon–2 pm Vancouver time');
   });
 
   it('another zone: Vancouver time, then theirs (with the day when it differs)', () => {

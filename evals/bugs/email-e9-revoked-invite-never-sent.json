@@ -1,0 +1,9 @@
+{
+  "id": "email-e9-revoked-invite-never-sent",
+  "date": "2026-10-08",
+  "task": "QA EML-04",
+  "area": "email",
+  "summary": "Jon's honest no (E9) was never delivered when the guest's invite had been revoked: the menu link failed closed and the admin call still answered ok.",
+  "fix": "With a revoked invite the menu link is empty: E9 goes without a link line or button (the dead link is still never sent).",
+  "tests": ["tests/int/pitch-weather.int.test.ts", "src/features/email/__tests__/templates-html.test.ts"]
+}

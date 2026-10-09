@@ -46,6 +46,7 @@ export async function sendHourlyDigest(now: Date): Promise<DeliverResult | 'none
       requestId: null,
       eventKey: digestEventKey(now),
       vars: {
+        digest: 'hourly', // EML-10: its own subject (copyFor); the lines are emails, not stories
         count: rows.length,
         lines: rows.map((r) => `- ${digestLine(r.template, r.vars)}`).join('\n'),
         adminLink: `${getEnv().NEXT_PUBLIC_SITE_URL}/admin`,

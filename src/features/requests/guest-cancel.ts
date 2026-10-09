@@ -159,9 +159,8 @@ async function cancelTx(
           name: r.contact_name,
           dish,
           when: when ?? E12_PARTS.noTime,
-          standby: wasLocked
-            ? await standbyNames(c, weekStartOf(vancouverDate(r.starts_at!)))
-            : E12_PARTS.noWeek,
+          // EML-15: no locked time, no week: '' drops the stand-by sentence (copyFor).
+          standby: wasLocked ? await standbyNames(c, weekStartOf(vancouverDate(r.starts_at!))) : '',
           adminLink: adminLink(requestId),
         },
       }),

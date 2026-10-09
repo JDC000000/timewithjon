@@ -1,0 +1,9 @@
+{
+  "id": "email-hourly-digest-subject",
+  "date": "2026-10-08",
+  "task": "QA EML-10",
+  "area": "email",
+  "summary": "The hourly digest said 'New stories: 4' over a list of request emails.",
+  "fix": "The hourly digest ({digest: 'hourly'}) has its own subject, 'What’s new: {count}' (copyFor).",
+  "tests": ["src/features/email/__tests__/templates-html.test.ts", "tests/int/email-guard.int.test.ts"]
+}

@@ -594,7 +594,7 @@ describe('T2.4.07 the guest takes an offer (S18 POST)', () => {
     const answer = await takeRoute(post('/api/offer/take', { token, rangeIndex: 0 }));
     expect(answer.status).toBe(200);
     expect(((await answer.json()) as { message: string }).message).toMatch(
-      /^You’re locked in for Sat May 22 · 7:30–11 pm\./,
+      /^You’re locked in for Sat May 22 · 7:30–11 pm Vancouver time\./,
     );
     const r = await req(id);
     expect(r).toMatchObject({ status: 'locked', locked_starts_at: startsAt, locked_ends_at: endsAt });

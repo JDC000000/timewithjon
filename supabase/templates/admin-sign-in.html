@@ -1,4 +1,60 @@
-<p>Time with Jon admin sign-in</p>
-<p>Your code is <strong>{{ .Token }}</strong>. It works for 15 minutes.</p>
-<p>Or tap to sign in: <a href="{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&type=email">{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&type=email</a></p>
-<p>Didn't ask for this? Ignore this email.</p>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>Time with Jon admin sign-in</title>
+  </head>
+  <!-- AD-7 / EML-12: the admin sign-in email, word for word the signed design pack a1d, on the app mail's look
+       (src/features/email/templates/Layout.tsx). Supabase fills {{ .Token }}, {{ .SiteURL }} and {{ .TokenHash }}.
+       The words are ADMIN_SIGN_IN_EMAIL in src/content/emails.ts; content.test.ts keeps them equal. -->
+  <body style="margin: 0; padding: 0; background: #e9e6de">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #e9e6de">
+      <tbody>
+        <tr>
+          <td align="center" style="padding: 24px 12px">
+            <table
+              role="presentation"
+              width="600"
+              cellpadding="0"
+              cellspacing="0"
+              border="0"
+              style="width: 100%; max-width: 600px; background: #f4f2ec"
+            >
+              <tbody>
+                <tr>
+                  <td
+                    style="
+                      padding: 32px 40px 40px;
+                      font: 400 17px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                      color: #1f1f1f;
+                      overflow-wrap: anywhere;
+                      word-break: break-word;
+                    "
+                  >
+                    <h1 style="margin: 0 0 20px; font: 600 22px/1.3 Georgia, 'Times New Roman', serif; color: #1f1f1f">Time with Jon admin sign-in</h1>
+                    <p style="margin: 0">Your code:</p>
+                    <p style="margin: 8px 0 0; font: 600 32px/1.2 Menlo, Consolas, monospace; letter-spacing: 0.12em; color: #1f1f1f"><strong>{{ .Token }}</strong></p>
+                    <p style="margin: 24px 0 0">Or use the button on the device you want to sign in on:</p>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 16px 0 0">
+                      <tbody>
+                        <tr>
+                          <td style="background: #1f1f1f; border-radius: 4px">
+                            <a href="{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&type=email" style="display: inline-block; padding: 12px 22px; font: 600 16px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f4f2ec; text-decoration: none">Sign in</a>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p style="margin: 24px 0 0; font-size: 15px; color: #595449">The code and the link work once. Didn&rsquo;t ask for this? Ignore it. Nobody gets in without the code or the tap.</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

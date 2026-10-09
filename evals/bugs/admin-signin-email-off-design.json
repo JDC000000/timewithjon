@@ -1,0 +1,9 @@
+{
+  "id": "admin-signin-email-off-design",
+  "date": "2026-10-08",
+  "task": "QA EML-12",
+  "area": "admin",
+  "summary": "The admin sign-in email differed from the signed design a1d: no document, no button, a bare URL, a straight apostrophe.",
+  "fix": "The template is the a1d design word for word on the app mail's look, with a Sign in button and a curly apostrophe; config.toml carries the a1d subject.",
+  "tests": ["src/content/__tests__/content.test.ts"]
+}

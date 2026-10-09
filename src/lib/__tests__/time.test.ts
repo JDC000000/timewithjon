@@ -8,8 +8,9 @@ describe('time helpers', () => {
     expect(guestWhen(...lunch, 'America/Toronto')).toBe(
       'Thu May 13 · noon–2 pm Vancouver time (3–5 pm your time)',
     );
-    expect(guestWhen(...lunch, 'America/Vancouver')).toBe('Thu May 13 · noon–2 pm');
-    expect(guestWhen(...lunch, 'America/Los_Angeles')).toBe('Thu May 13 · noon–2 pm');
+    // TSD C5 M2 (EML-01): every guest-facing time says "Vancouver time", even when the guest's clock is the same.
+    expect(guestWhen(...lunch, 'America/Vancouver')).toBe('Thu May 13 · noon–2 pm Vancouver time');
+    expect(guestWhen(...lunch, 'America/Los_Angeles')).toBe('Thu May 13 · noon–2 pm Vancouver time');
   });
   it('week keys come from the local date, never UTC', () => {
     const lateSunday = vancouverInstant('2027-06-27', '23:30'); // Monday in UTC

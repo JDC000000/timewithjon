@@ -41,10 +41,14 @@ const SIGN_IN_TEMPLATE = readFileSync(
   'utf8',
 );
 const SUPABASE_CONFIG = readFileSync(path.resolve(__dirname, '../../../supabase/config.toml'), 'utf8');
-const ALL = [...strings(content), SIGN_IN_TEMPLATE];
+/** The template's words (EML-12: it is now a full HTML document, so the doctype and comments aren't copy). */
+const SIGN_IN_WORDS = SIGN_IN_TEMPLATE.replace(/<!--[\s\S]*?-->/g, '')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&rsquo;/g, '’');
+const ALL = [...strings(content), SIGN_IN_WORDS];
 // Everything except the invite-text module (by export, not by value: the same sentence elsewhere must fail).
 const notInviteText = Object.fromEntries(Object.entries(content).filter(([k]) => k !== 'INVITE_TEXT'));
-const ALL_BUT_INVITE_TEXT = [...strings(notInviteText), SIGN_IN_TEMPLATE];
+const ALL_BUT_INVITE_TEXT = [...strings(notInviteText), SIGN_IN_WORDS];
 const NON_HERO = ALL.filter(
   (s) =>
     s !== HERO_BODY && s !== OPEN_LINE && !/^We keep saying we should do .+ or that epic trip\.$/.test(s),
@@ -104,15 +108,26 @@ describe('T0.3 content', () => {
     );
     expect(SIGN_IN_TEMPLATE).not.toContain('ConfirmationURL');
   });
-  it('AD-7 the sign-in email names Time with Jon, and config.toml carries its subject, file and 15 minutes', () => {
-    expect(SIGN_IN_TEMPLATE.split('\n')[0]).toBe(`<p>${ADMIN_SIGN_IN_EMAIL.heading}</p>`);
-    expect(ADMIN_SIGN_IN_EMAIL.heading).toContain('Time with Jon');
-    expect(SUPABASE_CONFIG).toContain(`subject = "${ADMIN_SIGN_IN_EMAIL.subject}"`);
+  it('AD-7 / EML-12 the sign-in email is the signed a1d, and config.toml carries its subject, file and 15 minutes', () => {
+    // Every line of the signed design, in the template (curly apostrophes as an entity, never a straight one).
+    const html = (s: string) => s.replaceAll('’', '&rsquo;');
+    const { subject, ...lines } = ADMIN_SIGN_IN_EMAIL;
+    for (const line of Object.values(lines)) expect(SIGN_IN_TEMPLATE, line).toContain(html(line));
+    expect(SIGN_IN_TEMPLATE).toContain(`<title>${subject}</title>`);
+    expect(ADMIN_SIGN_IN_EMAIL).toMatchObject({
+      subject: 'Time with Jon admin sign-in',
+      footer:
+        'The code and the link work once. Didn’t ask for this? Ignore it. Nobody gets in without the code or the tap.',
+    });
+    expect(SIGN_IN_TEMPLATE.replace(/<!--[\s\S]*?-->/g, '')).not.toMatch(/[A-Za-z]'[A-Za-z]/); // no straight apostrophe in the words
+    // The link is a button: its URL is never the visible text.
+    expect(SIGN_IN_TEMPLATE).toMatch(/>Sign in<\/a>/);
+    expect(SIGN_IN_TEMPLATE).not.toMatch(/>\{\{ \.SiteURL \}\}/);
+    expect(SUPABASE_CONFIG).toContain(`subject = "${subject}"`);
     expect(SUPABASE_CONFIG).toMatch(
-      /\[auth\.email\.template\.magic_link\]\nsubject = "Your Time with Jon sign-in code"\ncontent_path = "\.\/supabase\/templates\/admin-sign-in\.html"\n/,
+      /\[auth\.email\.template\.magic_link\]\nsubject = "Time with Jon admin sign-in"\ncontent_path = "\.\/supabase\/templates\/admin-sign-in\.html"\n/,
     );
     expect(SUPABASE_CONFIG).toMatch(/^otp_expiry = 900$/m);
-    expect(SIGN_IN_TEMPLATE).toContain('It works for 15 minutes.');
   });
   it('AC1 no banned words, em-dashes, "decline", "John" or Calendly words', () => {
     const hits = ALL.flatMap((s) =>

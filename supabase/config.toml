@@ -238,12 +238,12 @@ secure_password_change = false
 max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
-# Number of seconds before the email OTP expires. TSD AD-7: 900 (the template says "works for 15 minutes").
+# Number of seconds before the email OTP expires. TSD AD-7: 900 (15 minutes; the code and the link also work once).
 otp_expiry = 900
 
 # AD-7 (v1.10): the one admin sign-in email, link + 6-digit code. Live on proto + staging via the Management API.
 [auth.email.template.magic_link]
-subject = "Your Time with Jon sign-in code"
+subject = "Time with Jon admin sign-in"
 content_path = "./supabase/templates/admin-sign-in.html"
 
 # Use a production-ready SMTP server

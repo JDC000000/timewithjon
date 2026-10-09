@@ -53,7 +53,10 @@ describe('requestedTimeLines (E1 lists the requested times, Jon option A; as the
   const noon = at('2026-10-01T19:00:00Z', 2); // Thu Oct 1, noon–2 pm Vancouver (PDT): a lunch
   const eve = at('2026-10-04T02:00:00Z', 3); // Sat Oct 3, 7–10 pm Vancouver: an evening
   it('slots: in order, Vancouver time when the guest has no zone', () => {
-    expect(requestedTimeLines([eve, noon], [], null)).toEqual(['Thu Oct 1 · noon–2 pm', 'Sat Oct 3 · 7 pm']);
+    expect(requestedTimeLines([eve, noon], [], null)).toEqual([
+      'Thu Oct 1 · noon–2 pm Vancouver time',
+      'Sat Oct 3 · 7 pm Vancouver time',
+    ]);
   });
   it('slots: with the guest’s own zone when it differs', () => {
     expect(requestedTimeLines([noon], [], 'America/Toronto')).toEqual([
@@ -61,7 +64,7 @@ describe('requestedTimeLines (E1 lists the requested times, Jon option A; as the
     ]);
   });
   it('an unknown zone falls back to Vancouver', () => {
-    expect(requestedTimeLines([noon], [], 'Not/AZone')).toEqual(['Thu Oct 1 · noon–2 pm']);
+    expect(requestedTimeLines([noon], [], 'Not/AZone')).toEqual(['Thu Oct 1 · noon–2 pm Vancouver time']);
   });
   it('dates mode: the dates, no times', () => {
     expect(requestedTimeLines([], ['2026-10-03', '2026-10-01'], 'Europe/London')).toEqual([

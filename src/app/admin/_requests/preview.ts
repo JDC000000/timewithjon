@@ -19,7 +19,7 @@ export function emailPreview(
   return { subject: fill(copy.subject, vars), lines, signOff: SIGN_OFF };
 }
 
-/** "Fri May 21 · noon–2 pm": how E5 writes an offered time (suggest.ts timeLabel, QA C; no guest zone here). */
+/** "Fri May 21 · noon–2 pm Vancouver time": how E5 writes an offered time (suggest.ts timeLabel, QA C; no guest zone here). */
 export function emailTime(startsAt: Date, endsAt: Date): string {
   return guestWhen(startsAt, endsAt, null);
 }

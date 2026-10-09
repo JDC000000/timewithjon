@@ -293,7 +293,7 @@ describe('token pages: read-only loaders (T2.7.03, AC1–AC4)', () => {
       requestId: id,
       status: 'locked',
       label: 'Locked in',
-      when: 'Thu Jun 3 · noon–2 pm', // QA C: as the site writes it
+      when: 'Thu Jun 3 · noon–2 pm Vancouver time', // QA C, EML-01: as the site writes it, whose clock
       ownPlan: null,
       canCancel: true,
       canAskAnother: true,
@@ -445,7 +445,7 @@ describe('guest cancel (T2.7.04, E11 + E12, AC5)', () => {
       `select vars from email_log where request_id = $1 and template = 'E12'`,
       [open],
     );
-    expect(v2!.vars).toMatchObject({ when: 'no time locked yet', standby: 'no week yet' });
+    expect(v2!.vars).toMatchObject({ when: 'no time locked yet', standby: '' }); // EML-15: no week, no stand-by line
     expect(await q(`select 1 from outbox where request_id = $1`, [open])).toHaveLength(0); // no event, no delete row
   });
 

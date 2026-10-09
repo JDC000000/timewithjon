@@ -1,0 +1,12 @@
+{
+  "id": "email-guest-link-bare-url",
+  "date": "2026-10-08",
+  "task": "QA EML-03",
+  "area": "email",
+  "summary": "Every guest email's link (E4, E5, E5b, E7, E8, E9, E10) showed the full 90-character token URL as its text, wrapping mid-token at 320 px, while Jon's mails had buttons.",
+  "fix": "Each guest link line is a button with the label the TSD and design pack name (Change or cancel, Take it, Pick a new date) or a new one marked for Jon; a link line with no label throws instead of drawing a URL. The text part keeps the URL on its own line.",
+  "tests": [
+    "src/features/email/__tests__/templates-html.test.ts",
+    "tests/unit/email/email-templates-html.test.ts"
+  ]
+}
