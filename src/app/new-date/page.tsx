@@ -57,6 +57,7 @@ export default async function NewDatePage({ searchParams }: { searchParams: Sear
           form={dish.flow === 'pitch' ? 'pitch' : 'dates'}
           span={span}
           unavailable={unavailable}
+          overnight={model.overnight}
         />
       </S18Page>
     </S18Shell>

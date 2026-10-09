@@ -318,7 +318,7 @@ export const LOCK_DEFAULTS = {
     'the-shore-ride': { start: '09:00', minutes: 240 }, // approved: Jon (2026-10-03)
     'the-grind': { start: '09:00', minutes: 240 }, // approved: Jon (2026-10-03)
     'catch-and-release': { start: '07:00', minutes: 480 }, // approved: Jon (2026-10-03)
-    'the-long-distance': { start: '18:00', minutes: 120 }, // approved: Jon (2026-10-03)
+    'the-long-distance': { start: '18:00', minutes: 45 }, // r5 N-L3: the dish's own length (menu.ts: "45 min · phone or video"); start approved: Jon (2026-10-03)
     'the-encore': { start: '19:00', minutes: 180 }, // approved: Jon (2026-10-03)
     'the-old-haunt': { start: '12:00', minutes: 120 }, // approved: Jon (2026-10-03)
     'pitch-me': { start: '09:00', minutes: 480 }, // approved: Jon (2026-10-03)

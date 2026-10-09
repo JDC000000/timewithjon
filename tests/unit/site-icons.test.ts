@@ -27,6 +27,15 @@ describe('site icons (UX-05)', () => {
   });
 });
 
+describe('r5 N-L10: /apple-touch-icon.png at the root', () => {
+  it('rewrites to the App Router apple-icon.png (the same file; nothing new in public/)', async () => {
+    const { baseConfig } = await import('../../next.config');
+    expect(await baseConfig.rewrites?.()).toEqual([
+      { source: '/apple-touch-icon.png', destination: '/apple-icon.png' },
+    ]);
+  });
+});
+
 describe('the layout metadata (UX-05)', () => {
   const env = process.env;
   afterEach(() => {

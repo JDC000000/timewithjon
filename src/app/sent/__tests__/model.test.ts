@@ -23,12 +23,12 @@ describe('loadSentModel', () => {
 });
 
 describe('loadRequestLines (QA L7: S17 shows what was sent while nothing is locked)', () => {
-  const slot = (iso: string, kind: 'lunch' | 'evening', hours: number) => ({
+  const slot = (iso: string, _kind: 'lunch' | 'evening', hours: number, zone: string | null = null) => ({
     starts_at: new Date(iso),
     ends_at: new Date(Date.parse(iso) + hours * 3_600_000),
-    window_kind: kind,
+    guest_time_zone: zone,
   });
-  it('the times, then the dates and the rough window, as /sent writes them', async () => {
+  it('the times (r5 N-L4: whose clock, as the emails say), then the dates and the rough window', async () => {
     q.mockResolvedValueOnce([
       {
         status: 'requested',
@@ -41,10 +41,19 @@ describe('loadRequestLines (QA L7: S17 shows what was sent while nothing is lock
     ]);
     const { loadRequestLines } = await import('../model');
     await expect(loadRequestLines('req-1')).resolves.toEqual([
-      'Fri May 14 · noon–2 pm',
-      'Thu May 20 · 7 pm',
+      'Fri May 14 · noon–2 pm Vancouver time',
+      'Thu May 20 · 7 pm Vancouver time',
       'Sat May 8',
       'late May',
+    ]);
+  });
+  it('r5 N-L4: a guest on another clock gets theirs after it', async () => {
+    q.mockResolvedValueOnce([
+      { status: 'requested', date_prefs: null, standby_week: null },
+    ]).mockResolvedValueOnce([slot('2027-05-14T19:00:00Z', 'lunch', 2, 'America/Toronto')]);
+    const { loadRequestLines } = await import('../model');
+    await expect(loadRequestLines('req-3')).resolves.toEqual([
+      'Fri May 14 · noon–2 pm Vancouver time (3–5 pm your time)',
     ]);
   });
   it('a stand-by: its receipt line', async () => {

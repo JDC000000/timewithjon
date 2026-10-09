@@ -1,0 +1,9 @@
+{
+  "id": "slideshow-stops-on-bad-photo",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "guest",
+  "summary": "A slideshow photo that failed to load stopped the rotation for good (it waited for that photo forever).",
+  "fix": "A failed photo is passed over: the one after it joins the page and the rotation goes on.",
+  "tests": ["tests/unit/ui/slideshow.dom.test.tsx"]
+}

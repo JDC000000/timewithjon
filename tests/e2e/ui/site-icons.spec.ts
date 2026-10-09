@@ -6,6 +6,7 @@ test('favicon, icon, apple icon and og:image are served and linked', async ({ pa
     ['/favicon.ico', 'image/'],
     ['/icon.svg', 'image/svg+xml'],
     ['/apple-icon.png', 'image/png'],
+    ['/apple-touch-icon.png', 'image/png'], // r5 N-L10: the root path some crawlers ask for
     ['/opengraph-image.png', 'image/png'],
   ] as const) {
     const res = await request.get(p);

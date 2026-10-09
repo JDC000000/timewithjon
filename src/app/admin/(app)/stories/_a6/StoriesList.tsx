@@ -37,18 +37,15 @@ export function StoriesList({ stories, current }: { stories: StoryItem[]; curren
                 className="req"
                 href={storyPath(s.id)}
                 aria-current={current === s.id ? 'page' : undefined}
+                // r5 N-L8 (as #64 on Links): a visually hidden ", " read "Name , OK for the book" (an out-of-flow span
+                // adds a space); the name is the row's words joined plainly
+                aria-label={[storyWho(s), ...storyMeta(s)].join(', ')}
               >
                 <span className="who">{storyWho(s)}</span>
-                <span className="vh">, </span>
                 <span className="meta">
                   {storyMeta(s).map((m, i) => (
                     <Fragment key={m}>
-                      {i > 0 ? (
-                        <>
-                          <span aria-hidden="true"> · </span>
-                          <span className="vh">, </span>
-                        </>
-                      ) : null}
+                      {i > 0 ? <span aria-hidden="true"> · </span> : null}
                       {m}
                     </Fragment>
                   ))}
