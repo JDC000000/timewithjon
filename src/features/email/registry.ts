@@ -43,7 +43,9 @@ export function renderText(
   }
   const ps = POSTSCRIPT[id];
   if (ps) {
-    const text = `${body}\n\n${SIGN_OFF}\n\n${ps.mark} ${ps.text}\n${ps.printTag}: ${tagUrl(opts)}\n`;
+    const { mark, text: words, printTag } = ps.words;
+    const link = ps.tagLink ? `${printTag}: ${tagUrl(opts)}\n` : '';
+    const text = `${body}\n\n${SIGN_OFF}\n\n${mark} ${words}\n${link}`;
     return { subject, text, fromLocal: jonFacing ? 'admin' : 'jon' };
   }
   const text = `${body}\n\n${jonFacing ? '' : `${SIGN_OFF}\n`}`.trimEnd() + '\n';

@@ -151,8 +151,14 @@ export const GUEST_BUTTON = {
 } as const satisfies Partial<Record<TemplateId, string>>;
 /** r6 Q4: the small line under E6's and E5j's button (both parts carry it; it is {callLine} in the copy). */
 export const CALL_NOTE = 'Or just call me.'; // approved: Jon (2026-10-09) r6 Q4
-/** A P.S. under the signature (Jon decisions 45 + 47a): E1 "Got it" carries the no-gifts P.S. and its tag link. */
-export const POSTSCRIPT: Partial<Record<TemplateId, typeof NO_GIFTS_PS>> = { E1: NO_GIFTS_PS };
+/**
+ * A P.S. under the signature (Jon decisions 45 + 47a): the no-gifts P.S., word for word. r6 (approved: Jon
+ * 2026-10-09): E1 "Got it" keeps the words without the "Print the tag" link; the link moves to E4's P.S. (same words).
+ */
+export const POSTSCRIPT: Partial<Record<TemplateId, { words: typeof NO_GIFTS_PS; tagLink: boolean }>> = {
+  E1: { words: NO_GIFTS_PS, tagLink: false }, // approved: Jon (2026-10-09) r6 fix 4
+  E4: { words: NO_GIFTS_PS, tagLink: true }, // approved: Jon (2026-10-09) r6 fix 4
+};
 export function fill(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }

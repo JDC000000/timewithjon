@@ -4,7 +4,7 @@
 // bare; the text part keeps the URL on its own line). An empty link var (E5b with no offer) draws nothing. A line
 // after the link line (E6's and E5j's "Or just call me.", r6 Q4) is a small note under the button.
 import { JON_FACING, copyFor, fill, type TemplateId } from '@/content/emails';
-import { Body, Button, INK_2, Layout } from './Layout';
+import { Body, Button, INK_2, Layout, type PostScript } from './Layout';
 
 type Vars = Record<string, string | number>;
 const LINK_LINE = /^\{(\w+Link)\}$/;
@@ -20,6 +20,7 @@ export function Mail({
   copy = copyFor(id, vars).body,
   lists = [],
   button,
+  ps,
 }: {
   id: TemplateId;
   vars: Vars;
@@ -28,6 +29,8 @@ export function Mail({
   lists?: string[];
   /** The button label for the link line (required when the copy ends in one). */
   button?: string;
+  /** A P.S. under the sign-off (E4's no-gifts P.S. with the tag link, r6 fix 4). */
+  ps?: PostScript;
 }) {
   const lines = copy.split('\n');
   const at = lines.map((l) => LINK_LINE.test(l.trim())).lastIndexOf(true);
@@ -37,7 +40,12 @@ export function Mail({
   const notes = at >= 0 ? lines.slice(at + 1).filter((l) => l.trim()) : [];
   if (href && !button) throw new MissingButtonLabelError(id);
   return (
-    <Layout title={fill(copyFor(id, vars).subject, vars)} signOff={!JON_FACING.includes(id)}>
+    <Layout
+      title={fill(copyFor(id, vars).subject, vars)}
+      signOff={!JON_FACING.includes(id)}
+      note={!JON_FACING.includes(id)} // every guest email is a personal note (r6 fix 3); Jon's keep the card
+      ps={ps}
+    >
       <Body copy={body} vars={vars} lists={lists} />
       {href && <Button href={href}>{button}</Button>}
       {href &&

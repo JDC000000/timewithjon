@@ -1,10 +1,12 @@
-// src/features/email/templates/Layout.tsx — T1.10.U1: the shared React Email layout (the v2.2b look,
-// design pack v22proto2/email/e1-got-it.html). Tables + inline CSS only; every colour is a
-// src/ui/tokens.css value (email clients can't read CSS variables). T3.2.U2 builds the other templates on this.
-// The header photo band (a private photo slot) is not drawn here yet.
-import type { ReactNode } from 'react';
+// src/features/email/templates/Layout.tsx — T1.10.U1: the shared React Email layout. Two looks:
+// - card (Jon-facing mail): the v2.2b look, design pack v22proto2/email/e1-got-it.html: a paper card on the canvas,
+//   the TIME WITH JON mark, a dark button. Tables + inline CSS only; every colour is a src/ui/tokens.css value.
+// - note (every guest email, r6 fix 3, approved: Jon 2026-10-09): a personal note: plain left-aligned text in the
+//   system font, no canvas, no card, no mark; the action is an underlined text link with the same words; the italic
+//   "Jon" stays. (A designed, branded template is what Gmail files under Promotions.)
+import { createContext, useContext, type ReactNode } from 'react';
 import { MARK } from '@/content/ui/foundation';
-import { SIGN_OFF, fill } from '@/content/emails';
+import { POSTSCRIPT, SIGN_OFF, fill, type TemplateId } from '@/content/emails';
 
 export const INK = '#1f1f1f'; // --c-ink
 export const INK_2 = '#34312c'; // --c-ink-2
@@ -17,9 +19,23 @@ const VOICE = "Georgia,'Times New Roman',serif";
 export interface PostScript {
   mark: string;
   text: string;
-  linkLabel: string;
-  href: string;
+  /** The P.S. link (E4's "Print the tag"); none = the words alone (E1, r6 fix 4). */
+  link?: { label: string; href: string };
 }
+
+/** A template's P.S. (POSTSCRIPT): the words, and the "Print the tag" link where it carries one (E4). */
+export function postScriptFor(id: TemplateId, tagUrl: string): PostScript | undefined {
+  const ps = POSTSCRIPT[id];
+  if (!ps) return undefined;
+  return {
+    mark: ps.words.mark,
+    text: ps.words.text,
+    ...(ps.tagLink ? { link: { label: ps.words.printTag, href: tagUrl } } : {}),
+  };
+}
+
+/** Set by Layout: in a note, a Button draws as an underlined text link. */
+const NoteLook = createContext(false);
 
 export interface LayoutProps {
   /** The subject: the <title> of the document. */
@@ -28,20 +44,74 @@ export interface LayoutProps {
   /** Guest emails sign off "Jon" on its own line; Jon-facing ones don't (as the text part). */
   signOff: boolean;
   ps?: PostScript;
+  /** A guest email: the personal-note look. */
+  note?: boolean;
 }
 
-export function Layout({ title, children, signOff, ps }: LayoutProps) {
+function SignOffAndPs({ signOff, ps }: Pick<LayoutProps, 'signOff' | 'ps'>) {
+  return (
+    <>
+      {signOff && (
+        <p style={{ margin: '24px 0 0', font: `italic 20px/1.3 ${VOICE}`, color: INK }}>{SIGN_OFF}</p>
+      )}
+      {ps && (
+        <p style={{ margin: '20px 0 0', font: `400 15px/1.55 ${UI}`, color: INK_2 }}>
+          <span style={{ font: `italic 17px/1 ${VOICE}`, color: INK }}>{ps.mark}</span> {ps.text}
+          {ps.link && (
+            <>
+              {' '}
+              <a href={ps.link.href} style={{ color: INK, textDecoration: 'underline' }}>
+                {ps.link.label}
+              </a>
+            </>
+          )}
+        </p>
+      )}
+    </>
+  );
+}
+
+function Head({ title }: { title: string }) {
+  return (
+    // an email document, not a Next page
+    // eslint-disable-next-line @next/next/no-head-element
+    <head>
+      <meta charSet="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <meta name="color-scheme" content="light" />
+      <meta name="supported-color-schemes" content="light" />
+      <title>{title}</title>
+    </head>
+  );
+}
+
+export function Layout({ title, children, signOff, ps, note = false }: LayoutProps) {
+  if (note)
+    return (
+      <html lang="en">
+        <Head title={title} />
+        <body style={{ margin: 0, padding: 0 }}>
+          {/* EML-17: a long unbroken name or word wraps, never widens the email. */}
+          <div
+            style={{
+              maxWidth: 600,
+              padding: '16px',
+              textAlign: 'left',
+              font: `400 16px/1.5 ${UI}`,
+              color: INK,
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
+            }}
+          >
+            <NoteLook.Provider value>{children}</NoteLook.Provider>
+            <SignOffAndPs signOff={signOff} ps={ps} />
+          </div>
+        </body>
+      </html>
+    );
   return (
     <html lang="en">
-      {/* an email document, not a Next page */}
-      {/* eslint-disable-next-line @next/next/no-head-element */}
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <meta name="color-scheme" content="light" />
-        <meta name="supported-color-schemes" content="light" />
-        <title>{title}</title>
-      </head>
+      <Head title={title} />
       <body style={{ margin: 0, padding: 0, background: CANVAS }}>
         <table
           role="presentation"
@@ -86,20 +156,7 @@ export function Layout({ title, children, signOff, ps }: LayoutProps) {
                           {MARK}
                         </p>
                         {children}
-                        {signOff && (
-                          <p style={{ margin: '24px 0 0', font: `italic 20px/1.3 ${VOICE}`, color: INK }}>
-                            {SIGN_OFF}
-                          </p>
-                        )}
-                        {ps && (
-                          <p style={{ margin: '20px 0 0', font: `400 15px/1.55 ${UI}`, color: INK_2 }}>
-                            <span style={{ font: `italic 17px/1 ${VOICE}`, color: INK }}>{ps.mark}</span>{' '}
-                            {ps.text}{' '}
-                            <a href={ps.href} style={{ color: INK, textDecoration: 'underline' }}>
-                              {ps.linkLabel}
-                            </a>
-                          </p>
-                        )}
+                        <SignOffAndPs signOff={signOff} ps={ps} />
                       </td>
                     </tr>
                   </tbody>
@@ -113,8 +170,19 @@ export function Layout({ title, children, signOff, ps }: LayoutProps) {
   );
 }
 
-/** A button is a plain link to a page (N2): the page does the work on its own POST, never the GET. */
+/**
+ * A button is a plain link to a page (N2): the page does the work on its own POST, never the GET. In a note (a guest
+ * email) it is an underlined text link with the same words; in a card (Jon-facing) the dark button.
+ */
 export function Button({ href, children }: { href: string; children: ReactNode }) {
+  if (useContext(NoteLook))
+    return (
+      <p style={{ margin: '20px 0 0' }}>
+        <a href={href} style={{ color: INK, textDecoration: 'underline' }}>
+          {children}
+        </a>
+      </p>
+    );
   return (
     <table role="presentation" cellPadding={0} cellSpacing={0} border={0} style={{ margin: '24px 0 0' }}>
       <tbody>
