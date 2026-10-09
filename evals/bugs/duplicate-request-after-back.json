@@ -1,0 +1,9 @@
+{
+  "id": "duplicate-request-after-back",
+  "date": "2026-10-08",
+  "task": "QA4b-M1",
+  "area": "requests/intake",
+  "summary": "After Send, the browser's Back showed an empty form, and Send again (a new key) made a second request with the same dish and dates; Jon saw both.",
+  "fix": "The same body from the same invite within 10 minutes (not cancelled since) is answered as the request already sent; any difference is a new request.",
+  "tests": ["tests/int/requests.int.test.ts", "tests/route/requests.route.test.ts"]
+}

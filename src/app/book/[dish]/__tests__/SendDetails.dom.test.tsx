@@ -56,6 +56,15 @@ function Harness({ guest, go }: { guest: GuestView; go: (href: string) => void }
 }
 
 describe('the guest Send (T1.7.U4)', () => {
+  it('QA4b L4: the name box drops bidi overrides as typed (the server refuses them)', async () => {
+    const user = userEvent.setup();
+    render(<Harness guest={SAM} go={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: SEND_AS.change }));
+    await user.clear(box(FLOW.nameLabel));
+    await user.type(box(FLOW.nameLabel), 'Sam\u202eRTL');
+    expect(box(FLOW.nameLabel).value).toBe('SamRTL');
+  });
+
   it('a personal invite: name and email filled in and editable', async () => {
     const user = userEvent.setup();
     render(<PitchFlow dish={PITCH_ME} notices={NONE} guest={SAM} />);

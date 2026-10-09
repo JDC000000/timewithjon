@@ -1,0 +1,13 @@
+{
+  "id": "send-limit-fixed-hour-counts-refusals",
+  "date": "2026-10-08",
+  "task": "QA4-M3",
+  "area": "requests/intake",
+  "summary": "Guest Send was capped at 10 per IP in a fixed clock hour, and refused tries counted too: a family, a party or a carrier IP behind one address was blocked up to an hour while the message said 'Give it a minute'.",
+  "fix": "30 Sends per IP in a sliding hour (5-minute buckets), and a refused try gives its count back; per-invite and per-address caps still bound abuse. Same message.",
+  "tests": [
+    "tests/int/ratelimit-sliding.int.test.ts",
+    "src/lib/__tests__/ratelimit.test.ts",
+    "tests/route/requests.route.test.ts"
+  ]
+}

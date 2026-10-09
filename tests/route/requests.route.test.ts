@@ -178,10 +178,24 @@ describe('POST /api/requests (route level)', () => {
     await q(`delete from rate_limit`);
   });
 
-  // T3.8 AC3 end to end: the limiter runs before the invite check, so even refused probes count.
-  it('the 11th request from one IP in an hour → the friendly 429', async () => {
+  it('QA4b M1: Back after Send, then Send (a new key, the same request) gets the one already sent; a different one is new', async () => {
     await q(`delete from rate_limit`);
-    for (let i = 1; i <= 10; i++) expect((await post(body())).res.status, `send ${i}`).toBe(403);
+    const b = body({ email: email('back') });
+    expect((await post(b, { cookie })).res.status).toBe(200);
+    const again = await post({ ...b, clientKey: randomUUID() }, { cookie });
+    expect([again.res.status, again.json.ok]).toEqual([200, true]);
+    expect(await requestFor(b.email as string)).toHaveLength(1);
+    expect(await outboxFor(b.email as string)).toEqual(['E1']); // no second "Got it"
+    const other = await post({ ...b, clientKey: randomUUID(), note: 'And my partner' }, { cookie });
+    expect(other.res.status).toBe(200);
+    expect(await requestFor(b.email as string)).toHaveLength(2);
+    await q(`delete from rate_limit`);
+  });
+
+  // T3.8 AC3 end to end: the limiter runs before the invite check, so even refused probes count.
+  it('the 31st request from one IP in an hour → the friendly 429 (QA4 M3: 30, sliding)', async () => {
+    await q(`delete from rate_limit`);
+    for (let i = 1; i <= 30; i++) expect((await post(body())).res.status, `send ${i}`).toBe(403);
     const { res, json } = await post(body(), { cookie });
     expect(res.status).toBe(429);
     expect(json).toEqual({ ok: false, code: 'rate_limited', message: ERRORS.rateLimited });

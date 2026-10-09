@@ -2,10 +2,13 @@
 // A Server Component that ONLY reads (loadOfferModel): a GET, a HEAD or a link scanner's prefetch changes nothing
 // (N2). A tampered token is a 404; an expired one the "text me" frame; a spent link or an offer that has gone shows
 // the request as it is now ("You're locked in for Thu May 13, …", T2.4 AC1). The one POST is ./take.tsx's button.
+// A time someone else has taken since is not listed (QA4b L1); none left reads "Looks like that one went".
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { ERRORS } from '@/content';
 import { MANAGE_UI } from '@/content/manage';
 import { loadOfferModel } from '@/features/invites/manage-model';
+import { stillOpen } from '@/features/requests/take-offer';
 import { S18Current, S18Expired, S18Page, S18Shell } from './frame';
 import { TakeOffer, type Choice } from './take';
 
@@ -33,14 +36,28 @@ export default async function OfferPage({ searchParams }: { searchParams: Search
         </S18Page>
       </S18Shell>
     );
-  // The take body names a slot by id, a range by its index among the offer's ranges (TakeBody).
+  // QA4b L1: only the offered times a take would still pass (another guest may have taken one since: the take
+  // then said "Looks like that one went", and a reload listed it again). Read-only, as the take re-checks.
+  const open = new Set(await stillOpen(model.requestId, model.windows, model.offerKind));
+  if (open.size === 0)
+    return (
+      <S18Shell>
+        <S18Page page="offer" view={model} state="current">
+          <S18Current message={ERRORS.offerGone} requestId={model.requestId} />
+        </S18Page>
+      </S18Shell>
+    );
+  // The take body names a slot by id, a range by its index among the offer's ranges (TakeBody): numbered before
+  // the gone ones are left out.
   const slots = model.windows.filter((w) => w.slotId).length;
-  const choices: Choice[] = model.windows.map((w, i) => ({
-    key: w.slotId ?? `r${i - slots}`,
-    label: w.label,
-    startsAt: w.startsAt.toISOString(),
-    pick: w.slotId ? { slotId: w.slotId } : { rangeIndex: i - slots },
-  }));
+  const choices: Choice[] = model.windows
+    .map((w, i) => ({
+      key: w.slotId ?? `r${i - slots}`,
+      label: w.label,
+      startsAt: w.startsAt.toISOString(),
+      pick: w.slotId ? { slotId: w.slotId } : { rangeIndex: i - slots },
+    }))
+    .filter((_, i) => open.has(model.windows[i]!));
   return (
     <S18Shell>
       <S18Page page="offer" view={model} state="offer">

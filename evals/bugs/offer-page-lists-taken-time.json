@@ -1,0 +1,9 @@
+{
+  "id": "offer-page-lists-taken-time",
+  "date": "2026-10-08",
+  "task": "QA4b-L1",
+  "area": "requests/offers",
+  "summary": "/offer kept listing a time someone else had taken: Send said 'Looks like that one went', and a reload listed it again.",
+  "fix": "The offer page lists only offered times a take would still pass (stillOpen); none left reads 'Looks like that one went'.",
+  "tests": ["tests/e2e/guest-after/offer.spec.ts"]
+}

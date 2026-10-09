@@ -1,0 +1,9 @@
+{
+  "id": "ask-again-lists-booked-time",
+  "date": "2026-10-08",
+  "task": "QA4-L2",
+  "area": "requests/manage",
+  "summary": "Ask for another time listed the time already booked; sending it un-booked that time, deleted the invite and re-asked Jon for the same window.",
+  "fix": "The manage picker leaves out the slot the request (or its host) is booked on; the rest of that week stays.",
+  "tests": ["tests/int/manage.int.test.ts", "src/features/availability/__tests__/without-slot.test.ts"]
+}

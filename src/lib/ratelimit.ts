@@ -7,8 +7,16 @@ import type { NextRequest } from 'next/server';
 import { ERRORS } from '@/content';
 import { clientIp, jsonError } from '@/lib/http';
 
+/** A fixed window (`windowSec`), or with `bucketSec` a SLIDING one: the last `windowSec` in buckets of that size,
+ * where a refused try gives its count back (QA4 M3). */
+type Limit = { limit: number; windowSec: number; bucketSec?: number };
+
 export const LIMITS = {
-  requestSend: { limit: 10, windowSec: 3600 },
+  // QA4 M3: guest Sends per IP. Everyone behind one IP shares it (a family on home wifi, a party, an office, a
+  // carrier's shared IP), so 30 in any 60 minutes, sliding, and a refused try doesn't count: a party of 15 guests,
+  // each with a retry, gets through, while a script from one IP is still stopped. Abuse is bounded per invite and
+  // per address anyway (requestSendInvite 20 guest emails a day per general link, E1 at most 3 a day per address).
+  requestSend: { limit: 30, windowSec: 3600, bucketSec: 300 },
   photoFinalise: { limit: 20, windowSec: 3600 },
   inviteLookup: { limit: 30, windowSec: 60 },
   // T3.8.02: the capability/token-gated public POSTs. Generous for a real guest (retries, edits), tight for a script.
@@ -29,7 +37,7 @@ export const LIMITS = {
   // link, which has its own per-IP bucket, still signs in). High enough that strangers rarely reach it, low enough
   // that a 6-digit code can't be guessed.
   adminSignInVerifyEmail: { limit: 30, windowSec: 3600 },
-} as const;
+} as const satisfies Record<string, Limit>;
 
 export type LimitScope = keyof typeof LIMITS;
 
@@ -50,8 +58,9 @@ export type LimitVerdict = 'allowed' | 'limited' | 'unavailable';
 
 /** Counts one hit and says what to do. A limiter error is reported, then fails open or closed by scope. */
 export async function check(scope: LimitScope, key: string): Promise<LimitVerdict> {
-  const { limit, windowSec } = LIMITS[scope];
+  const { limit, windowSec, bucketSec }: Limit = LIMITS[scope];
   try {
+    if (bucketSec) return await slidingCheck(scope, key, limit, windowSec, bucketSec);
     const rows = await q<{ count: number }>(
       `insert into rate_limit (scope, key, window_start, count)
        values ($1, $2, date_bin(make_interval(secs => $3), now(), timestamptz 'epoch'), 1)
@@ -65,6 +74,40 @@ export async function check(scope: LimitScope, key: string): Promise<LimitVerdic
     report(e, { area: 'ratelimit', scope, ...(closed ? { mode: 'fail_closed' } : {}) });
     return closed ? 'unavailable' : 'allowed';
   }
+}
+
+/**
+ * QA4 M3: a sliding window. The try is counted in its bucket, then the buckets of the last `windowSec` are summed
+ * (the new one included); over the limit, the try gives its count back and is refused, so refused tries never
+ * extend a block. Two tries racing at the limit may both be refused (never both let through).
+ */
+async function slidingCheck(
+  scope: LimitScope,
+  key: string,
+  limit: number,
+  windowSec: number,
+  bucketSec: number,
+): Promise<LimitVerdict> {
+  const [row] = await q<{ bucket: Date; total: number }>(
+    `with mine as (
+       insert into rate_limit (scope, key, window_start, count)
+       values ($1, $2, date_bin(make_interval(secs => $4), now(), timestamptz 'epoch'), 1)
+       on conflict (scope, key, window_start) do update set count = rate_limit.count + 1
+       returning window_start, count)
+     select mine.window_start as bucket,
+            mine.count + coalesce((select sum(r.count) from rate_limit r
+                                    where r.scope = $1 and r.key = $2 and r.window_start <> mine.window_start
+                                      and r.window_start > now() - make_interval(secs => $3)), 0)::int as total
+       from mine`,
+    [scope, key, windowSec, bucketSec],
+  );
+  if (!row || row.total <= limit) return 'allowed';
+  await q(`update rate_limit set count = count - 1 where scope = $1 and key = $2 and window_start = $3`, [
+    scope,
+    key,
+    row.bucket,
+  ]);
+  return 'limited';
 }
 
 /**

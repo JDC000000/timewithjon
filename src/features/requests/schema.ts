@@ -1,5 +1,6 @@
 // src/lib/requests/schema.ts — T1.7 Zod schema for POST /api/requests (AD-2 max lengths).
 import { z } from 'zod';
+import { hasBidiControl } from '@/lib/bidi';
 import { honeypotField } from '@/lib/honeypot';
 
 // M5: single-line fields refuse every control character (CR/LF would reach email subjects and, with the
@@ -28,7 +29,11 @@ export const CREW_BIG = 16;
 export const RequestBody = z.object({
   clientKey: z.uuid(),
   dish: singleLine(64).min(1),
-  name: singleLine(80).min(1, 'name_required'),
+  // QA4b L4: no bidi overrides in a name Jon reads in admin, E2's subject and the digest (as invite names and the
+  // story name); the Send form drops them as typed, so only a hand-made body is refused (400).
+  name: singleLine(80)
+    .min(1, 'name_required')
+    .refine((n) => !hasBidiControl(n), 'bad_character'),
   email: z.string().trim().max(254).pipe(z.email('email_invalid')),
   phone: singleLine(30).optional().or(z.literal('')),
   crew: z.number().int().min(1, 'crew_min').max(99),

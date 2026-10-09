@@ -1,0 +1,12 @@
+{
+  "id": "request-name-bidi-override",
+  "date": "2026-10-08",
+  "task": "QA4b-L4",
+  "area": "requests/intake",
+  "summary": "The booking request name accepted bidi-override characters (U+202E), which re-ordered the admin title, E2's subject and the digest. Invite names refuse them.",
+  "fix": "RequestBody refuses bidi controls in the name (400); the Send form drops them as typed.",
+  "tests": [
+    "src/features/requests/__tests__/schema.test.ts",
+    "src/app/book/[dish]/__tests__/SendDetails.dom.test.tsx"
+  ]
+}

@@ -548,7 +548,8 @@ describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6
       )
     )[0]!.id;
 
-    // The picker: no cookie at all, only the manage header; the guest's own booking doesn't hide their window.
+    // The picker: no cookie at all, only the manage header. The guest's own booking doesn't hide or cap the rest
+    // of their week, but the time they're booked on isn't offered back (QA4 L2: it would un-book and re-ask it).
     const pick = await availability(
       new NextRequest(`${SITE}/api/availability?dish=the-long-lunch`, {
         headers: { [MANAGE_HEADER]: token },
@@ -556,7 +557,9 @@ describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6
     );
     expect(pick.status).toBe(200);
     const weeks = (await pick.json()) as { weeks: { windows: { slotId: string }[] }[] };
-    expect(weeks.weeks.some((w) => w.windows.some((x) => x.slotId === slot))).toBe(true);
+    const listed = weeks.weeks.flatMap((w) => w.windows.map((x) => x.slotId));
+    expect(listed).not.toContain(slot);
+    expect(listed).toContain(await slotId('2027-05-14', 'lunch'));
     const other = await availability(
       new NextRequest(`${SITE}/api/availability?dish=the-encore`, { headers: { [MANAGE_HEADER]: token } }),
     );

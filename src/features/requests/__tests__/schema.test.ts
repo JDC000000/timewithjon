@@ -18,6 +18,12 @@ describe('RequestBody', () => {
   it('accepts a normal body', () => {
     expect(issues({ slotIds: ['a', 'b'] })).toEqual([]);
   });
+  it('QA4b L4 refuses bidi overrides and isolates in the name (as invite names); emoji joiners stay', () => {
+    for (const c of ['\u202e', '\u202a', '\u2066', '\u200f'])
+      expect(issues({ name: `Dave${c}RTL` }), JSON.stringify(c)).toContain('bad_character');
+    expect(issues({ name: 'Dave \u{1F468}\u200D\u{1F469}' })).toEqual([]);
+    expect(issues({ name: 'مرحبا Dave' })).toEqual([]);
+  });
   it('M3 refuses a repeated slot, L8 a repeated date', () => {
     expect(issues({ slotIds: ['a', 'a'] })).toEqual(['duplicate_slot']);
     expect(issues({ dates: ['2027-05-15', '2027-05-15'] })).toEqual(['duplicate_date']);

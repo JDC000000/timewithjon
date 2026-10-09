@@ -11,6 +11,7 @@ import { flushSync } from 'react-dom';
 import { Field, ROUTES } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
+import { stripBidiControls } from '@/lib/bidi';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
 import { HoneypotField } from '../../_guest/honeypot';
 import { clearDraft, draftStore } from './_lib/draft';
@@ -136,7 +137,7 @@ export function DetailsFields({
             value={name}
             error={errorFor(errors, 'name')?.inline ?? null}
             onChange={(e) => {
-              setName(e.currentTarget.value);
+              setName(stripBidiControls(e.currentTarget.value)); // QA4b L4, as the story name box
               if (e.currentTarget.value.trim()) onFixed('name');
             }}
           />
