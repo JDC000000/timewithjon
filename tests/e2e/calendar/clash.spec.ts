@@ -11,10 +11,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { AFTER_SEND } from '../../../src/content';
-import { LOCK } from '../../../src/content/ui/admin-requests';
 import { ROUTES } from '../../../src/ui/routes';
 import { expect, test } from '../support/fixtures';
-import { lockIn } from '../support/flows';
+import { lockInAndLand } from '../support/lock-landing';
 import { clickLikeAPerson, press, settle } from '../support/input';
 import { inScope } from '../support/scope';
 import { TARGET } from '../support/screens';
@@ -114,8 +113,7 @@ test('T4.3.05 clash: a lock-in inserts on the app calendar, never on primary', a
     await clickLikeAPerson(admin, admin.getByRole('link', { name: new RegExp(guestName) }));
     await admin.waitForURL(/\/admin\/requests\/[^/]+$/);
     requestId = new URL(admin.url()).pathname.split('/').pop()!;
-    await lockIn(admin);
-    await expect(admin.getByRole('status').filter({ hasText: LOCK.sent })).toBeVisible({ timeout: 20_000 });
+    await lockInAndLand(admin, test.info()); // the undo window and the round trip, each within its own bound
     await admin.context().close();
     expect(errors, 'admin page errors').toEqual([]);
   });

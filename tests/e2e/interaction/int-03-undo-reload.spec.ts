@@ -2,6 +2,7 @@
 // Back both show the locked state (no new countdown). Scope: 375 + 1440 at 100 % (state, not layout).
 import { expect, test } from '../support/fixtures';
 import { goBack, lockIn, TOAST_UNDO } from '../support/flows';
+import { landLock } from '../support/lock-landing';
 import { clickLikeAPerson, settle } from '../support/input';
 import { inScope } from '../support/scope';
 import { fixmeUnlessLanded, gotoScreen } from '../support/screens';
@@ -33,8 +34,9 @@ test('INT-03 A3b: after the invite goes out, reload and Back show the locked sta
   fixmeUnlessLanded(test.fixme, ['a3-request-detail', 'a3b-lock-undo', 'a2-requests']);
   test.setTimeout(60_000);
   await gotoScreen(page, 'a3-request-detail');
-  await lockIn(page);
-  await expect(page.getByRole('button', TOAST_UNDO)).toHaveCount(0, { timeout: 20_000 });
+  // The invite goes out: the undo window, then the round trip, each within its own bound (support/lock-landing.ts).
+  await landLock(page, test.info(), () => lockIn(page));
+  await expect(page.getByRole('button', TOAST_UNDO)).toHaveCount(0);
   const lockedTitle = await page.title();
   await page.reload();
   await settle(page);

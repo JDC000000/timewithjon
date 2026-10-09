@@ -90,36 +90,63 @@ export async function attachDbActivity(testInfo: TestInfo, name: string): Promis
   await testInfo.attach(name, { body, contentType: 'application/json' });
 }
 
-/**
- * Lock in on A3 and see it land: the undo window runs out (bounded by the toast's own count), the POST /lock
- * is answered within LOCK_ROUND_TRIP_MS (it sends E4 inline), then the A3 status line says it is sent.
- */
-export async function lockInAndLand(page: Page, testInfo: TestInfo): Promise<void> {
-  // The run's expect budget (playwright.config expect.timeout; the public FullProject type omits it).
-  const budget = (testInfo.project as { expect?: { timeout?: number } }).expect?.timeout ?? EXPECT_BUDGET_MS;
-  // Armed before the click so the request can't slip past; bounded below by within(), so no own timeout.
+/** The POST /lock of the next lock on this page, armed before the click that starts the undo window. */
+export interface LockWatch {
+  sent: Promise<Request>;
+  answered: Promise<Response>;
+}
+
+/** Arms the waits for the next POST /lock (call it before the click, so the request can't slip past). */
+export function watchLock(page: Page): LockWatch {
+  // Bounded later by within(), so no timeout of their own.
   const sent = page.waitForRequest(isLockPost, { timeout: 0 });
   const answered = page.waitForResponse((r: Response) => isLockPost(r.request()), { timeout: 0 });
-  sent.catch(() => undefined); // the page may close on an earlier red; the bound below reports it
+  sent.catch(() => undefined); // the page may close on an earlier red; the bound in lockAnswered reports it
   answered.catch(() => undefined);
+  return { sent, answered };
+}
 
-  await lockIn(page);
+/**
+ * With the undo toast showing: the POST /lock goes out when the toast's own count runs out, and is answered within
+ * LOCK_ROUND_TRIP_MS. Each phase has its own bound; on a timeout pg_stat_activity is attached. Returns the answer
+ * (200, or 409 for the loser of a race): the caller says what it expects of it.
+ */
+export async function lockAnswered(page: Page, testInfo: TestInfo, watch: LockWatch): Promise<Response> {
+  // The run's expect budget (playwright.config expect.timeout; the public FullProject type omits it).
+  const budget = (testInfo.project as { expect?: { timeout?: number } }).expect?.timeout ?? EXPECT_BUDGET_MS;
   // Scoped to the toast's count line: a visually hidden status repeats the same words, so a page-wide
   // getByText matches two nodes (strict-mode violation on chromium/webkit 1440).
   const count = page.locator('[data-toast-sub]').filter({ hasText: countdownPattern() });
   await expect(count).toBeVisible();
   const seconds = Number(countdownPattern().exec((await count.textContent()) ?? '')?.[1]);
   expect(seconds, `undo window seconds from "${LOCK.countdown(0)}"`).toBeGreaterThan(0);
-
   try {
     // The window: the app's own seconds, plus one expect budget for the tick/in-view start.
-    await within(sent, seconds * 1_000 + budget, 'POST /lock not sent when the undo window ran out');
-    await within(answered, LOCK_ROUND_TRIP_MS, 'POST /lock sent but not answered');
+    await within(watch.sent, seconds * 1_000 + budget, 'POST /lock not sent when the undo window ran out');
+    await within(watch.answered, LOCK_ROUND_TRIP_MS, 'POST /lock sent but not answered');
   } catch (e) {
     await attachDbActivity(testInfo, 'pg_stat_activity at lock timeout');
     throw e;
   }
-  const res = await answered;
+  return watch.answered;
+}
+
+/**
+ * Start a lock the caller's way (`start`: Lock in, or a Lock sheet's commit) and see it land: the undo window and the
+ * round trip each within their own bound (lockAnswered), the answer OK, then the A3 status line says it is sent.
+ */
+export async function landLock(page: Page, testInfo: TestInfo, start: () => Promise<void>): Promise<void> {
+  const watch = watchLock(page);
+  await start();
+  const res = await lockAnswered(page, testInfo, watch);
   expect(res.ok(), `POST /lock answered ${res.status()}`).toBe(true);
   await expect(page.getByRole('status').filter({ hasText: LOCK.sent })).toBeVisible();
+}
+
+/**
+ * Lock in on A3 and see it land: the undo window runs out (bounded by the toast's own count), the POST /lock
+ * is answered within LOCK_ROUND_TRIP_MS (it sends E4 inline), then the A3 status line says it is sent.
+ */
+export async function lockInAndLand(page: Page, testInfo: TestInfo): Promise<void> {
+  await landLock(page, testInfo, () => lockIn(page));
 }

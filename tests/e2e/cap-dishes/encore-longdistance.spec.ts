@@ -20,7 +20,8 @@ import { generateInviteSecret, signCookie } from '../../../src/features/invites/
 import { ROUTES } from '../../../src/ui/routes';
 import { BOOKED_WEEKS } from '../support/booked-weeks';
 import { expect, test } from '../support/fixtures';
-import { lockIn, TOAST_UNDO } from '../support/flows';
+import { TOAST_UNDO } from '../support/flows';
+import { landLock, lockInAndLand } from '../support/lock-landing';
 import { clickLikeAPerson } from '../support/input';
 import { inScope } from '../support/scope';
 import { TARGET } from '../support/screens';
@@ -268,9 +269,11 @@ async function lockDated(admin: Page, who: string, dishShort: string): Promise<v
   const sheet = admin.getByRole('dialog', { name: LOCK_SHEET.title(who, dishShort) });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole('checkbox', { name: ANY_OVERRIDE })).toHaveCount(0);
-  await clickLikeAPerson(admin, sheet.getByRole('button', { name: /^Lock in / }));
-  await expect(admin.getByRole('button', TOAST_UNDO)).toBeVisible();
-  await expect(admin.getByRole('status').filter({ hasText: LOCK.sent })).toBeVisible({ timeout: 20_000 });
+  // The sheet's commit starts the undo window; then the round trip, each within its own bound.
+  await landLock(admin, test.info(), async () => {
+    await clickLikeAPerson(admin, sheet.getByRole('button', { name: /^Lock in / }));
+    await expect(admin.getByRole('button', TOAST_UNDO)).toBeVisible();
+  });
   await refreshed;
 }
 
@@ -314,8 +317,7 @@ test('T4.3.04: The Encore counts toward its week’s cap; The Long Distance neve
     await openSeeded(seeded.thu.id);
     await expect(admin.getByRole('checkbox', { name: ANY_OVERRIDE })).toHaveCount(0);
     const refreshed = lockRefreshDone(admin);
-    await lockIn(admin);
-    await expect(admin.getByRole('status').filter({ hasText: LOCK.sent })).toBeVisible({ timeout: 20_000 });
+    await lockInAndLand(admin, test.info());
     await refreshed;
   });
 
