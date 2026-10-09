@@ -7,7 +7,11 @@ const E4_VARS = { dish: 'The Long Lunch', day: 'Thu May 13', when: 'Thu May 13, 
 
 describe('renderText', () => {
   it('renders when every placeholder is filled', () => {
-    const r = renderText('E4', { ...E4_VARS, manageLink: 'https://timewithjon.com/m/abc' });
+    const r = renderText(
+      'E4',
+      { ...E4_VARS, manageLink: 'https://timewithjon.com/m/abc' },
+      { siteUrl: 'https://timewithjon.com' },
+    );
     expect(r.subject).toBe('Locked in: The Long Lunch, Thu May 13');
     expect(r.text).toContain('https://timewithjon.com/m/abc');
     expect(r.text).not.toMatch(/\{\w+\}/);
@@ -38,42 +42,54 @@ describe('renderText', () => {
   });
 });
 
-// Jon decisions 45 + 47a (lane U13): the no-gifts P.S. sits under the signature of E1 "Got it", text and HTML, and
-// links to the printable tag (S12b) on the site origin. Words: v22-copy.md "v2.2b (dec 44-45)".
+// Jon decisions 45 + 47a (lane U13): the no-gifts P.S. under the signature, words from v22-copy.md "v2.2b
+// (dec 44-45)". r6 fix 4 (approved: Jon 2026-10-09): E1 "Got it" keeps the words without the "Print the tag" link;
+// the link moves to E4 "Locked in" (same words).
 const PS =
   'No gifts. Really. The one thing I’ll take is a bottle of wine with a letter or an old photo tucked in. ' +
   'Write on the tag when I should open it. Bring it when we meet.';
 const SITE = 'https://timewithjon.com';
+const TAG_LINK = `<a href="${SITE}/tag" style="color:#1f1f1f;text-decoration:underline">Print the tag</a>`;
 
-describe('E1 "Got it" carries the no-gifts P.S. (decision 45)', () => {
+describe('the no-gifts P.S. (decision 45; r6 fix 4)', () => {
   const vars = { dish: 'The Long Lunch', times: 'Thu Oct 1, 12:00 pm\nSat Oct 3, 6:00 pm' };
   const r = renderText('E1', vars, { siteUrl: SITE });
+  const e4Vars = { ...E4_VARS, manageLink: `${SITE}/manage?t=x` };
   let html = '';
+  let e4Html = '';
   beforeAll(async () => {
     const full = await renderEmail('E1', vars, { siteUrl: SITE });
     expect(full.text).toBe(r.text); // the text part is unchanged by the HTML
     html = full.html!;
+    e4Html = (await renderEmail('E4', e4Vars, { siteUrl: SITE })).html!;
   });
-  it('text: the body, the signature, then the P.S. and the tag link, word for word', () => {
+  it('E1 text: the body, the signature, then the P.S. words with no tag link', () => {
     expect(r.text).toBe(
-      `Got your times:\nThu Oct 1, 12:00 pm\nSat Oct 3, 6:00 pm\nI’ll lock one in within two days.\n\nJon\n\nP.S. ${PS}\nPrint the tag: ${SITE}/tag\n`,
+      `Got your times:\nThu Oct 1, 12:00 pm\nSat Oct 3, 6:00 pm\nI’ll lock one in within two days.\n\nJon\n\nP.S. ${PS}\n`,
     );
     expect(r.subject).toBe('Got it: The Long Lunch');
     expect(r.fromLocal).toBe('jon');
   });
-  it('html: the same words, the P.S. after the signature, "Print the tag" linking to the tag page', () => {
+  it('E1 html: the same words, the P.S. after the signature, no link in it', () => {
     expect(html).toMatch(/^<!doctype html/i);
     const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     expect(text).toContain(
       'Got your times: Thu Oct 1, 12:00 pm Sat Oct 3, 6:00 pm I’ll lock one in within two days.',
     );
-    expect(text).toContain(`P.S. ${PS} Print the tag`);
+    expect(text).toContain(`P.S. ${PS}`);
+    expect(text).not.toContain('Print the tag');
     expect(html.indexOf('>Jon</p>')).toBeGreaterThan(html.indexOf('Got your times'));
     expect(html.indexOf('P.S.')).toBeGreaterThan(html.indexOf('>Jon</p>'));
-    expect(html).toContain(
-      `<a href="${SITE}/tag" style="color:#1f1f1f;text-decoration:underline">Print the tag</a>`,
-    );
+    expect(html).not.toContain(`${SITE}/tag`);
     expect(html).toContain('<title>Got it: The Long Lunch</title>');
+  });
+  it('E4 carries the same P.S. with the "Print the tag" link, text and html', () => {
+    const e4 = renderText('E4', e4Vars, { siteUrl: SITE });
+    expect(e4.text).toMatch(
+      new RegExp(`\\n\\nJon\\n\\nP\\.S\\. ${PS.replace(/[.?]/g, '\\$&')}\\nPrint the tag: ${SITE}/tag\\n$`),
+    );
+    expect(e4Html).toContain(TAG_LINK);
+    expect(e4Html.indexOf('P.S.')).toBeGreaterThan(e4Html.indexOf('>Jon</p>'));
   });
   it('an E1 queued without times (before option A) keeps the old body instead of failing', () => {
     expect(renderText('E1', { dish: 'x' }, { siteUrl: SITE }).text).toMatch(
@@ -88,10 +104,10 @@ describe('E1 "Got it" carries the no-gifts P.S. (decision 45)', () => {
     const tokenHexes = new Set(['#1f1f1f', '#34312c', '#595449', '#e9e6de', '#f4f2ec']);
     for (const hex of html.match(/#[0-9a-f]{6}\b/gi)!) expect(tokenHexes, hex).toContain(hex.toLowerCase());
   });
-  it('only E1 has a P.S.; every other template renders as before (text only, no P.S.)', () => {
-    expect(Object.keys(POSTSCRIPT)).toEqual(['E1']);
+  it('only E1 and E4 have a P.S.; every other template renders as before (no P.S.)', () => {
+    expect(Object.keys(POSTSCRIPT)).toEqual(['E1', 'E4']);
     for (const id of Object.keys(EMAIL_COPY) as TemplateId[]) {
-      if (id === 'E1') continue;
+      if (id === 'E1' || id === 'E4') continue;
       const vars = Object.fromEntries(
         [...`${EMAIL_COPY[id].subject}${EMAIL_COPY[id].body}`.matchAll(/\{(\w+)\}/g)].map((m) => [
           m[1]!,
@@ -108,7 +124,7 @@ describe('E1 "Got it" carries the no-gifts P.S. (decision 45)', () => {
 
 // pr88-review F1: the production caller (send.ts) passes NO opts, so the tag link comes from getEnv(); the site URL
 // default itself is under test (a hard-coded localhost or a missing env read would fail here).
-describe('E1 P.S. tag link without opts (production path)', () => {
+describe('E4 P.S. tag link without opts (production path)', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -131,7 +147,7 @@ describe('E1 P.S. tag link without opts (production path)', () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.example');
     vi.resetModules(); // a fresh env module: getEnv() caches its first parse
     const { renderEmail: render } = await import('@/features/email/registry');
-    const r = await render('E1', { dish: 'x', times: 'Thu Oct 1, 12:00 pm' });
+    const r = await render('E4', { ...E4_VARS, manageLink: 'https://staging.example/manage?t=x' });
     for (const part of [r.text, r.html!]) {
       expect(part).toContain('https://staging.example/tag');
       expect(part).not.toContain('localhost');

@@ -27,18 +27,30 @@ describe('T3.2.U2 html: each template renders on the Layout with its copy', () =
     const r = await renderEmail(id, vars, { siteUrl: SITE });
     const html = r.html!;
     expect(html).toContain(`<title>${fill(EMAIL_COPY[id].subject, vars)}</title>`);
-    expect(html).toContain('Time with Jon'); // the Layout's mark
+    // Jon-facing mail keeps the card and its mark; a guest email is a personal note: no mark, no canvas, no card
+    // (r6 fix 3, approved: Jon 2026-10-09).
+    const guest = !JON_FACING.includes(id);
+    expect(/text-transform:uppercase[^>]*>Time with Jon</.test(html), id).toBe(!guest); // the mark
+    expect(html.includes('#e9e6de'), id).toBe(!guest); // the canvas
+    expect(html.includes('#f4f2ec'), id).toBe(!guest); // the paper card
     // Every line of the text part is in the html's words, except a link line (drawn as a link or a button).
     const links = LINKS(id);
     const text = words(html);
-    for (const line of r.text.split('\n').filter((l) => l.trim() && !links.includes(l))) {
+    // (E4's "Print the tag: <url>" text line is the P.S. link in the HTML.)
+    for (const line of r.text
+      .split('\n')
+      .filter((l) => l.trim() && !links.includes(l) && !l.startsWith('Print the tag: '))) {
       expect(text, line).toContain(line.trim().replace(/^- /, '')); // a digest line's "- " is the list bullet (EML-09)
     }
     // Guest emails sign off "Jon" on its own line; Jon-facing ones don't (as the text part).
     expect(/<p style="[^"]*">Jon<\/p>/.test(html)).toBe(!JON_FACING.includes(id));
-    expect(html).not.toContain('P.S.');
-    // The link line: one <a> to it, a button labelled with src/content copy (EML-03: never the URL itself).
-    const anchors = [...html.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => [m[1], m[2]]);
+    expect(html.includes('P.S.'), id).toBe(id === 'E4'); // E4 carries the no-gifts P.S. (r6 fix 4)
+    // The link line: one <a> to it, labelled with src/content copy (EML-03: never the URL itself): a dark button in
+    // Jon's card, an underlined text link in a guest's note. (E4's P.S. "Print the tag" link is checked apart.)
+    const anchors = [...html.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)]
+      .map((m) => [m[1], m[2]])
+      .filter(([href]) => href !== `${SITE}/tag`);
+    expect(/display:inline-block/.test(html), id).toBe(!guest && links.length > 0);
     expect(anchors).toEqual(links.map((l) => [l.replace(/&/g, '&amp;'), BUTTON[id]]));
     for (const [, label] of anchors) expect(label).not.toMatch(/https?:|\/\//);
     // Multi-line vars are lists, one item each.
@@ -74,7 +86,7 @@ describe('T3.2.U2 html: each template renders on the Layout with its copy', () =
 
   it('E5 without a lead starts at "These are still open:"', async () => {
     const html = (await renderEmail('E5', { ...VARS.E5, lead: '' }, { siteUrl: SITE })).html!;
-    expect(words(html.replace(/<title>[^<]*<\/title>/, ''))).toMatch(/^Time with Jon These are still open:/);
+    expect(words(html.replace(/<title>[^<]*<\/title>/, ''))).toMatch(/^These are still open:/);
   });
 });
 
@@ -199,7 +211,6 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
       Jon
 
       P.S. No gifts. Really. The one thing I’ll take is a bottle of wine with a letter or an old photo tucked in. Write on the tag when I should open it. Bring it when we meet.
-      Print the tag: https://timewithjon.com/tag
       ",
         },
         "E10": {
@@ -278,6 +289,9 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
       https://timewithjon.com/r/manage/tok_3f9a2b7c
 
       Jon
+
+      P.S. No gifts. Really. The one thing I’ll take is a bottle of wine with a letter or an old photo tucked in. Write on the tag when I should open it. Bring it when we meet.
+      Print the tag: https://timewithjon.com/tag
       ",
         },
         "E4c": {
@@ -367,7 +381,9 @@ describe('T3.2.U2 AC3: the text part of every email is unchanged', () => {
 describe('Jon’s copy answers 2026-10-09', () => {
   const r = (id: TemplateId, vars: Record<string, string | number>) =>
     renderEmail(id, vars, { siteUrl: SITE });
-  const button = (html: string) => /<a href="([^"]+)"[^>]*display:inline-block[^>]*>([^<]+)<\/a>/.exec(html);
+  // The action link (in a guest's note: an underlined text link, r6 fix 3); the first link in the email.
+  const button = (html: string) =>
+    /<a href="([^"]+)" style="color:#1f1f1f;text-decoration:underline">([^<]+)<\/a>/.exec(html);
 
   it('UX-09 / F20: E1 carries the manage link as a "Change or cancel" button; an old row without one still sends', async () => {
     const e1 = await r('E1', VARS.E1);
