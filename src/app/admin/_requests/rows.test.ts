@@ -16,7 +16,6 @@ const card = (over: Partial<InboxCard> = {}): InboxCard => ({
   isTest: false,
   contactName: 'Priya',
   crewSize: 3,
-  bigCrew: false,
   awaitingJonSince: vancouverInstant('2027-03-03', '11:00').toISOString(),
   createdAt: vancouverInstant('2027-03-01', '09:00').toISOString(),
   lockedStartsAt: null,
@@ -86,21 +85,17 @@ describe('rowView', () => {
     expect(rowView(sb, 'standby', now).meta).toBe('The Flat White · crew 1 · week of Apr 12');
     expect(rowView(sb, 'needs', now).meta).toBe('The Flat White · crew 1 · 2 times');
   });
-  it('flags: bounced (or complained), RSVP no, no times left, big crew; a delayed email is no flag', () => {
+  it('flags: bounced (or complained), RSVP no, no times left; a delayed email is no flag', () => {
     expect(
-      rowView(
-        card({ noTimesLeft: true, bigCrew: true, contactProblem: 'bounced', guestRsvp: 'no' }),
-        'needs',
-        now,
-      ).flags,
-    ).toEqual([JON_FLAGS.bounced, JON_FLAGS.rsvpNo, INBOX.noTimesLeft, JON_FLAGS.bigCrew]);
+      rowView(card({ noTimesLeft: true, contactProblem: 'bounced', guestRsvp: 'no' }), 'needs', now).flags,
+    ).toEqual([JON_FLAGS.bounced, JON_FLAGS.rsvpNo, INBOX.noTimesLeft]);
     expect(rowView(card({ contactProblem: 'complained' }), 'needs', now).flags).toEqual([JON_FLAGS.bounced]);
     expect(rowView(card({ contactProblem: 'delayed', guestRsvp: 'maybe' }), 'needs', now).flags).toEqual([]);
   });
   it('a failed send leads the flags (T3.2.U1)', () => {
-    expect(rowView(card({ bigCrew: true }), 'needs', now, true).flags).toEqual([
+    expect(rowView(card({ noTimesLeft: true }), 'needs', now, true).flags).toEqual([
       MAIL.failed,
-      JON_FLAGS.bigCrew,
+      INBOX.noTimesLeft,
     ]);
   });
   it('one time, dates, and a pitch’s own words', () => {

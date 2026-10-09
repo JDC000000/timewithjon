@@ -83,7 +83,6 @@ const args = (b: ReturnType<typeof body>, inviteId: string) => ({
   mode: 'slots' as const,
   status: 'requested' as const,
   countsToward: 'weekly_cap' as const,
-  bigCrew: false,
   dishName: 'The Long Lunch',
 });
 const templates = async (id: string) =>

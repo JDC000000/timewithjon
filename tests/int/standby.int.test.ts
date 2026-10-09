@@ -85,7 +85,6 @@ async function newRequest(o: { dish?: string; standbyWeek?: string } = {}) {
       mode: 'slots',
       status: o.standbyWeek ? 'standby' : 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: dish,
     }),
   );

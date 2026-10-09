@@ -144,8 +144,8 @@ describe('validateRequest', () => {
     ).toEqual({ ok: false, code: 'not_bookable' });
   });
   // Q9 (approved: Jon 2026-10-09): the crew is 1 (or the dish's servesMin) to the servesMax the menu shows. This
-  // replaces AC9's "crew 20 is accepted and flagged big_crew": no dish serves more than 15, so a guest's crew can't
-  // reach 16 any more and big_crew stays false.
+  // replaces AC9's "crew 20 is accepted and flagged big crew": no dish serves more than 15, so a guest's crew can't
+  // reach 16 any more, and the big-crew flag is gone (approved: Jon 2026-10-09).
   it('Q9 a crew inside the dish range is accepted; above servesMax or below servesMin is refused', () => {
     const lunch = (crew: number) =>
       validateRequest(
@@ -155,8 +155,8 @@ describe('validateRequest', () => {
         season,
         now,
       );
-    expect(lunch(1)).toMatchObject({ ok: true, bigCrew: false });
-    expect(lunch(15)).toMatchObject({ ok: true, bigCrew: false });
+    expect(lunch(1)).toMatchObject({ ok: true });
+    expect(lunch(15)).toMatchObject({ ok: true });
     expect(lunch(16)).toEqual({ ok: false, code: 'crew_out_of_range' });
     expect(lunch(20)).toEqual({ ok: false, code: 'crew_out_of_range' });
     const flatWhite = validateRequest(

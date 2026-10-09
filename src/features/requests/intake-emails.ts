@@ -17,7 +17,6 @@ export interface IntakeEmailInput {
   guestEmail: string;
   guestName: string;
   crew: number;
-  bigCrew: boolean;
   choiceCount: number;
   /** What the choices are: picked times (slots mode) or dates (dates mode), for E2's count (QA r2 L3). */
   choiceKind: 'times' | 'dates';
@@ -118,7 +117,7 @@ export function intakeEmails(i: IntakeEmailInput): EmailArgs[] {
           // UX-09 / F20: E1 carries the manage link too, a "Change or cancel" button.
           vars: { dish: i.dishName, times: i.requestedTimes.join('\n'), manageLink: manageLink(i.requestId) },
         };
-  const summary = `Crew ${i.crew}${i.bigCrew ? ' (big crew)' : ''}. ${
+  const summary = `Crew ${i.crew}. ${
     i.status === 'standby' ? `Stand-by, week of ${standbyWeekLabel(i.standbyWeek!)}.` : choicesLine(i)
   }`;
   const jon: EmailArgs = {

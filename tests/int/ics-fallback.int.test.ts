@@ -74,7 +74,6 @@ async function newRequest(): Promise<{ id: string; email: string }> {
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );

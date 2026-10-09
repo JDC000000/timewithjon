@@ -123,7 +123,6 @@ async function newRequest(slotIds: string[], dish = 'the-long-lunch') {
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );
@@ -974,7 +973,6 @@ describe('a re-request keeps the stored details: rows saved under older rules ca
         mode: 'dates',
         status: 'requested',
         countsToward: 'big_day',
-        bigCrew: false,
         dishName: 'The Double Date',
       }),
     );

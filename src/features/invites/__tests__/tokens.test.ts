@@ -61,7 +61,7 @@ describe('T1.7 RequestBody', () => {
     expect(RequestBody.safeParse({ ...ok, email: 'dave@example' }).success).toBe(false);
     expect(RequestBody.safeParse({ ...ok, crew: 0 }).success).toBe(false);
   });
-  it('accepts crew 20 (big crew is flagged, not refused)', () => {
+  it('accepts crew 20 at the schema (the dish’s own range is checked by validateRequest)', () => {
     expect(RequestBody.safeParse({ ...ok, crew: 20 }).success).toBe(true);
   });
   it('rejects an 81-char name', () => {

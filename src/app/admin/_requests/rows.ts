@@ -32,7 +32,6 @@ export function flagsOf(c: {
   /** T3.2.U1: an email to them failed for good (the Resend is on A3). */
   failedSend?: boolean;
   noTimesLeft: boolean;
-  bigCrew: boolean;
   contactProblem: InboxCard['contactProblem'];
   guestRsvp: InboxCard['guestRsvp'];
 }): string[] {
@@ -41,7 +40,6 @@ export function flagsOf(c: {
   if (c.contactProblem === 'bounced' || c.contactProblem === 'complained') flags.push(JON_FLAGS.bounced);
   if (c.guestRsvp === 'no') flags.push(JON_FLAGS.rsvpNo);
   if (c.noTimesLeft) flags.push(INBOX.noTimesLeft);
-  if (c.bigCrew) flags.push(JON_FLAGS.bigCrew);
   return flags;
 }
 
