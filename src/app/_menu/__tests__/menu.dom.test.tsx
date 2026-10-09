@@ -83,6 +83,49 @@ describe('S04 /menu', () => {
     expect(document.querySelectorAll('li.dish a')).toHaveLength(15);
     expect(document.querySelector('.dish--off')).toBeNull();
   });
+  it('design round 6 (M1 A): every bookable card ends in a button-look label, the sheet’s own "Book {dish}"', () => {
+    render(<Menu model={model} gate={{ kind: 'book' }} />);
+    const cards = [...document.querySelectorAll<HTMLAnchorElement>('li.dish > a.dish-row')];
+    expect(cards).toHaveLength(15);
+    const sheetLabels = model.courses.flatMap((c) => c.dishes.map((d) => d.sheet!.book.label));
+    expect(cards.map((a) => a.querySelector('.dish-book')!.textContent!.replace(' →', ''))).toEqual(
+      sheetLabels,
+    );
+    expect(sheetLabels).toContain('Book The Flat White');
+    expect(sheetLabels).toContain('Book a hike or nature moment');
+    for (const a of cards) {
+      const label = a.querySelector('.dish-book')!;
+      expect(label.tagName).toBe('SPAN'); // not a control: the card's link is the one target
+      expect(label.className).toBe('btn dish-book');
+      expect(label.lastElementChild!.getAttribute('aria-hidden')).toBe('true'); // the arrow
+      expect(a.lastElementChild).toBe(label); // at the card's foot
+      expect(a.querySelectorAll('a, button, [tabindex]')).toHaveLength(0);
+    }
+    // the card's accessible name carries the words on it (voice control: "click Book The Flat White")
+    expect(screen.getByRole('link', { name: /^The Flat White.*Book The Flat White$/ })).toBe(cards[0]);
+    // pressing the label is pressing the card: the sheet opens
+    expect(fireEvent.click(cards[0]!.querySelector('.dish-book')!)).toBe(false);
+    expect(open()?.id).toBe('d-the-flat-white');
+  });
+  it('the label is on every bookable card whatever the gate (the card opens its sheet, which shows Book or the gate line)', () => {
+    for (const gate of [{ kind: 'note', text: 'Booking opens soon.' }, { kind: 'book' }] as const) {
+      render(<Menu model={model} gate={gate} />);
+      expect(document.querySelectorAll('li.dish a.dish-row .dish-book')).toHaveLength(15);
+      cleanup();
+    }
+  });
+  it('a dish that can’t be booked has no label (a plain row)', () => {
+    const off = menuModel(new Date('2027-03-01T12:00:00Z'));
+    const d = off.courses[0]!.dishes[0]!;
+    render(
+      <Menu
+        model={{ ...off, courses: [{ ...off.courses[0]!, dishes: [{ ...d, href: null, sheet: null }] }] }}
+        gate={{ kind: 'book' }}
+      />,
+    );
+    expect(document.querySelector('.dish--off .dish-row')).toBeTruthy();
+    expect(document.querySelector('.dish-book')).toBeNull();
+  });
   it('a plain click opens the sheet: course cap, title, facts, next, Book {dish}; × closes it', () => {
     render(<Menu model={model} gate={{ kind: 'book' }} />);
     // the click is handled (no navigation): fireEvent returns false when preventDefault ran

@@ -29,6 +29,19 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
           </span>
         ))}
       </p>
+      {/* Design round 6 (M1 A): a button-look label at the card's foot, so the card reads as "press here". It is a
+          span inside the card's one link (no nested control): the whole card stays the target, with its own focus
+          ring. The words are the sheet's own "Book {dish}" (PERSONAL.book). It is on every bookable card whatever
+          the gate: the card always opens its sheet, which shows Book or the gate line (e.g. "Booking opens …"). */}
+      {d.sheet ? (
+        // NEW COPY (needs Jon): the card label "Book the Flat White" (the sheet's button words, now on every card)
+        <span className="btn dish-book">
+          {d.sheet.book.label}{' '}
+          <span className="arr" aria-hidden="true">
+            →
+          </span>
+        </span>
+      ) : null}
     </>
   );
 }

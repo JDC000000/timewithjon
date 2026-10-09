@@ -3646,6 +3646,29 @@ dialog.sheet .ph {
   }
 }
 
+/* Design round 6 (M1 A): every bookable menu card ends in a button-look label (src/app/_menu/Menu.tsx), 48 px, in
+   the site's .btn style with its arrow. It is part of the card's link (a span, not a control): it lights with the
+   card's hover, and the card keeps its own focus ring. In the 3-column grid the labels line up at the cards' foot. */
+.photo-led .dish:has(> a.dish-row) {
+  display: flex;
+  flex-direction: column;
+}
+.photo-led .dish > a.dish-row {
+  flex: 1;
+}
+.dish-row .dish-book {
+  align-self: flex-start;
+  min-height: 48px;
+  margin-top: auto;
+}
+/* at least this much room above the label (on top of the card's own gap), however tall the card */
+a.dish-row:has(> .dish-book) > .dish-detail {
+  padding-bottom: var(--s2);
+}
+a.dish-row:hover .dish-book {
+  background: var(--c-wash);
+}
+
 /* T1.1a.U2 (R1-21): under reduced motion nothing moves, whatever a later rule sets (the tokens already zero the durations) */
 @media (prefers-reduced-motion: reduce) {
   *,
