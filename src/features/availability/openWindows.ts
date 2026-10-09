@@ -10,7 +10,6 @@ import {
   heldByOffer,
   HOUSEHOLD_HOLD,
   inSeason,
-  isThuFri,
   isWeekFull,
   overlaps,
   rangedBookings,
@@ -129,7 +128,7 @@ export function dateWeekStatus(
       !off.has(d) &&
       dateRuleAllows(dish.dateRule, d) &&
       !bigDays.has(d) &&
-      !(dish.countsToward === 'big_day' && isThuFri(d) && booked.has(d)) &&
+      !(dish.countsToward === 'big_day' && booked.has(d)) && // ENG-11: any day, as canLock
       !full,
   );
   return free.length > 0 ? 'open' : 'spoken_for';

@@ -102,6 +102,35 @@ describe('checkLock (QA4 H1)', () => {
     expect(await checkLock(id, target, { ...NO, bookAnyway: true })).toMatchObject({ ok: true });
   });
 
+  it('ENG-11: on a Big Day Sunday an Encore that evening, or a second Big Day, asks for Book anyway and passes with it', async () => {
+    await request({
+      dish: 'the-grind',
+      counts_toward: 'big_day',
+      status: 'locked',
+      locked_starts_at: vancouverInstant('2027-06-20', '07:00'),
+      locked_ends_at: vancouverInstant('2027-06-20', '12:00'),
+    });
+    const clash = {
+      ok: false,
+      reason: 'big_day_clash',
+      message: 'That day already has a booking. Tick Book anyway to go ahead.',
+      nth: null,
+    };
+    const encore = await request({ counts_toward: 'none' });
+    const evening = { ...encoreOn('2027-06-20'), countsToward: 'none' as const };
+    expect(await checkLock(encore, evening, NO)).toEqual(clash);
+    expect(await checkLock(encore, evening, { ...NO, bookAnyway: true })).toMatchObject({ ok: true });
+    const ride = await request({ dish: 'the-shore-ride', counts_toward: 'big_day' });
+    const afternoon = {
+      startsAt: vancouverInstant('2027-06-20', '13:00'),
+      endsAt: vancouverInstant('2027-06-20', '17:00'),
+      countsToward: 'big_day' as const,
+      where: null,
+    };
+    expect(await checkLock(ride, afternoon, NO)).toEqual(clash);
+    expect(await checkLock(ride, afternoon, { ...NO, bookAnyway: true })).toMatchObject({ ok: true });
+  });
+
   it('the route: admin + Origin, the lock body, the verdict back, never cached; a missing request is a 404', async () => {
     const id = await request({});
     const post = (rid: string, body: unknown) =>

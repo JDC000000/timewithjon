@@ -25,7 +25,9 @@ describe('dateWeekStatus (QA r2 M3)', () => {
     ];
     expect(state('2027-05-10', { bookings })).toBe('open'); // Sun May 16 is still free
     const full = [...bookings, booking('2027-05-16', '09:00', '15:00', 'big_day')];
-    expect(state('2027-05-10', { bookings: full })).toBe('spoken_for');
+    expect(state('2027-05-10', { bookings: full })).toBe('spoken_for'); // ENG-11: any booking on a weekend day takes it for a Big Day too (an Encore on Sun evening), as canLock.
+    const encoreSun = [...bookings, booking('2027-05-16', '19:30', '23:00', 'weekly_cap')];
+    expect(state('2027-05-10', { bookings: encoreSun })).toBe('spoken_for');
   });
 
   it('ENG-06: a Something New week reads full once its one-a-week is locked, as canLock refuses a second', () => {
