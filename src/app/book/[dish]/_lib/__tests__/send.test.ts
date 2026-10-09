@@ -173,6 +173,10 @@ describe('guestView', () => {
       NO_GUEST,
     );
   });
+  it('a session just switched to this invite from another one starts blank (the visitor types their own)', () => {
+    expect(guestView({ kind: 'personal', ...base }, 'site-key', true)).toEqual(NO_GUEST);
+    expect(guestView({ kind: 'personal', ...base }, 'site-key', false).email).toBe('sam@example.com');
+  });
   it('a general invite starts blank and carries the site key (none in mock mode)', () => {
     expect(guestView({ kind: 'general', ...base }, 'site-key')).toEqual({
       name: '',
