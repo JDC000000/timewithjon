@@ -12,9 +12,11 @@ import {
 } from '@/lib/adapters/errors';
 import { resetMailerModeCache } from '@/lib/adapters/mailer';
 import type { TemplateId } from '@/content/emails';
+import { getEnv } from '@/config/env';
 import {
   deliverEmail,
   deliverRequestEmails,
+  jonEmail,
   MAX_ATTEMPTS,
   queueEmail,
   retryDueEmails,
@@ -99,6 +101,24 @@ beforeEach(async () => {
 afterAll(async () => {
   await q('delete from email_queue');
   await q('delete from email_budget');
+});
+
+describe('Reply-To (deliverability)', () => {
+  it('guest emails use EMAIL_REPLY_TO_GUEST when set; Jon-facing ones and the default keep Jon’s address', async () => {
+    const env = getEnv() as unknown as Record<string, string | undefined>;
+    const before = env.EMAIL_REPLY_TO_GUEST;
+    try {
+      await deliverEmail(await queued('E1', { times: 'Thu Oct 1 · noon–2 pm' }), { inline: true });
+      expect(sendSpy.mock.calls.at(-1)![0].replyTo).toBe(jonEmail()); // unset: as before
+      env.EMAIL_REPLY_TO_GUEST = 'jon@timewithjon.com';
+      await deliverEmail(await queued('E1', { times: 'Thu Oct 1 · noon–2 pm' }), { inline: true });
+      expect(sendSpy.mock.calls.at(-1)![0]).toMatchObject({ template: 'E1', replyTo: 'jon@timewithjon.com' });
+      await deliverEmail(await queued('E2'), { inline: true });
+      expect(sendSpy.mock.calls.at(-1)![0]).toMatchObject({ template: 'E2', replyTo: jonEmail() });
+    } finally {
+      env.EMAIL_REPLY_TO_GUEST = before;
+    }
+  });
 });
 
 describe('AC5: the thresholds in the real send path', () => {
