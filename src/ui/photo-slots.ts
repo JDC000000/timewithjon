@@ -161,8 +161,9 @@ export function slideCount(slot: string, slots: PhotoSlots = PHOTO_SLOTS): numbe
   return photoSlides(slot, slots).length + 1;
 }
 
-/** A source's framing at one breakpoint: an object-position, or one inside a centred frame of ratio `frame` (w/h). */
-export type PhotoView = string | { pos: string; frame?: number };
+/** A source's framing at one breakpoint: an object-position, or one inside a centred frame of ratio `frame` (w/h),
+ *  or (unframed) drawn `zoom` times larger than cover about that position. */
+export type PhotoView = string | { pos: string; frame?: number; zoom?: number };
 /** Per slot, per source (photo 1 first): { <ratio key, e.g. 'hero-s'>: PhotoView } (docs/PHOTOS.md, framing). */
 export type PhotoViews = Readonly<Record<string, readonly Readonly<Record<string, PhotoView>>[]>>;
 
@@ -172,7 +173,7 @@ export const PHOTO_VIEWS: PhotoViews = PHOTO_VIEWS_JSON as PhotoViews;
 /**
  * The inline style for source `i` (0 = photo 1) of a slot. No view for it: `pos` as a plain object-position (exactly
  * today's markup), or nothing. With a view: custom properties the photo layer in site.css reads per breakpoint,
- * `--p-<key>` (position) and `--f-<key>` (frame), plus `--p` (the slot's pos) as the fallback.
+ * `--p-<key>` (position), `--f-<key>` (frame) and `--z-<key>` (zoom), plus `--p` (the slot's pos) as the fallback.
  */
 export function photoViewStyle(
   slot: string,
@@ -188,6 +189,7 @@ export function photoViewStyle(
     else {
       style[`--p-${key}`] = v.pos;
       if (v.frame !== undefined) style[`--f-${key}`] = v.frame;
+      if (v.zoom !== undefined) style[`--z-${key}`] = v.zoom;
     }
   }
   return style;

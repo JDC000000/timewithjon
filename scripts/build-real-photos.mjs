@@ -51,6 +51,7 @@ export const VIEW_KEYS = Object.freeze([
   'close-s',
   'close-m',
   'close-l',
+  'close-tile',
   'dish',
   'sheet',
   'sheet-l',
@@ -63,6 +64,10 @@ export const VIEW_KEYS = Object.freeze([
 const VIEW_POS = /^(\d{1,3}(?:\.\d)?)% (\d{1,3}(?:\.\d)?)%$/;
 export const FRAME_MIN = 0.2;
 export const FRAME_MAX = 5;
+/** a view's zoom: the photo drawn this much larger than cover, about its pos point, clipped by its box (unframed
+ *  views only: a framed photo's box sits on paper, which a larger photo would cover) */
+export const ZOOM_MIN = 1;
+export const ZOOM_MAX = 3;
 
 function fail(msg) {
   throw new Error(`build-real-photos: ${msg}`);
@@ -97,7 +102,7 @@ export function parseSlots(slots) {
   return out;
 }
 
-/** A source's `view`: { <ratio key>: "x% y%" | { pos: "x% y%", frame: <w/h> } }, validated and copied. */
+/** A source's `view`: { <ratio key>: "x% y%" | { pos: "x% y%", frame?: <w/h>, zoom?: <1-3> } }, validated and copied. */
 export function parseView(where, view) {
   if (typeof view !== 'object' || view === null || Array.isArray(view))
     fail(`${where}: view must be an object`);
@@ -112,7 +117,7 @@ export function parseView(where, view) {
       if (!posOk(v)) fail(`${where}: view ${key} pos "${v}" must be "x% y%" (0-100, one decimal)`);
       out[key] = v;
     } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      const extra = Object.keys(v).filter((k) => k !== 'pos' && k !== 'frame');
+      const extra = Object.keys(v).filter((k) => k !== 'pos' && k !== 'frame' && k !== 'zoom');
       if (extra.length) fail(`${where}: view ${key} has unknown field(s) ${extra.join(', ')}`);
       if (!posOk(v.pos)) fail(`${where}: view ${key} pos "${v.pos}" must be "x% y%" (0-100, one decimal)`);
       if (
@@ -120,8 +125,14 @@ export function parseView(where, view) {
         !(typeof v.frame === 'number' && v.frame >= FRAME_MIN && v.frame <= FRAME_MAX)
       )
         fail(`${where}: view ${key} frame must be a number ${FRAME_MIN}-${FRAME_MAX}`);
-      out[key] = v.frame === undefined ? { pos: v.pos } : { pos: v.pos, frame: v.frame };
-    } else fail(`${where}: view ${key} must be "x% y%" or { pos, frame }`);
+      if (v.zoom !== undefined && !(typeof v.zoom === 'number' && v.zoom >= ZOOM_MIN && v.zoom <= ZOOM_MAX))
+        fail(`${where}: view ${key} zoom must be a number ${ZOOM_MIN}-${ZOOM_MAX}`);
+      if (v.zoom !== undefined && v.frame !== undefined)
+        fail(`${where}: view ${key} has both frame and zoom (zoom is for an unframed view)`);
+      out[key] = { pos: v.pos };
+      if (v.frame !== undefined) out[key].frame = v.frame;
+      if (v.zoom !== undefined) out[key].zoom = v.zoom;
+    } else fail(`${where}: view ${key} must be "x% y%" or { pos, frame, zoom }`);
   }
   return out;
 }

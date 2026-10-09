@@ -46,6 +46,12 @@ export type PhotoSlotProps = {
   slots?: PhotoSlots;
   /** the per-source framing; default PHOTO_VIEWS (a fixture only in src/app/dev/slides) */
   views?: PhotoViews;
+  /**
+   * Only where this media query matches is photo 1 fetched (a <picture> source); elsewhere its <img> holds a blank
+   * pixel. For a figure another layout replaces on some screens (the closing tiles from 1024 px: Closing), so the
+   * hidden one costs no download in any browser (display: none alone doesn't stop WebKit's lazy image choice).
+   */
+  media?: string;
 };
 
 export function PhotoSlot({
@@ -58,6 +64,7 @@ export function PhotoSlot({
   controls = 'inside',
   slots = PHOTO_SLOTS,
   views = PHOTO_VIEWS,
+  media,
 }: PhotoSlotProps) {
   const cls = cx('ph', `ph--${kind}`, className);
   sizes ??= PHOTO_SIZES[kind];
@@ -73,23 +80,49 @@ export function PhotoSlot({
   const figure = (
     <figure className={cls} data-slot={slot} data-slides={slides.length > 0 ? slides.length + 1 : undefined}>
       {/* the pack's plain <img srcset> (the files are pre-sized webp); next/image would re-encode them */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src.src}
-        srcSet={src.srcSet}
-        sizes={sizes}
-        alt={alt ?? src.photo.alt}
-        loading={priority ? 'eager' : 'lazy'}
-        fetchPriority={priority === 'hero' ? 'high' : undefined}
-        decoding="async"
-        style={photoViewStyle(slot, 0, src.photo.pos, views) as CSSProperties | undefined}
-      />
+      <MediaImg media={media} srcSet={src.srcSet} sizes={sizes}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={media ? BLANK_PIXEL : src.src}
+          srcSet={media ? undefined : src.srcSet}
+          sizes={media ? undefined : sizes}
+          alt={alt ?? src.photo.alt}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority === 'hero' ? 'high' : undefined}
+          decoding="async"
+          style={photoViewStyle(slot, 0, src.photo.pos, views) as CSSProperties | undefined}
+        />
+      </MediaImg>
       {slides.length > 0 ? <SlideshowSlides slides={slides} sizes={sizes} /> : null}
       {slides.length > 0 && controls === 'inside' ? <SlideshowToggle /> : null}
     </figure>
   );
   if (slides.length === 0 || controls === 'outside') return figure;
   return <SlideshowScope count={slides.length + 1}>{figure}</SlideshowScope>;
+}
+
+/** A 1x1 transparent GIF: an <img> that shows (and fetches) nothing where its <picture> source doesn't apply. */
+export const BLANK_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+/** With `media`: the <img> inside a <picture> whose one source holds the real files for that media only. */
+export function MediaImg({
+  media,
+  srcSet,
+  sizes,
+  children,
+}: {
+  media?: string;
+  srcSet: string;
+  sizes: string;
+  children: ReactNode;
+}) {
+  if (!media) return children;
+  return (
+    <picture>
+      <source media={media} srcSet={srcSet} sizes={sizes} />
+      {children}
+    </picture>
+  );
 }
 
 /** Visually hidden text (.vh), still read by screen readers. */

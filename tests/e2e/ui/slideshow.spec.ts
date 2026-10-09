@@ -28,6 +28,14 @@ function devCookie(): string {
 
 test.beforeEach(async ({ context, baseURL }) => {
   await context.addCookies([{ name: 'twj_dev', value: devCookie(), url: baseURL! }]);
+  // the 6-photo closing fixture (design round 6): photos 2-6 are stand-ins too, alternating why / hero
+  await context.route(/\/img\/close-([2-6])-(\d+)\.webp$/, (route) => {
+    const [, n, w] = /\/img\/close-([2-6])-(\d+)\.webp$/.exec(route.request().url())!;
+    const body = readFileSync(
+      join(process.cwd(), 'public', 'img', `${Number(n) % 2 ? 'hero' : 'why'}-${w}.webp`),
+    );
+    return route.fulfill({ status: 200, contentType: 'image/webp', body });
+  });
   await context.route(/\/img\/(hero|catch-release)-([23])-(\d+)\.webp$/, (route) => {
     const [, file, n, w] = /\/img\/(hero|catch-release)-([23])-(\d+)\.webp$/.exec(route.request().url())!;
     const body = readFileSync(join(process.cwd(), 'public', 'img', `${STAND_IN[`${file}-${n}`]}-${w}.webp`));
@@ -516,4 +524,113 @@ test('round 4: on a landscape phone the toggle stays on the visible part of the 
       expect(b.bottom, `${at}: on screen`).toBeLessThanOrEqual(height + 0.5);
     }
   }
+});
+
+// design round 6 (P3 B): from 1024 px the closing slot is a row of three square tiles in the text column, turning
+// together (1<->4, 2<->5, 3<->6) with one toggle; phones keep the single closing photo. Bench fixture "six".
+const closing = (page: Page) => page.locator('section[aria-label="Sample closing"]');
+
+test('round 6: at 1440 the closing slot is three square tiles in the text column that turn together', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fetched: string[] = [];
+  page.on('request', (r) => fetched.push(r.url()));
+  await page.clock.install();
+  await page.goto(BENCH);
+  await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
+  const sec = closing(page);
+  await sec.scrollIntoViewIfNeeded();
+  await expect(sec.locator('figure.ph--close')).toBeHidden();
+  const tiles = sec.locator('.ph-tiles figure.ph--tile');
+  await expect(tiles).toHaveCount(3);
+  const boxes = await tiles.evaluateAll((fs) => fs.map((f) => f.getBoundingClientRect().toJSON() as DOMRect));
+  const wrap = await sec.locator('.wrap').evaluate((w) => {
+    const r = w.getBoundingClientRect();
+    const cs = getComputedStyle(w);
+    return { left: r.left + parseFloat(cs.paddingLeft), right: r.right - parseFloat(cs.paddingRight) };
+  });
+  for (const b of boxes) expect(b.width).toBeCloseTo(b.height, 0); // square
+  expect(boxes[0]!.left).toBeCloseTo(wrap.left, 0); // the text column
+  expect(boxes[2]!.right).toBeCloseTo(wrap.right, 0);
+  expect(boxes[1]!.left - boxes[0]!.right).toBeCloseTo(16, 0); // 16 px gaps
+  expect(boxes[2]!.left - boxes[1]!.right).toBeCloseTo(16, 0);
+  // the hidden single photo is never fetched on a desktop: no close-1600 request, and its <img> has no file (the
+  // blank pixel in WebKit; none chosen yet in Chromium)
+  expect(
+    await sec.locator('figure.ph--close img').evaluate((i) => (i as HTMLImageElement).currentSrc),
+  ).not.toMatch(/^http/);
+  expect(fetched.filter((u) => /\/img\/close-1600\.webp$/.test(u))).toEqual([]);
+  // one toggle for the row; every tile shows its second photo after one turn
+  await expect(sec.getByRole('button', { name: /^(Pause|Play)$/ })).toHaveCount(1);
+  await expect(sec.locator('.ph-slide img')).toHaveCount(3);
+  await expect
+    .poll(() =>
+      sec.locator('.ph-slide img').evaluateAll((is) => is.every((i) => (i as HTMLImageElement).complete)),
+    )
+    .toBe(true);
+  const second = () => tiles.evaluateAll((fs) => fs.map((f) => Boolean(f.querySelector('.ph-slide.is-top'))));
+  expect(await second()).toEqual([false, false, false]);
+  await page.clock.runFor(SLIDE_MS);
+  await expect.poll(second).toEqual([true, true, true]);
+  await sec.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.clock.runFor(SLIDE_MS * 3);
+  expect(await second()).toEqual([true, true, true]);
+});
+
+test('round 6: below 1024 the closing slot stays the single photo; the tiles are never fetched', async ({
+  page,
+}) => {
+  for (const [width, height] of [
+    [390, 844],
+    [768, 1024],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    const fetched: string[] = [];
+    page.on('request', (r) => fetched.push(r.url()));
+    await page.goto(BENCH);
+    const sec = closing(page);
+    await sec.scrollIntoViewIfNeeded();
+    await expect(sec.locator('figure.ph--close')).toBeVisible();
+    await expect(sec.locator('.ph-tiles')).toBeHidden();
+    await page.waitForTimeout(500);
+    expect(
+      await sec
+        .locator('.ph-tiles img')
+        .evaluateAll((is) => is.map((i) => /^http/.test((i as HTMLImageElement).currentSrc))),
+      `${width}`,
+    ).toEqual([false, false, false]); // the tiles' <img>s have no file here (blank pixel, or none chosen)
+    expect(
+      fetched.filter((u) => /\/img\/close-3-/.test(u)),
+      `${width}: tile 3's photo`,
+    ).toEqual([]);
+  }
+});
+
+test('round 6: a view zoom draws the photo larger about its position, clipped by its box (8a)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(BENCH);
+  const sec = closing(page);
+  await sec.scrollIntoViewIfNeeded();
+  const [tile, img, framed, framedTile] = await sec.locator('.ph-tiles figure.ph--tile').evaluateAll((fs) => {
+    const r = (n: Element) => n.getBoundingClientRect().toJSON() as DOMRect;
+    return [r(fs[0]!), r(fs[0]!.querySelector('img')!), r(fs[1]!.querySelector('img')!), r(fs[1]!)];
+  });
+  // photo 1: zoom 2 about 25% 25% of its box: twice the size, and the 25% point stays where it was
+  expect(img!.width).toBeCloseTo(tile!.width * 2, 0);
+  expect(img!.height).toBeCloseTo(tile!.height * 2, 0);
+  expect(img!.left).toBeCloseTo(tile!.left - tile!.width * 0.25, 0);
+  expect(img!.top).toBeCloseTo(tile!.top - tile!.height * 0.25, 0);
+  // the tile clips it: what shows is the tile, nothing outside
+  expect(
+    await sec
+      .locator('.ph-tiles figure.ph--tile')
+      .first()
+      .evaluate((f) => getComputedStyle(f).overflow),
+  ).toMatch(/hidden|clip/);
+  // photo 2: a 0.8 frame in its square tile (paper either side), not zoomed
+  expect(framed!.width / framed!.height).toBeCloseTo(0.8, 2);
+  expect(framed!.height).toBeCloseTo(framedTile!.height, 0);
 });

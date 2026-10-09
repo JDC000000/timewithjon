@@ -89,10 +89,12 @@ A source may also carry:
   used for it); the source is expected to be pre-cut to what any breakpoint shows. Same widths, quality and size cap.
 - `"view"`: how the page frames that source in each box. Keys are the ratio tokens, one per kind and breakpoint:
   `hero-s` (<640), `hero-m` (640–1023), `hero` (≥1024); `band`, `band-l` (≥1024); `close-s` (<640),
-  `close-m` (640–1023), `close-l` (≥1024); `dish`; `sheet`, `sheet-l` (≥1024); `thumb`, `thumb-l` (≥1024);
-  `sent`, `sent-m` (≥768). A value is a position `"x% y%"` (0–100, at most one decimal), or
-  `{ "pos": "x% y%", "frame": <w/h> }` (0.2–5): the photo is drawn in the largest centred box of that ratio, the
-  rest of the box shows the page paper.
+  `close-m` (640–1023), `close-l` (≥1024), `close-tile` (a closing tile, below); `dish`; `sheet`, `sheet-l`
+  (≥1024); `thumb`, `thumb-l` (≥1024); `sent`, `sent-m` (≥768). A value is a position `"x% y%"` (0–100, at most
+  one decimal), or `{ "pos": "x% y%", "frame": <w/h> }` (0.2–5): the photo is drawn in the largest centred box of
+  that ratio, the rest of the box shows the page paper. Instead of a frame, `"zoom": <1–3>` draws the photo that
+  many times larger than cover about its `pos` point, clipped by its box (e.g. `{ "pos": "55% 40%", "zoom": 1.6 }`
+  for a closer crop on phones; a view with both `frame` and `zoom` fails the build).
 
 ```json
 "hero": [
@@ -100,6 +102,14 @@ A source may also carry:
     "view": { "hero-s": { "pos": "50% 13.9%", "frame": 1.141 }, "hero": "50% 18%" } }
 ]
 ```
+
+### The closing tiles (≥1024)
+
+When the `close` slot has 3 or more sources, screens 1024 px and up show it as a row of three square tiles in the
+text column (16 px gaps) instead of the full-width strip (`src/ui/PhotoTiles.tsx`). Tile _k_ shows source _k_ and
+crossfades to source _k_ + 3 (1↔4, 2↔5, 3↔6), all three on one timer with one Pause/Play toggle. Each source is
+framed in its tile by its `close-tile` view. Below 1024 px the strip stays as it is (`close-s`, `close-m`), and each
+layout's images are only fetched on the screens that show it.
 
 The build writes the views to `src/ui/photo-views.json` (committed as `{}`; numbers only), and `<PhotoSlot>` puts
 each source's own `--p-<key>` / `--f-<key>` on its `<img>`, slides included. A key a source doesn't name falls back
