@@ -941,7 +941,7 @@ a.dish-row:hover .dish-name {
 /* VD5-01 / VD5-08: the preview is the Letter page at print proportions (--letter-w), scaled as one unit to fit the column,
    so a phone shows a small copy of the real page, never re-flowed strips. UX-14: the scale is tan(atan2(column, page)), a plain
    number every current engine computes (Firefox has no calc(length / length), so the old calc() path never applied there and the
-   page scrolled sideways); src/app/tag/SheetFit.tsx sets --sheet-k where even that isn't supported. */
+   page scrolled sideways); src/app/tag/SheetFit.tsx measures and sets --sheet-k where the engine doesn't apply it (r5: Firefox). */
 .sheet-fit {
   container-type: inline-size;
 }
@@ -957,6 +957,11 @@ a.dish-row:hover .dish-name {
   .sheet-fit .sheet-letter {
     zoom: min(1, tan(atan2(100cqi, var(--letter-w))));
   }
+}
+/* r5 UX-14: an engine that says it supports the line above but doesn't apply it (Firefox): SheetFit measured an overflow
+   and set the column's own scale */
+.sheet-fit[data-fit='js'] .sheet-letter {
+  zoom: var(--sheet-k, 1);
 }
 
 /* ---- Request flow ---- */
@@ -2943,7 +2948,8 @@ legend.sec-h {
     height: 4in;
     aspect-ratio: auto;
   }
-  .sheet-fit .sheet-letter {
+  .sheet-fit .sheet-letter,
+  .sheet-fit[data-fit='js'] .sheet-letter {
     width: 8.5in;
     zoom: 1;
   } /* VD6-04: the phone preview's 680 px width must not reach the printer */

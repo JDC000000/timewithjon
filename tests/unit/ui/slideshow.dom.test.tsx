@@ -125,6 +125,24 @@ describe('PhotoSlot slideshow', () => {
     expect(imgs(container)).toHaveLength(3); // once in the page, a photo stays (no refetch)
   });
 
+  it('a photo that fails to load is passed over: the photo after it joins and the show goes on', () => {
+    vi.useFakeTimers();
+    readyState = 'complete';
+    const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
+    expect(imgs(container)).toHaveLength(2);
+    act(() => void imgs(container)[1]!.dispatchEvent(new Event('error'))); // photo 2: a bad file
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(onTop(container)).toBe(1); // photo 1 holds, and photo 3 joins the page past the bad one
+    expect(imgs(container)).toHaveLength(3);
+    act(() => void imgs(container)[2]!.dispatchEvent(new Event('load')));
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(onTop(container)).toBe(3); // 1 → 3, over the bad photo 2
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(onTop(container)).toBe(1); // and round again
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(onTop(container)).toBe(3);
+  });
+
   it('off screen: no photo beyond the first is fetched, and nothing rotates, until the figure is seen', () => {
     vi.useFakeTimers();
     readyState = 'complete';

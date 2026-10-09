@@ -51,6 +51,8 @@ export interface ManageActionsProps {
   form: 'slots' | 'dates' | 'pitch';
   /** EML-05: a Pitch Me guest's own pitch and "when", the starting text of the pitch form (E8: the shorter version). */
   pitch?: { idea: string; when: string } | null;
+  /** r5 N-L7: the stored "one night away": the new-time form (dates or pitch) starts as they left it. */
+  overnight?: boolean;
   /** Carried 1: "Sending new times frees up {when}." while a time is locked, else null. */
   frees: string | null;
   canCancel: boolean;
@@ -175,6 +177,7 @@ export function ManageActions(p: ManageActionsProps) {
           form={p.form}
           pitch={p.pitch ?? null}
           season={p.season}
+          overnight={p.overnight ?? false}
           onDone={() => {
             setOpen(null);
             router.refresh();
@@ -257,6 +260,7 @@ function AnotherTime(p: {
   form: 'slots' | 'dates' | 'pitch';
   pitch: { idea: string; when: string } | null;
   season: Season;
+  overnight: boolean;
   onDone: () => void;
 }) {
   const [engine, setEngine] = useState<EngineOutput | 'error' | null>(
@@ -292,6 +296,7 @@ function AnotherForm(p: {
   form: 'slots' | 'dates' | 'pitch';
   pitch: { idea: string; when: string } | null;
   season: Season;
+  overnight?: boolean;
   engine: EngineOutput;
   onDone: () => void;
 }) {
@@ -306,7 +311,7 @@ function AnotherForm(p: {
   const [shownCal, setShownCal] = useState(() => (cal.length ? initialCalMonth(cal, []) : ''));
   const [rough, setRough] = useState(p.form === 'pitch' ? (p.pitch?.when ?? '') : '');
   const [idea, setIdea] = useState(p.form === 'pitch' ? (p.pitch?.idea ?? '') : '');
-  const [overnight, setOvernight] = useState(false);
+  const [overnight, setOvernight] = useState(p.overnight ?? false);
   const [need, setNeed] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -360,6 +365,19 @@ function AnotherForm(p: {
     setFailed(json.message ?? ERRORS.generic);
   }
 
+  // The "It’s one night away" box (S7's), on the dates and the pitch forms of a dish that allows a night away.
+  const overnightBox = p.dish.overnightAllowed ? (
+    <label className="check" style={{ marginTop: 'var(--s3)' }}>
+      <input
+        type="checkbox"
+        name="overnight"
+        checked={overnight}
+        onChange={(e) => setOvernight(e.currentTarget.checked)}
+      />
+      <span>{DATES.oneNight}</span>
+    </label>
+  ) : null;
+
   // QA L9: always on show here (S7 hides it behind a toggle), so no example inside the box: the hint gives one.
   const roughField = (
     <div className="field">
@@ -411,17 +429,7 @@ function AnotherForm(p: {
           picksError={null}
         >
           {roughField}
-          {p.dish.overnightAllowed && (
-            <label className="check" style={{ marginTop: 'var(--s3)' }}>
-              <input
-                type="checkbox"
-                name="overnight"
-                checked={overnight}
-                onChange={(e) => setOvernight(e.currentTarget.checked)}
-              />
-              <span>{DATES.oneNight}</span>
-            </label>
-          )}
+          {overnightBox}
         </DateGrid>
       )}
       {p.form === 'pitch' && (
@@ -437,6 +445,7 @@ function AnotherForm(p: {
             onChange={(e) => setIdea(e.currentTarget.value)}
           />
           {roughField}
+          {overnightBox /* r5 N-L7: the shorter pitch keeps its night away */}
         </>
       )}
       {failed && (

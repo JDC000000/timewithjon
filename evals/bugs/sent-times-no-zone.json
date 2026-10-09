@@ -1,0 +1,9 @@
+{
+  "id": "sent-times-no-zone",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "guest",
+  "summary": "/sent and /manage after “Ask for another time” listed picked times without “Vancouver time”, unlike the emails, the locked /manage and /offer.",
+  "fix": "The receipt lines use the same wording as the emails (guestWhen): “… Vancouver time”, and the guest's own clock after it when it differs.",
+  "tests": ["src/app/sent/__tests__/model.test.ts"]
+}

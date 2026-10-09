@@ -77,11 +77,16 @@ export function parseTickFailed(value: string | null): { failed: number; attempt
   return m ? { failed: Number(m[1]), attempted: Number(m[2]) } : null;
 }
 
+/** How many jobs must have run (and all failed) before the tick check is red. */
+export const MIN_JOBS_FOR_FAILING = 2;
+
 function tickCheck(r: Row, now: Date): string {
   const beat = heartbeat(r.tick_at, now, HEALTH_LIMITS.tickMs);
   if (beat !== 'ok') return beat;
   const t = parseTickFailed(r.tick_failed);
-  return t && t.attempted > 0 && t.failed === t.attempted ? 'jobs_failing' : 'ok';
+  // Every job failed, and more than one ran: one job that hit the hard stop and skipped the rest ("1/1") is a
+  // warning, not a red health check (it would page the uptime monitor for a quarter of an hour).
+  return t && t.attempted >= MIN_JOBS_FOR_FAILING && t.failed === t.attempted ? 'jobs_failing' : 'ok';
 }
 
 function googleCheck(r: Row, now: Date): string {

@@ -28,6 +28,8 @@ export function NewDateForm(p: {
   span: Span | null;
   /** The engine's off dates (rule 11: blocks, away, the household hold, pre-release, past), as /book greys them. */
   unavailable: readonly string[];
+  /** r5 N-L7: the stored "one night away" (e.g. after a weather call): the box starts as they left it. */
+  overnight?: boolean;
 }) {
   const router = useRouter();
   const { start, end } = p.span ?? {};
@@ -39,7 +41,7 @@ export function NewDateForm(p: {
   const [order, setOrder] = useState<string[]>([]);
   const [shown, setShown] = useState(() => (cal.length ? initialCalMonth(cal, []) : ''));
   const [rough, setRough] = useState('');
-  const [overnight, setOvernight] = useState(false);
+  const [overnight, setOvernight] = useState(p.overnight ?? false);
   const [need, setNeed] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);

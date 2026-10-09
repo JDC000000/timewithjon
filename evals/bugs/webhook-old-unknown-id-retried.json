@@ -1,0 +1,9 @@
+{
+  "id": "webhook-old-unknown-id-retried",
+  "date": "2026-10-09",
+  "task": "T3.13",
+  "area": "email",
+  "summary": "A bounce or complaint for an email the app never recorded was answered 503 however old it was, so a dashboard test was retried for a day; and bounce polling stopped when the mailer switched to Gmail.",
+  "fix": "An unknown email over an hour old is acknowledged (nothing applied); a young one is still retried. Polling runs whenever a Resend read key is set (it only asks about Resend-sent rows).",
+  "tests": ["tests/int/email-outcomes.int.test.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "long-distance-lock-length",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "admin",
+  "summary": "The lock sheet opened The Long Distance on 2 hr, though the dish is a 45 min call.",
+  "fix": "Its lock default is the dish's own 45 min.",
+  "tests": ["src/app/admin/_requests/lock-sheet.test.ts"]
+}

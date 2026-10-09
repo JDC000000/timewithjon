@@ -1,0 +1,9 @@
+{
+  "id": "big-days-link-landing",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "guest",
+  "summary": "The “Big Days” link in the spoken-for note on Surprise Me and The Old Haunt pointed at /#big-days, an anchor that only exists on /menu, so it landed at the top of the landing page.",
+  "fix": "It points at /menu#big-days; a test keeps any course anchor from pointing at the landing.",
+  "tests": ["tests/unit/links/menu-anchors.test.ts"]
+}

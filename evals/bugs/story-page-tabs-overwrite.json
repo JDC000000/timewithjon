@@ -1,0 +1,9 @@
+{
+  "id": "story-page-tabs-overwrite",
+  "date": "2026-10-09",
+  "task": "T3.12.01",
+  "area": "stories",
+  "summary": "One twj_story is shared by every tab: after a second tab saved its first story, the first tab's later saves, photo signs and finalises went to the second tab's story and overwrote it.",
+  "fix": "A /story page view's key rides its first save, its edits (body clientKey) and its photo calls (?key=); the server updates only the story that key made through this invite, while twj_story holds. No key or another key: the stale answer, nothing written.",
+  "test": "tests/int/story-page-limits.int.test.ts"
+}

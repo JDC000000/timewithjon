@@ -79,3 +79,9 @@ describe('QA4 M1: the overnight length', () => {
     for (const l of lengthOptions('pitch-me', true)) expect(l.minutes).toBeLessThanOrEqual(72 * 60);
   });
 });
+
+describe('r5 N-L3', () => {
+  it('The Long Distance opens on its own 45 min (the dish says "45 min · phone or video")', () => {
+    expect(defaultsFor('the-long-distance')).toEqual({ start: '18:00', minutes: 45 });
+  });
+});

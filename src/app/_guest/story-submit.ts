@@ -52,6 +52,8 @@ export interface StorySaverOptions {
 export function storySaver(o: StorySaverOptions): {
   save: (fields: Record<string, string | boolean>, signal: AbortSignal) => Promise<Response>;
   open: OpenStory;
+  /** S19: this page view's key (null elsewhere); every save and photo call of the page carries it */
+  clientKey: string | null;
 } {
   let opened = o.opened;
   const storyPage = !o.opened;
@@ -61,7 +63,8 @@ export function storySaver(o: StorySaverOptions): {
     const token = opened ? undefined : await o.takeToken();
     const first =
       storyPage && !opened ? { clientKey: clientKey!, ...(token ? { turnstileToken: token } : {}) } : {};
-    const extra = storyPage && opened ? { edit: true } : first;
+    // a later save names its own story by the page's key: another tab's save can't redirect it (twj_story is shared)
+    const extra = storyPage && opened ? { edit: true, clientKey: clientKey! } : first;
     const res = await fetch(o.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...o.headers },
@@ -77,5 +80,5 @@ export function storySaver(o: StorySaverOptions): {
   };
   const open: OpenStory = (signal) =>
     opened ? Promise.resolve(new Response(null)) : save({ consent: false }, signal);
-  return { save, open };
+  return { save, open, clientKey };
 }

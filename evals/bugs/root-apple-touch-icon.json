@@ -1,0 +1,9 @@
+{
+  "id": "root-apple-touch-icon",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "guest",
+  "summary": "/apple-touch-icon.png at the site root answered 404 (some crawlers ask for it).",
+  "fix": "The root path rewrites to the App Router apple-icon.png (the same approved file; nothing new in public/).",
+  "tests": ["tests/unit/site-icons.test.ts", "tests/e2e/ui/site-icons.spec.ts"]
+}

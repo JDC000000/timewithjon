@@ -29,7 +29,9 @@ describe('storySaver', () => {
     expect((await s.open(signal)).ok).toBe(true);
     await s.save({ consent: false }, signal);
     expect(f).toHaveBeenCalledTimes(2);
-    expect(sentBody(f, 1)).toEqual({ consent: false, edit: true });
+    // a later save names its own story by the page's key (two tabs share one twj_story)
+    expect(sentBody(f, 1)).toEqual({ consent: false, edit: true, clientKey: KEY });
+    expect(s.clientKey).toBe(sentBody(f, 0).clientKey);
     expect(takeToken).toHaveBeenCalledTimes(1);
   });
 
@@ -51,8 +53,8 @@ describe('storySaver', () => {
     });
     await again.save({ consent: false, body: 'S2' }, signal);
     expect([0, 1, 2].map((n) => sentBody(f, n).edit)).toEqual([undefined, true, undefined]);
-    // each page view has its own key; an edit needs none
-    expect(sentBody(f, 1).clientKey).toBeUndefined();
+    // each page view has its own key, and its edits carry it
+    expect(sentBody(f, 1).clientKey).toBe(sentBody(f, 0).clientKey);
     expect(sentBody(f, 2).clientKey).not.toBe(sentBody(f, 0).clientKey);
   });
 
