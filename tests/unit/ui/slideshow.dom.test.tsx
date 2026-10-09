@@ -418,11 +418,11 @@ describe('slideshow stacking (photo rounds 3 and 4, PH-07)', () => {
 });
 
 describe('zoom (design round 6, 8a)', () => {
-  it('a view with zoom puts --z-<key> on its photo; the CSS scales every photo by its key about its position', () => {
+  it('a view with zoom puts --zm-<key> on its photo; the CSS scales every photo by its key about its position', () => {
     const views: PhotoViews = { show: [{ 'close-s': { pos: '55% 40%', zoom: 1.6 } }] };
     expect(photoViewStyle('show', 0, undefined, views)).toEqual({
       '--p-close-s': '55% 40%',
-      '--z-close-s': 1.6,
+      '--zm-close-s': 1.6,
     });
     const css = readFileSync('src/ui/site.css', 'utf8');
     for (const key of [
@@ -436,7 +436,7 @@ describe('zoom (design round 6, 8a)', () => {
       'dish',
       'thumb',
     ])
-      expect(css, key).toContain(`--ph-z: var(--z-${key}, 1);`);
+      expect(css, key).toContain(`--ph-z: var(--zm-${key}, 1);`);
     expect(css).toMatch(/\.ph img \{\s*scale: var\(--ph-z, 1\);\s*transform-origin: var\(--ph-p, 50% 50%\);/);
   });
 });
@@ -539,5 +539,45 @@ describe('PhotoSlot media (design round 6: the single closing photo where the ti
     const plain = render(<PhotoSlot slot="show" kind="close" slots={FIXTURE} />).container;
     expect(plain.querySelector('picture')).toBeNull();
     expect(plain.querySelector('figure > img')!.getAttribute('src')).toBe('/img/show-480.webp');
+  });
+});
+
+describe('the framing variables never share a name with a design token (PH-24)', () => {
+  // A view's per-key variables (--p-<key>, --f-<key>, --zm-<key>) are read with a fallback: if a token of the same
+  // name exists (as --z-sheet, the z-index token, once did for the zoom), the token silently wins and a photo is
+  // drawn at that value (scale 50). Every name the photo layer reads or photoViewStyle writes must be one no
+  // stylesheet declares.
+  const tokens = readFileSync('src/ui/tokens.css', 'utf8');
+  const site = readFileSync('src/ui/site.css', 'utf8');
+  const declared = new Set([...`${tokens}\n${site}`.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]!));
+  // every per-key variable feeding the photo layer: the first var() of each --ph-p / --ph-f / --ph-z declaration
+  const read = [...site.matchAll(/--ph-[pfz]:\s*var\((--[a-z0-9-]+)/gi)]
+    .map((m) => m[1]!)
+    .filter((n) => n !== '--p');
+  const written = Object.keys(
+    photoViewStyle('x', 0, undefined, {
+      x: [
+        Object.fromEntries(
+          [...new Set(read.map((n) => n.replace(/^--(?:p|f|zm)-/, '')))].map((k) => [
+            k,
+            { pos: '50% 50%', zoom: 2 },
+          ]),
+        ),
+      ],
+    }) ?? {},
+  );
+
+  it('reads a zoom, frame and position variable for every view key', () => {
+    expect(read.filter((n) => n.startsWith('--zm-')).length).toBeGreaterThanOrEqual(16);
+    expect(read).toContain('--zm-sheet');
+    expect(written).toContain('--zm-sheet');
+  });
+  it('no variable the photo layer reads or writes is declared as a token anywhere', () => {
+    expect(read.filter((n) => declared.has(n))).toEqual([]);
+    expect(written.filter((n) => declared.has(n))).toEqual([]);
+  });
+  it('the zoom namespace is not the z-index one', () => {
+    expect(site).not.toMatch(/--ph-z: var\(--z-/);
+    expect([...declared].filter((n) => n.startsWith('--zm-'))).toEqual([]);
   });
 });

@@ -1,0 +1,9 @@
+{
+  "id": "photo-zoom-var-token-collision",
+  "date": "2026-10-09",
+  "task": "T3.6",
+  "area": "photos",
+  "summary": "The per-key photo zoom variable was named --z-<key>, the same namespace as the z-index tokens: on the dish sheet (<1024) the photo layer read --z-sheet, the z-index token 50, as its zoom, so every sheet header photo on /menu was drawn 50x and blurred.",
+  "fix": "The zoom variables are --zm-<key> (CSS and the inline styles photoViewStyle writes); the manifest field stays 'zoom'. A test fails if any variable the photo layer reads or writes is declared as a token, and an e2e check keeps every photo, sheet included, at scale 1 when no zoom is set.",
+  "tests": ["tests/unit/ui/slideshow.dom.test.tsx", "tests/e2e/ui/slideshow.spec.ts"]
+}
