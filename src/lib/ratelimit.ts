@@ -109,11 +109,16 @@ async function slidingCheck(
     [scope, key, windowSec, bucketSec],
   );
   if (!row || row.total <= limit) return 'allowed';
-  await q(`update rate_limit set count = count - 1 where scope = $1 and key = $2 and window_start = $3`, [
-    scope,
-    key,
-    row.bucket,
-  ]);
+  // Over the limit: give the count back. If that fails the try is still refused (never let through by the error).
+  try {
+    await q(`update rate_limit set count = count - 1 where scope = $1 and key = $2 and window_start = $3`, [
+      scope,
+      key,
+      row.bucket,
+    ]);
+  } catch (e) {
+    report(e, { area: 'ratelimit', scope, step: 'give_back' });
+  }
   return 'limited';
 }
 
