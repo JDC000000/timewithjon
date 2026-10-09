@@ -18,3 +18,13 @@ describe('44 px targets (UX-03, UX-04)', () => {
     expect(block).toMatch(/padding: 0 var\(--s2\);\s*min-width: var\(--tap\);/);
   });
 });
+
+describe('dish sheets (M2, Jon 2026-10-09)', () => {
+  it('lock the page behind while open, stop a swipe at the sheet, and pin Book to the sheet’s bottom edge', () => {
+    expect(css).toMatch(
+      /html:has\(dialog\.sheet\[open\]\) \{\s*overflow: hidden;\s*scrollbar-gutter: stable;/,
+    );
+    expect(css).toMatch(/dialog\.sheet \{\s*overscroll-behavior: contain;/);
+    expect(css).toMatch(/\.sheet-book \{\s*position: sticky;\s*bottom: 0;/);
+  });
+});

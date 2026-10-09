@@ -1,0 +1,9 @@
+{
+  "id": "dish-sheet-page-scrolls",
+  "date": "2026-10-09",
+  "task": "M2",
+  "area": "guest",
+  "summary": "On an iPhone a swipe over The Long Distance's sheet moved the page behind it, not the sheet, so its Book button was out of reach (every dish sheet: the page behind an open sheet scrolled).",
+  "fix": "While a sheet is open the page behind can't scroll (html:has(dialog.sheet[open])), the sheet stops a swipe at its end (overscroll-behavior: contain), and the dish sheet's Book row is pinned to the sheet's bottom edge.",
+  "tests": ["tests/e2e/ui/dish-sheet-scroll.spec.ts", "tests/unit/ui/ux-targets-css.test.ts"]
+}
