@@ -67,5 +67,13 @@ Use this first, before any fix-forward, when the live site is broken after a dep
   then.
 - Test data on staging or production is removed only with the purge scripts in [STAGING.md](./STAGING.md#purge-test-data-operator-only),
   never by hand-written SQL on production.
+- Storage bucket settings are tracked in `ops/bucket-limits.ts`: `photos` 20 MiB (the app's upload cap) and the
+  photo types the uploaders send, `exports` 50 MiB of zip, both private. After creating or restoring a project, run
+  `pnpm -s tsx ops/pin-bucket-limits.ts` with that project's `SUPABASE_URL` and service role key (a dry run that lists
+  any difference), then again with `--apply`; it reads the settings back and exits 1 if one still differs. Then run
+  `ops/check-photo-bucket.ts` to see the limits hold.
+- Sign-ups are off (`enable_signup = false` in `supabase/config.toml`; set the same in the dashboard under
+  Authentication > Sign In / Providers on every hosted project). The one admin account is added by the operator under
+  Authentication > Users; the app never creates users.
 - Exports for the book are built from Admin > Stories > **Export**: only stories marked OK for the book, no email
   addresses, a 10-minute download link.
