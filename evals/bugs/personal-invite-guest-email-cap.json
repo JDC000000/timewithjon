@@ -1,0 +1,9 @@
+{
+  "id": "personal-invite-guest-email-cap",
+  "date": "2026-10-09",
+  "task": "guest-send-caps",
+  "area": "requests/intake",
+  "summary": "A personal invite had no daily cap on guest intake emails, and the per-address E1 cap counted Gmail address variants (dots, +tags, capitals) as different addresses.",
+  "fix": "Every invite kind has a daily guest-email cap (personal 5, general 20; over it the request stands and Jon still gets E2), and the per-address E1 cap counts one Gmail mailbox however it is written.",
+  "tests": ["tests/int/guest-send-caps.int.test.ts"]
+}

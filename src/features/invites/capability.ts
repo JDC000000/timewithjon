@@ -5,6 +5,7 @@ import type { NextRequest, NextResponse } from 'next/server';
 import { getEnv } from '@/config/env';
 import { MANAGE_HEADER, manageGrant } from '@/features/invites/action-tokens';
 import { signCookie, verifyCookie } from '@/features/invites/tokens';
+import { q } from '@/lib/db';
 
 export const REQ_COOKIE = 'twj_req';
 export const REQ_TTL_SECONDS = 2 * 3600;
@@ -21,9 +22,19 @@ export function setRequestCapability(res: NextResponse, requestId: string) {
     },
   );
 }
-/** The ONLY source of request_id for After Send + photo endpoints (never the body). */
+/**
+ * The ONLY source of request_id for After Send + photo endpoints (never the body). A request whose invite Jon has
+ * revoked has no capability left: its cookie stops posting stories, signing photos and reading /sent at once,
+ * not when the cookie expires (as the story-page path checks its invite).
+ */
 export async function readRequestCapability(): Promise<string | null> {
-  return verifyCookie('req', (await cookies()).get(REQ_COOKIE)?.value, getEnv().SESSION_SIGNING_SECRET);
+  const id = verifyCookie('req', (await cookies()).get(REQ_COOKIE)?.value, getEnv().SESSION_SIGNING_SECRET);
+  if (!id) return null;
+  const live = await q(
+    `select r.id from request r join invite i on i.id = r.invite_id where r.id = $1 and i.revoked_at is null`,
+    [id],
+  );
+  return live.length ? id : null;
 }
 
 /**

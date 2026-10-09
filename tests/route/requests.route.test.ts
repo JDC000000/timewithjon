@@ -193,14 +193,28 @@ describe('POST /api/requests (route level)', () => {
   it('QA4b M1: Back after Send, then Send (a new key, the same request) gets the one already sent; a different one is new', async () => {
     await q(`delete from rate_limit`);
     const b = body({ email: email('back') });
-    expect((await post(b, { cookie })).res.status).toBe(200);
-    const again = await post({ ...b, clientKey: randomUUID() }, { cookie });
+    const first = await post(b, { cookie });
+    expect(first.res.status).toBe(200);
+    // The browser keeps the request cookie the first Send set; on the shared general link only that browser's
+    // own request counts as "the same request again".
+    const req = first.res.headers
+      .getSetCookie()
+      .find((c) => c.startsWith('twj_req='))!
+      .split(';')[0]!;
+    const again = await post({ ...b, clientKey: randomUUID() }, { cookie: `${cookie}; ${req}` });
     expect([again.res.status, again.json.ok]).toEqual([200, true]);
     expect(await requestFor(b.email as string)).toHaveLength(1);
     expect(await outboxFor(b.email as string)).toEqual(['E1']); // no second "Got it"
-    const other = await post({ ...b, clientKey: randomUUID(), note: 'And my partner' }, { cookie });
+    const other = await post(
+      { ...b, clientKey: randomUUID(), note: 'And my partner' },
+      { cookie: `${cookie}; ${req}` },
+    );
     expect(other.res.status).toBe(200);
     expect(await requestFor(b.email as string)).toHaveLength(2);
+    // Another browser on the shared link with an identical body: its own request, never this guest's.
+    const elsewhere = await post({ ...b, clientKey: randomUUID() }, { cookie });
+    expect(elsewhere.res.status).toBe(200);
+    expect(await requestFor(b.email as string)).toHaveLength(3);
     await q(`delete from rate_limit`);
   });
 

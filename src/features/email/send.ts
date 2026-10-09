@@ -43,6 +43,16 @@ import { resolveLinkVars, type EmailVar } from './link-vars';
 import { renderEmail, type Rendered } from './registry';
 
 export const E1_DAILY_CAP = 3;
+
+/**
+ * The mailbox an address delivers to, for the per-address E1 cap (SQL over a text expression): lowercase, and for
+ * Gmail without dots or a "+tag" in the local part (Gmail ignores both), so "a.b+x@gmail.com" and "ab@gmail.com"
+ * share one cap. Other providers keep theirs as written (a dot or a "+" there can be a different mailbox).
+ */
+export const mailboxSql = (x: string) =>
+  `(case when split_part(lower(${x}), '@', 2) in ('gmail.com', 'googlemail.com')
+         then replace(split_part(split_part(lower(${x}), '@', 1), '+', 1), '.', '') || '@gmail.com'
+         else lower(${x}) end)`;
 export const MAX_ATTEMPTS = 4;
 export type QueueResult = { queued: string } | 'duplicate' | 'suppressed' | 'capped';
 export type DeliverResult = 'sent' | 'failed' | 'skipped' | 'queued' | 'digested';
@@ -80,9 +90,11 @@ export async function queueEmail(db: Db, a: EmailArgs): Promise<QueueResult> {
     // concurrent sends to one address take turns, so they can't all pass the count. A pool has no transaction to
     // hold it, so that caller gets one here.
     if (!('release' in db)) return withTx((c) => queueEmail(c, a));
-    await db.query(`select pg_advisory_xact_lock(hashtext('twj_e1:' || lower($1)))`, [a.to]);
+    await db.query(`select pg_advisory_xact_lock(hashtext('twj_e1:' || ${mailboxSql('$1::text')}))`, [a.to]);
     const { rows } = await db.query<{ n: number }>(
-      `select count(*)::int as n from email_log where template = 'E1' and to_email = $1 and created_at > now() - interval '1 day'`,
+      `select count(*)::int as n from email_log
+        where template = 'E1' and ${mailboxSql('to_email::text')} = ${mailboxSql('$1::text')}
+          and created_at > now() - interval '1 day'`,
       [a.to],
     );
     if ((rows[0]?.n ?? 0) >= E1_DAILY_CAP) return 'capped';

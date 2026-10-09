@@ -246,9 +246,10 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
     await q(`delete from rate_limit where scope = 'requestSendInvite'`);
     try {
       // CR-02: through createRequest, which takes the cap before its transaction.
-      const capped = (b: ReturnType<typeof mk>) => createRequest({ ...args(b), capGuestEmails: true });
+      const capped = (b: ReturnType<typeof mk>) =>
+        createRequest({ ...args(b), capGuestEmails: 'general' as const });
       // A bot (the honeypot) never counts toward it: the 20 after it still get their E1.
-      await createRequest({ ...args(mk(), true), capGuestEmails: true });
+      await createRequest({ ...args(mk(), true), capGuestEmails: 'general' as const });
       for (let i = 0; i < 20; i++) {
         const { requestId } = await capped(mk());
         expect((await emailsFor(requestId)).map((e) => e.template)).toEqual(['E1', 'E2']);

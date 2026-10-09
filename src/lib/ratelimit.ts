@@ -27,6 +27,13 @@ export const LIMITS = {
   // Guest intake emails (E1/E6) per GENERAL invite per day (keyed by invite id): the shared link takes any address.
   // Over it the request is still stored and Jon still gets E2; only the guest's email is skipped.
   requestSendInvite: { limit: 20, windowSec: 86400 },
+  // The same for a PERSONAL invite: one guest's own link, so 5 guest intake emails a day is plenty (a guest asking
+  // for several dishes in one day); over it the request still stands and Jon still gets E2.
+  requestSendPersonalInvite: { limit: 5, windowSec: 86400 },
+  // New requests per GENERAL invite per day (keyed by invite id). Every stored request emails Jon (E2) from the
+  // shared daily budget, so a flood on the shared link is refused (429) past this; the whole guest list is ~40-100
+  // people across the season, so a real day never comes near it.
+  requestGeneralInvite: { limit: 40, windowSec: 86400 },
   offerTake: { limit: 10, windowSec: 3600 }, // T2.4 guest takes/proposes an offered time
   manageAction: { limit: 20, windowSec: 3600 }, // T2.7 /api/manage/* (cancel, ask another time, add a story)
   eventBeacon: { limit: 60, windowSec: 3600 }, // T3.11: POST /api/events (sheet/picker opened)

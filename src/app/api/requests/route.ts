@@ -2,7 +2,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ERRORS, FLOW } from '@/content';
 import { dishBySlug, inSentence } from '@/content/menu-helpers';
-import { setRequestCapability } from '@/features/invites/capability';
+import { readRequestCapability, setRequestCapability } from '@/features/invites/capability';
 import { deliverRequestEmails } from '@/features/email/send';
 import { getBusy } from '@/features/availability/busy';
 import { engineInput, loadEngineData } from '@/features/availability/load';
@@ -10,7 +10,7 @@ import { openWindows } from '@/features/availability/openWindows';
 import { clientIp, jsonError, sameOrigin } from '@/lib/http';
 import { isReleased, opensAt } from '@/features/invites/release';
 import { requireInvite } from '@/features/invites/require';
-import { limitByIp } from '@/lib/ratelimit';
+import { hit, limitByIp } from '@/lib/ratelimit';
 import {
   createRequest,
   findRecentDuplicate,
@@ -67,8 +67,15 @@ export async function POST(req: NextRequest) {
   const stored = storableBody(body, dish);
   let requestId: string | null;
   try {
-    // QA4b M1: or the same request again under a new key (Back after Send, then Send).
-    requestId = (await findReplay(stored, invite.id)) ?? (await findRecentDuplicate(stored, invite.id));
+    // QA4b M1: or the same request again under a new key (Back after Send, then Send). On the shared general
+    // link only this browser's own request counts as "the same": the one its twj_req names.
+    requestId =
+      (await findReplay(stored, invite.id)) ??
+      (await findRecentDuplicate(
+        stored,
+        invite.id,
+        invite.kind === 'general' ? ((await readRequestCapability()) ?? 'none') : undefined,
+      ));
   } catch (e) {
     if (e instanceof ReplayConflictError) return jsonError(409, 'replay_conflict', ERRORS.generic);
     throw e;
@@ -80,6 +87,11 @@ export async function POST(req: NextRequest) {
   const engine = openWindows(engineInput(loaded, busy, invite.kind, dish.windows));
   const v = validateRequest(body, dish, engine, { start: settings.season_start, end: settings.season_end });
   if (!v.ok) return jsonError(409, v.code, VALIDATION_MESSAGE[v.code]);
+
+  // A new request on the shared general link counts toward its daily request cap (each one emails Jon an E2).
+  // Replays and duplicates above never count; a refused one stores nothing.
+  if (invite.kind === 'general' && !(await hit('requestGeneralInvite', invite.id)))
+    return jsonError(429, 'rate_limited', ERRORS.rateLimited);
 
   const spam = isHoneypotFilled(body.hp); // AD-9: stored, never refused
   try {
@@ -93,7 +105,7 @@ export async function POST(req: NextRequest) {
       countsToward: v.countsToward,
       bigCrew: v.bigCrew,
       dishName: inSentence(dish), // E1/E2's {dish}, inside a sentence
-      capGuestEmails: invite.kind === 'general',
+      capGuestEmails: invite.kind, // every invite kind has a daily guest-email cap (personal: 5, general: 20)
     }));
   } catch (e) {
     if (e instanceof ReplayConflictError) return jsonError(409, 'replay_conflict', ERRORS.generic);
