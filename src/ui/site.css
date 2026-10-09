@@ -3490,67 +3490,122 @@ dialog.sheet .ph {
 .ph--hero :is(img, .ph-slide) {
   --ph-p: var(--p-hero-s, var(--p, 50% 50%));
   --ph-f: var(--f-hero-s, 1.3333);
+  --ph-z: var(--z-hero-s, 1);
 }
 .ph--band :is(img, .ph-slide) {
   --ph-p: var(--p-band, var(--p, 50% 50%));
   --ph-f: var(--f-band, 1.7778);
+  --ph-z: var(--z-band, 1);
 }
 .ph--close :is(img, .ph-slide) {
   --ph-p: var(--p-close-s, var(--p, 50% 50%));
   --ph-f: var(--f-close-s);
+  --ph-z: var(--z-close-s, 1);
 }
 .ph--dish :is(img, .ph-slide) {
   --ph-p: var(--p-dish, var(--p, 50% 50%));
   --ph-f: var(--f-dish, 1.3333);
+  --ph-z: var(--z-dish, 1);
 }
 .ph--sheet :is(img, .ph-slide) {
   --ph-p: var(--p-sheet, var(--p, 50% 50%));
   --ph-f: var(--f-sheet, 1.7778);
+  --ph-z: var(--z-sheet, 1);
 }
 .ph--thumb :is(img, .ph-slide) {
   --ph-p: var(--p-thumb, var(--p, 50% 50%));
   --ph-f: var(--f-thumb, 3);
+  --ph-z: var(--z-thumb, 1);
 }
 .ph--sent :is(img, .ph-slide) {
   --ph-p: var(--p-sent, var(--p, 50% 50%));
   --ph-f: var(--f-sent, 1.3333);
+  --ph-z: var(--z-sent, 1);
 }
 @media (min-width: 640px) {
   .ph--hero :is(img, .ph-slide) {
     --ph-p: var(--p-hero-m, var(--p, 50% 50%));
     --ph-f: var(--f-hero-m, 1.7778);
+    --ph-z: var(--z-hero-m, 1);
   }
   .ph--close :is(img, .ph-slide) {
     --ph-p: var(--p-close-m, var(--p, 50% 50%));
     --ph-f: var(--f-close-m);
+    --ph-z: var(--z-close-m, 1);
   }
 }
 @media (min-width: 768px) {
   .ph--sent :is(img, .ph-slide) {
     --ph-p: var(--p-sent-m, var(--p, 50% 50%));
     --ph-f: var(--f-sent-m, 1.7778);
+    --ph-z: var(--z-sent-m, 1);
   }
 }
 @media (min-width: 1024px) {
   .ph--hero :is(img, .ph-slide) {
     --ph-p: var(--p-hero, var(--p, 50% 50%));
     --ph-f: var(--f-hero, 0.8);
+    --ph-z: var(--z-hero, 1);
   }
   .ph--band :is(img, .ph-slide) {
     --ph-p: var(--p-band-l, var(--p, 50% 50%));
     --ph-f: var(--f-band-l, 2.625);
+    --ph-z: var(--z-band-l, 1);
   }
   .ph--close :is(img, .ph-slide) {
     --ph-p: var(--p-close-l, var(--p, 50% 50%));
     --ph-f: var(--f-close-l);
+    --ph-z: var(--z-close-l, 1);
   }
   .ph--sheet :is(img, .ph-slide) {
     --ph-p: var(--p-sheet-l, var(--p, 50% 50%));
     --ph-f: var(--f-sheet-l, 1.5);
+    --ph-z: var(--z-sheet-l, 1);
   }
   .ph--thumb :is(img, .ph-slide) {
     --ph-p: var(--p-thumb-l, var(--p, 50% 50%));
     --ph-f: var(--f-thumb-l, 1.3333);
+    --ph-z: var(--z-thumb-l, 1);
+  }
+}
+
+/* A view's zoom (photo-views.json `zoom`, unframed views only): the photo is drawn that much larger than cover about
+   its position point, and its box (the figure, or a slide's frame box) clips it */
+.ph img {
+  scale: var(--ph-z, 1);
+  transform-origin: var(--ph-p, 50% 50%);
+}
+/* Design round 6, P3 option B: from 1024 px the closing slot is a row of three square tiles in the text column
+   (src/ui/PhotoTiles.tsx), photos 1-3 turning to 4-6 together with one Pause/Play toggle; below 1024 the single
+   closing photo stays as it was */
+.ph--tile {
+  aspect-ratio: var(--ph-ratio-close-tile, 1 / 1);
+}
+.ph--tile :is(img, .ph-slide) {
+  --ph-p: var(--p-close-tile, var(--p, 50% 50%));
+  --ph-f: var(--f-close-tile, 1);
+  --ph-z: var(--z-close-tile, 1);
+}
+/* a photo fetched for one media only (PhotoSlot `media`, the tiles): the <picture> adds no box of its own */
+.ph > picture {
+  display: contents;
+}
+.ph-tiles {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .closing:has(.ph-tiles) > .ph--close {
+    display: none;
+  }
+  .ph-tiles {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    padding-bottom: var(--s8);
+  }
+  .ph-tiles > .ph-play {
+    bottom: calc(var(--s8) + var(--s2));
   }
 }
 

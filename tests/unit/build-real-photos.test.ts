@@ -156,6 +156,7 @@ describe('framing: aspect "source" and view (docs/PHOTOS.md)', () => {
         'close-l',
         'close-m',
         'close-s',
+        'close-tile',
         'dish',
         'hero',
         'hero-m',
@@ -180,8 +181,22 @@ describe('framing: aspect "source" and view (docs/PHOTOS.md)', () => {
     expect(bad({ view: { hero: { pos: '50% 50%', frame: 6 } } })).toThrow(/frame must be a number 0.2-5/);
     expect(bad({ view: { hero: { pos: '50% 50%', frame: '1.2' } } })).toThrow(/frame must be a number/);
     expect(bad({ view: { hero: { pos: '50% 50%', fit: 'contain' } } })).toThrow(/unknown field/);
-    expect(bad({ view: { hero: 3 } })).toThrow(/must be "x% y%" or \{ pos, frame \}/);
+    expect(bad({ view: { hero: 3 } })).toThrow(/must be "x% y%" or \{ pos, frame, zoom \}/);
     expect(parseView('x', { dish: { pos: '0% 100%' } })).toEqual({ dish: { pos: '0% 100%' } });
+  });
+
+  it('zoom (design round 6): 1-3 on an unframed view, passed through; never with a frame', () => {
+    expect(parseView('x', { 'close-s': { pos: '55% 40%', zoom: 1.6 } })).toEqual({
+      'close-s': { pos: '55% 40%', zoom: 1.6 },
+    });
+    expect(parseView('x', { 'close-tile': { pos: '50% 2.2%' } })).toEqual({
+      'close-tile': { pos: '50% 2.2%' },
+    });
+    const bad = (v: object) => () => parseView('x', { 'close-s': v });
+    expect(bad({ pos: '50% 50%', zoom: 0.9 })).toThrow(/zoom must be a number 1-3/);
+    expect(bad({ pos: '50% 50%', zoom: 3.5 })).toThrow(/zoom must be a number 1-3/);
+    expect(bad({ pos: '50% 50%', zoom: '2' })).toThrow(/zoom must be a number 1-3/);
+    expect(bad({ pos: '50% 50%', zoom: 2, frame: 1.2 })).toThrow(/both frame and zoom/);
   });
 
   it('views: per slot, one entry per source ({} without a view); none at all = {}', () => {

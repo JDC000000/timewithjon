@@ -5,6 +5,8 @@
 import { STORY_BLOCK } from '@/content';
 import { LANDING_LABELS, STORIES_DOMAIN } from '@/content/ui/landing';
 import { PhotoSlot } from '@/ui';
+import { slideCount } from '@/ui/photo-slots';
+import { BELOW_TILES_MEDIA, PhotoTiles, TILES } from '@/ui/PhotoTiles';
 import { CopyAddress } from './CopyAddress';
 
 export function Why() {
@@ -33,9 +35,17 @@ export function StoryBlock() {
 
 /** The closing photo, on its own (the closing line is gone: Jon, 2026-10-05). */
 export function Closing() {
+  const tiles = slideCount('close') >= TILES;
   return (
     <section className="closing" aria-label={LANDING_LABELS.closing}>
-      <PhotoSlot slot="close" kind="close" />
+      {/* design round 6 (P3 B): from 1024 px, three tiles in the text column instead (site.css); each layout
+          fetches its photo only where it shows */}
+      <PhotoSlot slot="close" kind="close" media={tiles ? BELOW_TILES_MEDIA : undefined} />
+      {tiles ? (
+        <div className="wrap">
+          <PhotoTiles slot="close" />
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -8,6 +8,7 @@ import { DishPhotoScope } from '@/app/_menu/Menu';
 import { DEV_COOKIE, devCookieOk } from '@/features/dev/guard';
 import { PhotoSlot, SiteHeader, type PhotoSlots } from '@/ui';
 import type { PhotoViews } from '@/ui/photo-slots';
+import { BELOW_TILES_MEDIA, PhotoTiles } from '@/ui/PhotoTiles';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,8 @@ export const dynamic = 'force-dynamic';
 const FIXTURE: PhotoSlots = {
   show: { file: 'hero', w: [480, 800, 1200, 1600], alt: '', slides: 3 },
   card: { file: 'catch-release', w: [480, 800, 1200], alt: '', slides: 3 },
+  // design round 6 (P3 B): a 6-photo closing slot, a row of three tiles from 1024 px
+  six: { file: 'close', w: [480, 800, 1200, 1600], alt: '', slides: 6 },
 };
 
 /** test-only framing (photo-views.json shape): photo 1 framed at both band breakpoints, slide 2 positioned only,
@@ -26,6 +29,15 @@ const FIXTURE_VIEWS: PhotoViews = {
     { band: { pos: '50% 50%', frame: 0.6 }, 'band-l': { pos: '50% 50%', frame: 0.6 } },
   ],
   card: [{ dish: { pos: '50% 25%', frame: 1 } }, { dish: { pos: '50% 50%', frame: 1.3 } }, {}],
+  // photo 1 zoomed 2x about 25% 25% in its tile; photo 2 framed in its tile; the rest unframed
+  six: [
+    { 'close-tile': { pos: '25% 25%', zoom: 2 } },
+    { 'close-tile': { pos: '50% 50%', frame: 0.8 } },
+    {},
+    {},
+    {},
+    {},
+  ],
 };
 
 export default async function SlidesPage() {
@@ -56,6 +68,18 @@ export default async function SlidesPage() {
             </ul>
           </section>
         </div>
+        <section className="closing" aria-label="Sample closing">
+          <PhotoSlot
+            slot="six"
+            kind="close"
+            slots={FIXTURE}
+            views={FIXTURE_VIEWS}
+            media={BELOW_TILES_MEDIA}
+          />
+          <div className="wrap">
+            <PhotoTiles slot="six" slots={FIXTURE} views={FIXTURE_VIEWS} />
+          </div>
+        </section>
       </main>
     </>
   );

@@ -62,7 +62,17 @@ function subscribeMedia(query: string, set: (v: boolean) => void): () => void {
  * The state of one slideshow, shared by its photos (SlideshowSlides, inside the figure) and its toggle
  * (SlideshowToggle, inside the figure or, for a photo inside a link, next to the link). Renders no element.
  */
-export function SlideshowScope({ count, children }: { count: number; children: ReactNode }) {
+export function SlideshowScope({
+  count,
+  need = 1,
+  children,
+}: {
+  count: number;
+  /** how many figures show each photo 2..n (a row of tiles turning together: PhotoTiles); a photo is ready once
+   *  every one of them has loaded it */
+  need?: number;
+  children: ReactNode;
+}) {
   const [pageLoaded, setPageLoaded] = useState(false);
   // until the media query is read: treat motion as reduced (nothing extra renders)
   const [reduced, setReduced] = useState(true);
@@ -75,6 +85,7 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   const [visible, setVisible] = useState(false);
   const [everSeen, setEverSeen] = useState(false);
   const ready = useRef<boolean[]>([true]);
+  const loads = useRef<number[]>([]);
   const broken = useRef<boolean[]>([]);
 
   useEffect(() => {
@@ -122,9 +133,13 @@ export function SlideshowScope({ count, children }: { count: number; children: R
     return () => window.clearInterval(t);
   }, [running, count]);
   const toggle = useCallback(() => setPaused((p) => !p), []);
-  const loaded = useCallback((i: number) => {
-    ready.current[i] = true;
-  }, []);
+  const loaded = useCallback(
+    (i: number) => {
+      loads.current[i] = (loads.current[i] ?? 0) + 1;
+      if (loads.current[i] >= need) ready.current[i] = true;
+    },
+    [need],
+  );
   const failed = useCallback((i: number) => {
     broken.current[i] = true;
   }, []);

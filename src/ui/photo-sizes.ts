@@ -25,3 +25,6 @@ export const PHOTO_SIZES: Readonly<Record<PhotoKind, string>> = {
   /** the wine tag (no photo today) */
   wine: '100vw',
 };
+
+/** a closing tile (PhotoTiles): a third of the text column (<= 1200 px, 16 px gaps), shown only from 1024 px */
+export const TILE_SIZES = '(min-width: 1024px) min(30vw, 390px), 100vw';

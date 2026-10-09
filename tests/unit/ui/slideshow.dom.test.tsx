@@ -16,6 +16,8 @@ import {
   type PhotoViews,
 } from '@/ui/photo-slots';
 import { slideState, SLIDE_MS } from '@/ui/Slideshow';
+import { PhotoTiles } from '@/ui/PhotoTiles';
+import { BLANK_PIXEL } from '@/ui/PhotoSlot';
 
 const FIXTURE: PhotoSlots = {
   show: { file: 'show', w: [480, 800], alt: '', slides: 3 },
@@ -399,6 +401,7 @@ describe('slideshow stacking (photo rounds 3 and 4, PH-07)', () => {
       'hero',
       'band',
       'band-l',
+      'close-tile',
       'dish',
       'sheet',
       'sheet-l',
@@ -411,5 +414,130 @@ describe('slideshow stacking (photo rounds 3 and 4, PH-07)', () => {
       expect(m, key).not.toBeNull();
       expect(Number(m![1]), key).toBeCloseTo(ratio(key), 3);
     }
+  });
+});
+
+describe('zoom (design round 6, 8a)', () => {
+  it('a view with zoom puts --z-<key> on its photo; the CSS scales every photo by its key about its position', () => {
+    const views: PhotoViews = { show: [{ 'close-s': { pos: '55% 40%', zoom: 1.6 } }] };
+    expect(photoViewStyle('show', 0, undefined, views)).toEqual({
+      '--p-close-s': '55% 40%',
+      '--z-close-s': 1.6,
+    });
+    const css = readFileSync('src/ui/site.css', 'utf8');
+    for (const key of [
+      'hero-s',
+      'hero',
+      'band',
+      'close-s',
+      'close-m',
+      'close-l',
+      'close-tile',
+      'dish',
+      'thumb',
+    ])
+      expect(css, key).toContain(`--ph-z: var(--z-${key}, 1);`);
+    expect(css).toMatch(/\.ph img \{\s*scale: var\(--ph-z, 1\);\s*transform-origin: var\(--ph-p, 50% 50%\);/);
+  });
+});
+
+describe('PhotoTiles (design round 6, P3 B: the closing row of three)', () => {
+  const SIX: PhotoSlots = { six: { file: 'close', w: [480, 800], alt: '', slides: 6 } };
+  const tiles = (c: HTMLElement) => [...c.querySelectorAll('.ph-tiles figure.ph--tile')];
+  const tileOn = (c: HTMLElement) =>
+    tiles(c).map((f) => (f.querySelector('.ph-slide.is-top') ? 'second' : 'first'));
+
+  it('three square tiles: photos 1-3, each pairing with photo k+3; one toggle for the row; lazy', () => {
+    readyState = 'complete';
+    const { container } = render(<PhotoTiles slot="six" slots={SIX} />);
+    expect(tiles(container)).toHaveLength(3);
+    // photo k's files only from 1024 px (a <picture> source); below it the <img> holds a blank pixel
+    expect(
+      tiles(container).map((f) => f.querySelector('picture > source')!.getAttribute('srcset')!.split(' ')[0]),
+    ).toEqual(['/img/close-480.webp', '/img/close-2-480.webp', '/img/close-3-480.webp']);
+    for (const f of tiles(container)) {
+      expect(f.querySelector('picture > source')!.getAttribute('media')).toBe('(min-width: 1024px)');
+      expect(f.querySelector('picture > img')!.getAttribute('src')).toBe(BLANK_PIXEL);
+      expect(f.querySelector('picture > img')!.getAttribute('loading')).toBe('lazy');
+    }
+    expect(tiles(container).map((f) => f.querySelector('.ph-slide img')!.getAttribute('src'))).toEqual([
+      '/img/close-4-480.webp',
+      '/img/close-5-480.webp',
+      '/img/close-6-480.webp',
+    ]);
+    expect(screen.getAllByRole('button', { name: SLIDESHOW.pause })).toHaveLength(1);
+  });
+
+  it('the row turns together, once every tile has its second photo; Pause holds all three', () => {
+    vi.useFakeTimers();
+    readyState = 'complete';
+    const { container } = render(<PhotoTiles slot="six" slots={SIX} />);
+    const second = () => tiles(container).map((f) => f.querySelector<HTMLImageElement>('.ph-slide img')!);
+    act(() => void second()[0]!.dispatchEvent(new Event('load')));
+    act(() => void second()[1]!.dispatchEvent(new Event('load')));
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(tileOn(container)).toEqual(['first', 'first', 'first']); // tile 3's photo 6 not loaded: all hold
+    act(() => void second()[2]!.dispatchEvent(new Event('load')));
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(tileOn(container)).toEqual(['second', 'second', 'second']);
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(tileOn(container)).toEqual(['first', 'first', 'first']);
+    fireEvent.click(screen.getByRole('button', { name: SLIDESHOW.pause }));
+    act(() => void vi.advanceTimersByTime(SLIDE_MS * 3));
+    expect(tileOn(container)).toEqual(['first', 'first', 'first']);
+  });
+
+  it('each photo carries its own close-tile view', () => {
+    readyState = 'complete';
+    const views: PhotoViews = {
+      six: [{ 'close-tile': '50% 2.2%' }, {}, {}, { 'close-tile': '100% 50%' }, {}, {}],
+    };
+    const { container } = render(<PhotoTiles slot="six" slots={SIX} views={views} />);
+    expect(tiles(container)[0]!.querySelector('picture > img')!.getAttribute('style')).toContain(
+      '--p-close-tile: 50% 2.2%',
+    );
+    expect(tiles(container)[0]!.querySelector('.ph-slide img')!.getAttribute('style')).toContain(
+      '--p-close-tile: 100% 50%',
+    );
+  });
+
+  it('4 photos: only tile 1 turns (1<->4); under 3 photos (or a still): nothing, the single photo stays', () => {
+    readyState = 'complete';
+    const four: PhotoSlots = { six: { ...SIX.six!, slides: 4 } };
+    const { container } = render(<PhotoTiles slot="six" slots={four} />);
+    expect(tiles(container).map((f) => f.querySelectorAll('img').length)).toEqual([2, 1, 1]);
+    cleanup();
+    for (const slides of [1, 2]) {
+      const { container: c } = render(<PhotoTiles slot="six" slots={{ six: { ...SIX.six!, slides } }} />);
+      expect(c.innerHTML).toBe('');
+      cleanup();
+    }
+  });
+
+  it('reduced motion: photos 1-3 only, no toggle', () => {
+    readyState = 'complete';
+    reduced = true;
+    const { container } = render(<PhotoTiles slot="six" slots={SIX} />);
+    expect(container.querySelectorAll('img')).toHaveLength(3);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+});
+
+describe('PhotoSlot media (design round 6: the single closing photo where the tiles are not)', () => {
+  it('with media: photo 1 is a <picture> source for that media only, its <img> a blank pixel; without: as before', () => {
+    readyState = 'complete';
+    const { container } = render(
+      <PhotoSlot slot="show" kind="close" slots={FIXTURE} media="(max-width: 1023px)" />,
+    );
+    const source = container.querySelector('figure > picture > source')!;
+    expect(source.getAttribute('media')).toBe('(max-width: 1023px)');
+    expect(source.getAttribute('srcset')).toBe('/img/show-480.webp 480w, /img/show-800.webp 800w');
+    const img = container.querySelector('figure > picture > img')!;
+    expect(img.getAttribute('src')).toBe(BLANK_PIXEL);
+    expect(img.getAttribute('srcset')).toBeNull();
+    cleanup();
+    const plain = render(<PhotoSlot slot="show" kind="close" slots={FIXTURE} />).container;
+    expect(plain.querySelector('picture')).toBeNull();
+    expect(plain.querySelector('figure > img')!.getAttribute('src')).toBe('/img/show-480.webp');
   });
 });
