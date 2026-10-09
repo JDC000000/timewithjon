@@ -3428,6 +3428,12 @@ dialog.sheet .ph {
   max-width: 1920px;
   margin-inline: auto;
 }
+/* photo round 4 (PH-22): the why band likewise stays at most 1920 px wide, centred, so its largest (1600 w) file is
+   drawn at most 1.2x, as sharp as the closing strip, instead of 1.6x across a 2560 screen */
+.ph--band {
+  max-width: 1920px;
+  margin-inline: auto;
+}
 .ph img {
   inset: auto;
   top: 50%;
@@ -3741,9 +3747,15 @@ li[hidden] {
 }
 
 /* Photo slideshows (src/ui/Slideshow.tsx; a slot's `slides` > 1, private builds only): photos 2..n stack over photo 1
-   in the same box and fade in turn. Reduced motion renders photo 1 only (no extra photos, no toggle). */
+   in the same box and fade in turn. Reduced motion renders photo 1 only (no extra photos, no toggle).
+   Photo round 4 (PH-07): every frame is a crossfade of two photos. A photo fades in (.is-on) over an opaque one, and
+   on the loop back to photo 1 the last photo fades out (.is-out) alone. A photo turning off (.is-off) does so at once,
+   while an opaque photo covers it, so nothing under the fading photo ever shows through it. */
 .ph .ph-slide {
   opacity: 0;
+  transition: transform var(--dur-3, 0.6s) var(--ease-out);
+}
+.ph .ph-slide:is(.is-on, .is-out) {
   transition:
     opacity 1.2s var(--ease-out),
     transform var(--dur-3, 0.6s) var(--ease-out);
@@ -3775,6 +3787,23 @@ li[hidden] {
 }
 .ph-play:focus-visible {
   box-shadow: 0 0 0 calc(var(--focus-offset) + var(--focus-w) + 2px) var(--c-paper);
+}
+/* photo round 4 (PH-23): a photo taller than the screen (the why band, hero or closing strip on a landscape phone)
+   keeps its toggle on the part of the photo on screen. The toggle is the figure's one in-flow child, placed at its
+   bottom-right and sticky to the screen's bottom edge, so it rides up into view and never leaves the photo. The
+   figure clips (overflow: clip) instead of scrolling (hidden), so the sticky toggle follows the page's scroll. */
+.ph:has(> .ph-play) {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  overflow: clip;
+}
+.ph > .ph-play {
+  position: sticky;
+  right: auto;
+  bottom: var(--s2);
+  margin: var(--s2);
 }
 /* a menu card's toggle sits outside its link (DishPhotoScope), in a box laid over the card's photo */
 .dish:has(> .ph-ctl) {
