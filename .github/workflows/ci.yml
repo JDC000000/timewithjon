@@ -216,11 +216,24 @@ jobs:
         run: node scripts/check-heic-shipped.mjs
 
   e2e:
-    name: E2E smoke (Chromium + WebKit)
-    # T4.3.01. The SMOKE profile only (both engines, 375 + 1440, 100% text, 1 run; target <= 5 min). The full
-    # T4.3.09 matrix (6 viewports x 3 text sizes x 2 engines x 5 runs) runs locally: `pnpm test:e2e:full`.
+    name: E2E smoke (${{ matrix.engine }})
+    # T4.3.01. The SMOKE profile only (both engines, 375 + 1440, 100% text, 1 run). The full T4.3.09 matrix
+    # (6 viewports x 3 text sizes x 2 engines x 5 runs) runs locally: `pnpm test:e2e:full`.
     # Every push to main; on PRs only when ready for review and touching what the suite drives (see `changes`).
     # Never retried: a flaky pass is a fail (decision 29).
+    # One leg per engine, each on its own runner. WebKit runs ONE worker: with two WebKit browsers beside the Next
+    # server and Postgres on one 4-vCPU runner, plain server round trips took 2-6 s and broke 5 s waits in one-off
+    # reds (2026-10-09). Chromium keeps two workers. The legs run side by side, so the wall time is the WebKit leg's.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: chromium
+            workers: 2
+            browsers: --only-shell chromium
+          - engine: webkit
+            workers: 1
+            browsers: webkit
     needs: changes
     if: ${{ !cancelled() && (github.event_name == 'push' || (!github.event.pull_request.draft && needs.changes.outputs.e2e == 'true')) }}
     runs-on: ubuntu-latest
@@ -245,10 +258,10 @@ jobs:
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ matrix.engine }}-${{ steps.playwright.outputs.version }}
 
-      - name: Chromium (headless shell) + WebKit with their system packages
-        run: pnpm exec playwright install --with-deps --only-shell chromium webkit
+      - name: The leg's browser with its system packages
+        run: pnpm exec playwright install --with-deps ${{ matrix.browsers }}
 
       # Disposable Postgres 15 on loopback with every migration + the seed (scripts/test-db.sh).
       - name: Test database
@@ -261,9 +274,11 @@ jobs:
           restore-keys: |
             next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      # Builds the prototype (placeholder env), starts it on loopback and runs the smoke profile.
+      # Builds the prototype (placeholder env), starts it on loopback and runs the smoke profile, this leg's engine only.
       - name: E2E smoke
-        run: pnpm test:e2e
+        env:
+          E2E_WORKERS: ${{ matrix.workers }}
+        run: pnpm test:e2e --project='${{ matrix.engine }}-*'
 
       # Screenshots specs save for review (test-results/screens/, e.g. the crew stepper on every booking flow): kept
       # for a week on every run, so UI PRs show their screens without a local build.
@@ -271,7 +286,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ui-screens
+          name: ui-screens-${{ matrix.engine }}
           path: test-results/screens/
           if-no-files-found: ignore
           retention-days: 7
@@ -280,7 +295,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.engine }}
           path: |
             playwright-report/
             test-results/e2e/

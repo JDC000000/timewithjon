@@ -10,6 +10,7 @@ import { AFTER_SEND } from '../../../src/content';
 import { signCookie } from '../../../src/features/invites/tokens';
 import { ROUTES } from '../../../src/ui/routes';
 import { expect, test } from '../support/fixtures';
+import { sendStoryAndSee } from '../support/server-bounds';
 
 const REQ_COOKIE = 'twj_req'; // src/features/invites/capability.ts REQ_COOKIE
 const STANDBY_WEEK = '2027-04-12'; // a Monday; its Thu/Fri are Apr 15–16
@@ -110,8 +111,8 @@ test('S11 picker: while a photo uploads its tile reads Uploading with Stop, and 
     'aria-disabled',
     'true',
   );
-  release();
-  await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
+  // The photo lands, then the held Send saves the story (a server round trip: support/server-bounds.ts).
+  await sendStoryAndSee(page, async () => release());
 });
 
 test('S11 picker: a refused upload reads "That one didn’t go through." with Try again; Try again adds it', async ({

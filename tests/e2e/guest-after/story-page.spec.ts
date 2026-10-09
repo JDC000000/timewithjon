@@ -11,6 +11,7 @@ import { AFTER_SEND } from '../../../src/content';
 import { PHOTO_PICKER, STALE, STORY_FORM } from '../../../src/content/ui/guest-after';
 import { signCookie } from '../../../src/features/invites/tokens';
 import { expect, test } from '../support/fixtures';
+import { PHOTO_ADDED_MS, sendStoryAndSee } from '../support/server-bounds';
 
 const INVITE_COOKIE = 'twj_invite'; // src/features/invites/session.ts INVITE_COOKIE
 const STALE_COOKIE = 'twj_stale'; // src/features/invites/session.ts STALE_COOKIE
@@ -75,8 +76,7 @@ test('S19 AC1 + QA r2 H1: a story saves; a second visit with 2 photos is a new s
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(first);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(first);
   await page.getByRole('checkbox', { name: AFTER_SEND.consent }).check();
-  await page.getByRole('button', { name: STORY_FORM.send }).click();
-  await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
+  await sendStoryAndSee(page, () => page.getByRole('button', { name: STORY_FORM.send }).click());
   const saved = await sql<{ id: string; source: string; invite_id: string; consent: boolean }>(
     `select id, source, invite_id, consent from story where body = $1`,
     [first],
@@ -94,14 +94,13 @@ test('S19 AC1 + QA r2 H1: a story saves; a second visit with 2 photos is a new s
   for (const n of [1, 2]) {
     await expect(
       page.getByRole('group', { name: PHOTO_PICKER.photoName(n) }).getByText(PHOTO_PICKER.added),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: PHOTO_ADDED_MS }); // a server round trip per photo (support/server-bounds.ts)
   }
   await expect(page.getByText(PHOTO_PICKER.full(2, 2))).toBeVisible();
   const second = `S19 ${randomUUID()}: and the photos.`;
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(second);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(second);
-  await page.getByRole('button', { name: STORY_FORM.send }).click();
-  await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
+  await sendStoryAndSee(page, () => page.getByRole('button', { name: STORY_FORM.send }).click());
   const rows = await sql<{ source: string; body: string }>(
     `select source, body from story where invite_id = $1 order by created_at`,
     [inviteId],
@@ -124,8 +123,7 @@ test('S19 QA r2 M4: on the general link the guest can give a name, and the story
   await expect(name).toHaveValue('Gina Ruiz');
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(body);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(body);
-  await page.getByRole('button', { name: STORY_FORM.send }).click();
-  await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
+  await sendStoryAndSee(page, () => page.getByRole('button', { name: STORY_FORM.send }).click());
   expect(await sql(`select from_name from story where body = $1`, [body])).toEqual([
     { from_name: 'Gina Ruiz' },
   ]);
@@ -146,14 +144,13 @@ test('S19 AC1 photo-first: 2 photos picked at once before the first Send make ex
   for (const n of [1, 2]) {
     await expect(
       page.getByRole('group', { name: PHOTO_PICKER.photoName(n) }).getByText(PHOTO_PICKER.added),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: PHOTO_ADDED_MS }); // a server round trip per photo (support/server-bounds.ts)
   }
   const body = `S19 ${randomUUID()}: photos first, words after.`;
   await page.getByRole('textbox', { name: AFTER_SEND.question }).fill(body);
   await expect(page.getByRole('textbox', { name: AFTER_SEND.question })).toHaveValue(body);
   await page.getByRole('checkbox', { name: AFTER_SEND.consent }).check();
-  await page.getByRole('button', { name: STORY_FORM.send }).click();
-  await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible();
+  await sendStoryAndSee(page, () => page.getByRole('button', { name: STORY_FORM.send }).click());
   const rows = await sql<{ source: string; body: string | null }>(
     `select source, body from story where invite_id = $1`,
     [inviteId],

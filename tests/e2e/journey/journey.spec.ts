@@ -10,6 +10,7 @@ import { PHOTO_PICKER, STORY_FORM } from '../../../src/content/ui/guest-after';
 import { ROUTES } from '../../../src/ui/routes';
 import { expect, test } from '../support/fixtures';
 import { lockInAndLand } from '../support/lock-landing';
+import { sendStoryAndSee } from '../support/server-bounds';
 import { clickLikeAPerson, press, settle, typeLikeAPerson } from '../support/input';
 import { inScope } from '../support/scope';
 import { gotoScreen, TARGET } from '../support/screens';
@@ -99,8 +100,9 @@ test('T4.3.02 journey: invite -> taps -> Send -> story + photo -> lock -> E4 in 
       .getByLabel(AFTER_SEND.photoButton)
       .setInputFiles({ name: 'moment.png', mimeType: 'image/png', buffer: PNG });
     await expect(page.getByRole('group', { name: PHOTO_PICKER.photoName(1) })).toHaveClass(/photo--added/);
-    await clickLikeAPerson(page, page.getByRole('button', { name: STORY_FORM.send }));
-    await expect(page.getByText(AFTER_SEND.thanks)).toBeVisible({ timeout: 15_000 });
+    await sendStoryAndSee(page, () =>
+      clickLikeAPerson(page, page.getByRole('button', { name: STORY_FORM.send })),
+    );
   });
 
   await test.step("A2 -> A3: the admin opens this run's request and locks it in; the undo window runs out", async () => {
