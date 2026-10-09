@@ -320,10 +320,14 @@ describe('POST /api/admin/auth/confirm ("Sign me in" on A1c), AC3/AC4', () => {
   it('a link sign-in marks the browser as the known device; a failed one does not', async () => {
     auth.verifyOtp.mockResolvedValueOnce(refused()).mockResolvedValueOnce(session(ADMIN));
     expect((await tap(link())).headers.get('set-cookie') ?? '').not.toContain(KNOWN_DEVICE_COOKIE);
-    const cookie = (await tap(link())).headers.get('set-cookie') ?? '';
+    // The link's answer also clears the kept return page (EML-11): pick the known-device cookie by its name.
+    const cookie =
+      (await tap(link())).headers.getSetCookie().find((c) => c.startsWith(`${KNOWN_DEVICE_COOKIE}=`)) ?? '';
     const value = cookie.split(';')[0]!.split('=').slice(1).join('=');
     expect(cookie).toContain(`${KNOWN_DEVICE_COOKIE}=`);
     expect(isKnownDevice(value, ADMIN)).toBe(true);
+  });
+
   it('EML-11: returns to the admin page this browser kept when it asked for the email, and uses it once', async () => {
     auth.verifyOtp.mockResolvedValue(session(ADMIN));
     const page = '/admin/requests/11111111-1111-4111-8111-111111111111?tab=x';
