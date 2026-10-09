@@ -6,7 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DishPhotoScope } from '@/app/_menu/Menu';
 import { SLIDESHOW } from '@/content/ui/foundation';
 import { PhotoSlot } from '@/ui';
-import { photoSlides, slideCount, type PhotoSlots } from '@/ui/photo-slots';
+import { readFileSync } from 'node:fs';
+import {
+  PHOTO_VIEWS,
+  photoSlides,
+  photoViewStyle,
+  slideCount,
+  type PhotoSlots,
+  type PhotoViews,
+} from '@/ui/photo-slots';
 import { SLIDE_MS } from '@/ui/Slideshow';
 
 const FIXTURE: PhotoSlots = {
@@ -222,5 +230,56 @@ describe('SlideshowToggle label (QA4 L8)', () => {
     fireEvent.click(grind);
     expect(screen.getByRole('button', { name: `${SLIDESHOW.pause} The Grind`, pressed: true })).toBe(grind);
     expect(grind.textContent).toBe(SLIDESHOW.play);
+  });
+});
+
+describe('photo framing (photo-views.json)', () => {
+  const SLOTS: PhotoSlots = {
+    show: { file: 'show', w: [480, 800], alt: '', slides: 3, pos: '50% 30%' },
+    still: { file: 'still', w: [480], alt: '', pos: '40% 20%' },
+  };
+  const VIEWS: PhotoViews = {
+    show: [{ 'hero-s': { pos: '50% 13.9%', frame: 1.141 }, hero: '50% 18%' }, { 'hero-s': '20% 10%' }, {}],
+  };
+  const css = (el: Element) => (el as HTMLElement).getAttribute('style') ?? '';
+
+  it('this repo commits no views: the file is {}', () => {
+    expect(JSON.parse(readFileSync('src/ui/photo-views.json', 'utf8'))).toEqual({});
+    expect(PHOTO_VIEWS).toEqual({});
+  });
+
+  it('photoViewStyle: custom properties with a view; a plain object-position (today) without one', () => {
+    expect(photoViewStyle('show', 0, '50% 30%', VIEWS)).toEqual({
+      '--p': '50% 30%',
+      '--p-hero-s': '50% 13.9%',
+      '--f-hero-s': 1.141,
+      '--p-hero': '50% 18%',
+    });
+    expect(photoViewStyle('show', 2, '50% 30%', VIEWS)).toEqual({ objectPosition: '50% 30%' });
+    expect(photoViewStyle('still', 0, '40% 20%', VIEWS)).toEqual({ objectPosition: '40% 20%' });
+    expect(photoViewStyle('still', 0, undefined, VIEWS)).toBeUndefined();
+  });
+
+  it("photo 1 and EACH slide carry their own view (a slide never borrows photo 1's position)", () => {
+    readyState = 'complete';
+    const { container } = render(<PhotoSlot slot="show" kind="hero" slots={SLOTS} views={VIEWS} />);
+    const [first, second, third] = imgs(container);
+    expect(css(first!)).toContain('--p-hero-s: 50% 13.9%');
+    expect(css(first!)).toContain('--f-hero-s: 1.141');
+    expect(css(first!)).toContain('--p-hero: 50% 18%');
+    expect(css(second!)).toContain('--p-hero-s: 20% 10%');
+    expect(css(second!)).not.toContain('--f-hero-s');
+    expect(css(second!)).not.toContain('13.9%');
+    expect(css(third!)).toBe('object-position: 50% 30%;');
+  });
+
+  it('no views: the same markup as before framing existed', () => {
+    readyState = 'complete';
+    const a = render(<PhotoSlot slot="still" kind="dish" slots={SLOTS} />).container.innerHTML;
+    cleanup();
+    const b = render(<PhotoSlot slot="still" kind="dish" slots={SLOTS} views={{}} />).container.innerHTML;
+    expect(a).toBe(b);
+    expect(a).toContain('style="object-position: 40% 20%;"');
+    expect(a).not.toContain('--p');
   });
 });

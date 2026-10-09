@@ -14,7 +14,9 @@
 //                                          also be a list of 1-6 such sources, shown in turn (a slideshow): source 1
 //                                          renders to <slot>-<w>.webp, source n to <slot>-<n>-<w>.webp, and the count
 //                                          is written to the slot's `slides` in src/ui/photo-slots.ts. A rendered
-//                                          slot wins over prebuilt files of the same slot.
+//                                          slot wins over prebuilt files of the same slot. A source may also
+//                                          carry `aspect: "source"` and a per-breakpoint `view`: both pass through
+//                                          to the build, and the views are written to src/ui/photo-views.json.
 //   "text":     { "<exact find>": "<replacement>" }   or   [{ "file", "find", "replace" }]   private copy, applied
 //                                          by exact string replace to allow-listed source files (TEXT_FILES)
 //   "pos":      { "<slot>": "50% 20%" }   focal-point overrides for existing slots in src/ui/photo-slots.ts
@@ -28,7 +30,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { parseSlots } from './build-real-photos.mjs';
+import { parseSlots, viewsFor } from './build-real-photos.mjs';
 import {
   applyPosOverrides,
   applySlidesOverrides,
@@ -36,6 +38,7 @@ import {
   parsePosOverrides,
   parseTextOverrides,
   PHOTO_SLOTS_FILE,
+  PHOTO_VIEWS_FILE,
 } from './private-overrides.mjs';
 
 const BASE = process.env.PRIVATE_PHOTOS_BASE_URL?.trim();
@@ -92,6 +95,8 @@ if (posOverrides.length + slideCounts.length > 0) {
   const slotsSrc = rewritten[PHOTO_SLOTS_FILE] ?? readFileSync(join(ROOT, PHOTO_SLOTS_FILE), 'utf8');
   rewritten[PHOTO_SLOTS_FILE] = applySlidesOverrides(applyPosOverrides(slotsSrc, posOverrides), slideCounts);
 }
+const views = viewsFor(slots);
+if (Object.keys(views).length > 0) rewritten[PHOTO_VIEWS_FILE] = `${JSON.stringify(views, null, 2)}\n`;
 
 const prebuilt = manifest.prebuilt ?? [];
 const pins = manifest.sha256 ?? {};
@@ -124,7 +129,7 @@ if (Object.keys(slots).length > 0) {
         const rel = safeRel(entry.file);
         mkdirSync(dirname(join(dir, rel)), { recursive: true });
         writeFileSync(join(dir, rel), await get(rel.split(sep).join('/')));
-        local.slots[slot].push({ file: rel, pos: entry.pos });
+        local.slots[slot].push({ ...entry, file: rel });
       }
     }
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(local));
@@ -144,8 +149,8 @@ if (Object.keys(slots).length > 0) {
 
 // counts and file names only: the replacement text is private and never logged
 for (const [file, contents] of Object.entries(rewritten)) writeFileSync(join(ROOT, file), contents);
-if (textOverrides.length + posOverrides.length + slideCounts.length > 0)
+if (textOverrides.length + posOverrides.length + slideCounts.length + Object.keys(views).length > 0)
   console.log(
-    `fetch-real-photos: ${textOverrides.length} text, ${posOverrides.length} focal-point and ${slideCounts.length} slideshow override(s) applied (${Object.keys(rewritten).join(', ')})`,
+    `fetch-real-photos: ${textOverrides.length} text, ${posOverrides.length} focal-point, ${slideCounts.length} slideshow and ${Object.keys(views).length} framed-slot override(s) applied (${Object.keys(rewritten).join(', ')})`,
   );
 console.log(`fetch-real-photos: ${count} private photo file(s)/slot(s) applied from ${base.host}`);

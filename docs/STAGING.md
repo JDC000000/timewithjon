@@ -1,33 +1,30 @@
 # Staging runbook (T3.16)
 
 `https://staging.timewithjon.com` = Vercel project `timewithjon-staging` (deploys `main` only; previews are skipped),
-Supabase `timewithjon-staging`, real adapters: Gmail API mail from the throwaway test Gmail, the test Google
-account's calendar, Turnstile, Storage + R2. `FEATURE_ADMIN_AUTH=1`; the only admin is the test Gmail.
+Supabase `timewithjon-staging`, real adapters: Resend mail (`system_status.mailer_mode` = `resend`), the host's own
+Google account (free/busy from the primary calendar, bookings on a "Time with Jon (test)" calendar it creates),
+Turnstile, Storage + R2. `FEATURE_ADMIN_AUTH=1`; the admins are `ADMIN_EMAILS` (the host first).
 Secrets live in the vault (`timewithjon-staging-*`) and Vercel env, never here.
 
-## Connect Google (first time, and the weekly reconnect)
+## Connect Google
 
-Prerequisite: the test Gmail is listed under GCP project **twj-staging > Google Auth Platform > Audience > Test users**.
-The project stays in **Testing** mode. Without that entry Google answers **403 access_denied**.
+Prerequisite: GCP project **twj-staging > Google Auth Platform > Audience**, publishing status **In production**
+(unverified is fine while only the host signs in). In **Testing** mode Google ends every refresh token after 7 days,
+so staging would lose Google every week.
 
-In one browser signed in to the test Gmail only:
+1. Sign in at `https://staging.timewithjon.com/admin/sign-in` with an admin address (a code arrives by email).
+2. `/admin/settings` > Calendar > **Connect Google** (or **Reconnect Google**); the same as
+   `/api/admin/google/connect`.
+3. Pick the host's Google account, then "Google hasn't verified this app" > Advanced > Continue, tick EVERY box
+   (calendars it creates, free/busy, send email), then Continue.
+4. It lands on `/admin/settings?google=connected`. Any other value (e.g. `google=scopes`): repeat step 2 and tick
+   every box.
 
-1. The operator sends the sign-in email (no A1 sign-in screen exists yet, so it goes straight through Supabase Auth's
-   OTP endpoint; the link lives 15 minutes, 5 emails an hour).
-2. Open "Your Time with Jon sign-in code" in the test Gmail inbox and click the link. `/admin` then shows a 404
-   page until the admin screens ship; that's expected, the session cookie is set.
-3. Same tab: open `https://staging.timewithjon.com/api/admin/google/connect`.
-4. Pick the test Gmail, then "Google hasn't verified this app" > Continue, tick EVERY box (calendars it creates,
-   free/busy, send email), then Continue.
-5. It lands on `/admin/settings?google=connected` (another 404 page; the `google=` value is the result). Any other
-   value (e.g. `google=scopes`): repeat step 3 and tick every box.
-
-**Weekly:** refresh tokens of a Testing-mode project expire after 7 days, so staging loses Google every week. Reconnect
-with the same 5 steps (the "Time with Jon (test)" calendar is reused, not recreated).
+A reconnect reuses the "Time with Jon (test)" calendar; it is not recreated.
 
 ## Check a connection (prints no token)
 
-`oauth_connection` has one `google` row for the test Gmail; `refresh_token_enc` is AES-256-GCM (iv | tag | ciphertext)
+`oauth_connection` has one `google` row for the connected account; `refresh_token_enc` is AES-256-GCM (iv | tag | ciphertext)
 under `GOOGLE_TOKEN_ENC_KEY`; `scopes` hold openid, userinfo.email, calendar.app.created, calendar.freebusy and
 gmail.send; `calendar_id` is "Time with Jon (test)" (never `primary`); a refresh succeeds; freeBusy answers.
 

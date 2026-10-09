@@ -14,3 +14,4 @@ export function applyTextOverrides(
 export function parsePosOverrides(pos: unknown): [slot: string, value: string][];
 export function applyPosOverrides(source: string, overrides: readonly (readonly [string, string])[]): string;
 export function applySlidesOverrides(source: string, counts: readonly (readonly [string, number])[]): string;
+export const PHOTO_VIEWS_FILE: string;

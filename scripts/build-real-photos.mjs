@@ -4,7 +4,8 @@
 // repo; its JPEGs are already metadata-stripped). Output keeps each stand-in's widths and aspect ratio, cropped
 // around the manifest focal point (CSS object-position semantics), with NO metadata at all (no EXIF, XMP, IPTC, ICC).
 // A slot may hold up to MAX_SLIDES sources (a list, shown in turn): the first renders to <slot>-<w>.webp as before,
-// source n >= 2 to <slot>-<n>-<w>.webp, with the same widths, aspect and quality.
+// source n >= 2 to <slot>-<n>-<w>.webp, with the same widths, aspect and quality. A source with `aspect: "source"`
+// keeps its own aspect (it is pre-cut; the page frames it per breakpoint from its `view`, see docs/PHOTOS.md).
 //   node scripts/build-real-photos.mjs [path/to/manifest.json]   (default: $TWJ_PHOTO_MANIFEST)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -41,6 +42,28 @@ const MAX_BYTES = 190 * 1024; // photo-slots.test.ts IMGSLOT budget is 200 KB
 const QUALITY = { why: 60, close: 60 };
 /** the most photos one slot shows in turn */
 export const MAX_SLIDES = 6;
+/** the ratio keys a source's `view` may name (the --ph-ratio-<key> tokens: one per kind and breakpoint) */
+export const VIEW_KEYS = Object.freeze([
+  'hero-s',
+  'hero-m',
+  'hero',
+  'band',
+  'band-l',
+  'close-s',
+  'close-m',
+  'close-l',
+  'dish',
+  'sheet',
+  'sheet-l',
+  'thumb',
+  'thumb-l',
+  'sent',
+  'sent-m',
+]);
+/** a view position: two percentages, x then y, 0-100, at most one decimal place */
+const VIEW_POS = /^(\d{1,3}(?:\.\d)?)% (\d{1,3}(?:\.\d)?)%$/;
+export const FRAME_MIN = 0.2;
+export const FRAME_MAX = 5;
 
 function fail(msg) {
   throw new Error(`build-real-photos: ${msg}`);
@@ -64,9 +87,54 @@ export function parseSlots(slots) {
       if (typeof e !== 'object' || e === null || typeof e.file !== 'string' || e.file.length === 0)
         fail(`${slot} #${i + 1}: needs a "file"`);
       if (e.pos !== undefined) [0, 1].forEach((axis) => pct(slot, e.pos, axis));
-      return e.pos === undefined ? { file: e.file } : { file: e.file, pos: e.pos };
+      if (e.aspect !== undefined && e.aspect !== 'source') fail(`${slot} #${i + 1}: aspect must be "source"`);
+      const out = { file: e.file };
+      if (e.pos !== undefined) out.pos = e.pos;
+      if (e.aspect !== undefined) out.aspect = e.aspect;
+      if (e.view !== undefined) out.view = parseView(`${slot} #${i + 1}`, e.view);
+      return out;
     });
   }
+  return out;
+}
+
+/** A source's `view`: { <ratio key>: "x% y%" | { pos: "x% y%", frame: <w/h> } }, validated and copied. */
+export function parseView(where, view) {
+  if (typeof view !== 'object' || view === null || Array.isArray(view))
+    fail(`${where}: view must be an object`);
+  const posOk = (p) => {
+    const m = VIEW_POS.exec(String(p));
+    return m !== null && Number(m[1]) <= 100 && Number(m[2]) <= 100;
+  };
+  const out = {};
+  for (const [key, v] of Object.entries(view)) {
+    if (!VIEW_KEYS.includes(key)) fail(`${where}: unknown view key "${key}"`);
+    if (typeof v === 'string') {
+      if (!posOk(v)) fail(`${where}: view ${key} pos "${v}" must be "x% y%" (0-100, one decimal)`);
+      out[key] = v;
+    } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      const extra = Object.keys(v).filter((k) => k !== 'pos' && k !== 'frame');
+      if (extra.length) fail(`${where}: view ${key} has unknown field(s) ${extra.join(', ')}`);
+      if (!posOk(v.pos)) fail(`${where}: view ${key} pos "${v.pos}" must be "x% y%" (0-100, one decimal)`);
+      if (
+        v.frame !== undefined &&
+        !(typeof v.frame === 'number' && v.frame >= FRAME_MIN && v.frame <= FRAME_MAX)
+      )
+        fail(`${where}: view ${key} frame must be a number ${FRAME_MIN}-${FRAME_MAX}`);
+      out[key] = v.frame === undefined ? { pos: v.pos } : { pos: v.pos, frame: v.frame };
+    } else fail(`${where}: view ${key} must be "x% y%" or { pos, frame }`);
+  }
+  return out;
+}
+
+/**
+ * The browser's views (src/ui/photo-views.json): { <slot>: [ <view of source 1>, <source 2>, ... ] } for the slots
+ * where any source has a view ({} for a source without one). No view anywhere: {} (the page renders as today).
+ */
+export function viewsFor(slots) {
+  const out = {};
+  for (const [slot, list] of Object.entries(slots))
+    if (list.some((e) => e.view)) out[slot] = list.map((e) => e.view ?? {});
   return out;
 }
 
@@ -80,23 +148,25 @@ const pct = (slot, s, i) => {
   return Math.min(1, Math.max(0, Number(v.slice(0, -1)) / 100));
 };
 
-async function renderOne(slot, n, src, pos, outDir, log) {
+async function renderOne(slot, n, src, pos, outDir, log, aspect) {
   const [widths, aw, ah] = SLOTS[slot];
   // .rotate() applies the EXIF Orientation first (a phone portrait stays upright); the output carries no metadata
   // (decoded to raw sRGB pixels once: no second lossy encode)
   const { data, info } = await sharp(src).rotate().raw().toBuffer({ resolveWithObject: true });
   const { width: w0, height: h0, channels } = info;
   const upright = () => sharp(data, { raw: { width: w0, height: h0, channels } });
-  const r = aw / ah;
+  // aspect "source": the whole source, at its own aspect (no crop to the slot's)
+  const own = aspect === 'source';
+  const r = own ? w0 / h0 : aw / ah;
   let cw = w0,
     ch = h0;
   if (w0 / h0 > r) cw = Math.round(h0 * r);
   else ch = Math.round(w0 / r);
-  const left = Math.round(pct(slot, pos, 0) * (w0 - cw));
-  const top = Math.round(pct(slot, pos, 1) * (h0 - ch));
+  const left = own ? 0 : Math.round(pct(slot, pos, 0) * (w0 - cw));
+  const top = own ? 0 : Math.round(pct(slot, pos, 1) * (h0 - ch));
   const written = [];
   for (const w of widths) {
-    const h = Math.round((w * ah) / aw);
+    const h = own ? Math.round((w * h0) / w0) : Math.round((w * ah) / aw);
     const name = outName(slot, n, w);
     let q = (QUALITY[slot] ?? 80) + 5,
       buf;
@@ -121,7 +191,7 @@ async function renderOne(slot, n, src, pos, outDir, log) {
 
 /**
  * Renders every slot of `manifest` (sources relative to `baseDir`) into `outDir`. Everything is validated (slots,
- * counts, files) before the first file is written. Returns the files written and each slot's slide count.
+ * counts, files) before the first file is written. Returns the files written, each slot's slide count and the views.
  */
 export async function buildRealPhotos(manifest, baseDir, outDir, log = console.log) {
   const slots = parseSlots(manifest.slots);
@@ -133,10 +203,10 @@ export async function buildRealPhotos(manifest, baseDir, outDir, log = console.l
   const slides = {};
   for (const [slot, list] of Object.entries(slots)) {
     for (const [i, e] of list.entries())
-      files.push(...(await renderOne(slot, i + 1, join(baseDir, e.file), e.pos, outDir, log)));
+      files.push(...(await renderOne(slot, i + 1, join(baseDir, e.file), e.pos, outDir, log, e.aspect)));
     slides[slot] = list.length;
   }
-  return { files, slides };
+  return { files, slides, views: viewsFor(slots) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

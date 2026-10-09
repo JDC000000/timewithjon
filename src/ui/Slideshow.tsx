@@ -13,6 +13,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { SLIDESHOW } from '@/content/ui/foundation';
@@ -105,11 +106,10 @@ export function SlideshowScope({ count, children }: { count: number; children: R
 export function SlideshowSlides({
   slides,
   sizes,
-  pos,
 }: {
-  slides: readonly { src: string; srcSet: string }[];
+  /** each with its own framing style (photo-slots.ts photoViewStyle) */
+  slides: readonly { src: string; srcSet: string; style?: Record<string, string | number> }[];
   sizes: string;
-  pos?: string;
 }) {
   const show = useContext(SlideshowContext);
   if (!show?.on) return null;
@@ -126,7 +126,7 @@ export function SlideshowSlides({
       fetchPriority="low"
       decoding="async"
       onLoad={() => show.loaded(i + 1)}
-      style={pos ? { objectPosition: pos } : undefined}
+      style={s.style as CSSProperties | undefined}
     />
   ));
 }

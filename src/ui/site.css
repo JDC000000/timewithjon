@@ -3378,6 +3378,96 @@ html:has(.menu-head + nav) {
   }
 }
 
+/* Photo framing (docs/PHOTOS.md; photo-views.json, written only by a private build). Each <img> may carry per-breakpoint
+   custom properties: --p-<key> (object-position) and --f-<key> (a frame: draw the photo in the largest centred box of
+   that w/h ratio). Keys follow the --ph-ratio-* tokens and their breakpoints. With no --f-*, the formulas give the
+   whole box and object-fit: cover, exactly as before; with no --p-*, --p (the slot's pos), then 50% 50%. The per-kind
+   rules set --ph-f with NO fallback: a missing --f-<key> leaves --ph-f invalid, so width and height each take their
+   own fallback (1000 and 0.001: the whole box). One shared sentinel would collapse one of them. A frame's
+   fill is the page paper; the grain (.ph::after) keeps covering the whole figure, fill included. */
+.ph {
+  container-type: size;
+}
+.ph img {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(100cqw, 100cqh * var(--ph-f, 1000));
+  height: min(100cqh, 100cqw / var(--ph-f, 0.001));
+  object-position: var(--ph-p, var(--p, 50% 50%));
+  background: var(--ph-bg);
+}
+.ph:has(img) {
+  background: var(--c-canvas);
+}
+.ph--hero img {
+  --ph-p: var(--p-hero-s, var(--p, 50% 50%));
+  --ph-f: var(--f-hero-s);
+}
+.ph--band img {
+  --ph-p: var(--p-band, var(--p, 50% 50%));
+  --ph-f: var(--f-band);
+}
+.ph--close img {
+  --ph-p: var(--p-close-s, var(--p, 50% 50%));
+  --ph-f: var(--f-close-s);
+}
+.ph--dish img {
+  --ph-p: var(--p-dish, var(--p, 50% 50%));
+  --ph-f: var(--f-dish);
+}
+.ph--sheet img {
+  --ph-p: var(--p-sheet, var(--p, 50% 50%));
+  --ph-f: var(--f-sheet);
+}
+.ph--thumb img {
+  --ph-p: var(--p-thumb, var(--p, 50% 50%));
+  --ph-f: var(--f-thumb);
+}
+.ph--sent img {
+  --ph-p: var(--p-sent, var(--p, 50% 50%));
+  --ph-f: var(--f-sent);
+}
+@media (min-width: 640px) {
+  .ph--hero img {
+    --ph-p: var(--p-hero-m, var(--p, 50% 50%));
+    --ph-f: var(--f-hero-m);
+  }
+  .ph--close img {
+    --ph-p: var(--p-close-m, var(--p, 50% 50%));
+    --ph-f: var(--f-close-m);
+  }
+}
+@media (min-width: 768px) {
+  .ph--sent img {
+    --ph-p: var(--p-sent-m, var(--p, 50% 50%));
+    --ph-f: var(--f-sent-m);
+  }
+}
+@media (min-width: 1024px) {
+  .ph--hero img {
+    --ph-p: var(--p-hero, var(--p, 50% 50%));
+    --ph-f: var(--f-hero);
+  }
+  .ph--band img {
+    --ph-p: var(--p-band-l, var(--p, 50% 50%));
+    --ph-f: var(--f-band-l);
+  }
+  .ph--close img {
+    --ph-p: var(--p-close-l, var(--p, 50% 50%));
+    --ph-f: var(--f-close-l);
+  }
+  .ph--sheet img {
+    --ph-p: var(--p-sheet-l, var(--p, 50% 50%));
+    --ph-f: var(--f-sheet-l);
+  }
+  .ph--thumb img {
+    --ph-p: var(--p-thumb-l, var(--p, 50% 50%));
+    --ph-f: var(--f-thumb-l);
+  }
+}
+
 /* T1.1a.U2 (R1-21): under reduced motion nothing moves, whatever a later rule sets (the tokens already zero the durations) */
 @media (prefers-reduced-motion: reduce) {
   *,

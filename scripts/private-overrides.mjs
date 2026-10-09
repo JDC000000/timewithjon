@@ -9,6 +9,9 @@ export const TEXT_FILES = Object.freeze(['src/content/menu.ts']);
 export const DEFAULT_TEXT_FILE = 'src/content/menu.ts';
 /** Where the photo slots (and their focal points) live. */
 export const PHOTO_SLOTS_FILE = 'src/ui/photo-slots.ts';
+/** The per-source, per-breakpoint views (positions + frames) the page reads. Committed as {}; written only by a
+ *  private build, so a public build never carries private framing data. Numbers only. */
+export const PHOTO_VIEWS_FILE = 'src/ui/photo-views.json';
 /** A CSS object-position in whole percent, x then y: "50% 20%". */
 export const POS_PATTERN = /^\d{1,3}% \d{1,3}%$/;
 

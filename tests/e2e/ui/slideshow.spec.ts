@@ -60,8 +60,10 @@ test('photo 1 renders as a still photo; photos 2..n join after load in the same 
   for (const img of await fig.locator('img.ph-slide').all()) {
     await expect(img).toHaveAttribute('alt', '');
     await expect(img).toHaveAttribute('loading', 'lazy');
-    // stacked over photo 1: the same box
-    expect(await img.boundingBox()).toEqual(await first.boundingBox());
+    // stacked over photo 1 in the figure's box (these slides are unframed, so they fill it; the centring
+    // translate may round a fraction of a pixel)
+    const [b, f] = [(await img.boundingBox())!, (await fig.boundingBox())!];
+    for (const k of ['x', 'y', 'width', 'height'] as const) expect(b[k], k).toBeCloseTo(f[k], 0);
   }
 });
 
@@ -167,4 +169,47 @@ test('reduced motion: photo 1 only, no toggle, no rotation', async ({ page }) =>
   for (const fig of [show(page), card(page).locator('figure')])
     await expect(fig.locator('img')).toHaveCount(1);
   await expect(page.getByRole('button', { name: /^(Pause|Play)\b/ })).toHaveCount(0);
+});
+
+// docs/PHOTOS.md framing: a framed photo is drawn in the largest centred box of its frame ratio, per breakpoint; an
+// unframed one still fills the whole box (cover). The fixture's views live in src/app/dev/slides.
+test("framing: a framed photo's box is its frame ratio, centred, at 375/768/1024/1440; unframed fills the box", async ({
+  page,
+}) => {
+  await page.goto(BENCH);
+  await slidesLoaded(show(page));
+  const boxes = () =>
+    show(page).evaluate((fig) => {
+      const r = (n: Element) => n.getBoundingClientRect();
+      const f = r(fig);
+      const [one, two] = [...fig.querySelectorAll('img')].map(r);
+      return { f, one: one!, two: two! };
+    });
+  for (const [width, frame] of [
+    [375, 1.2],
+    [768, 1.2],
+    [1024, 0.9],
+    [1440, 0.9],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect
+      .poll(
+        async () => {
+          const { one } = await boxes();
+          return Math.round((one.width / one.height) * 100) / 100;
+        },
+        { message: `${width}px: photo 1 ratio` },
+      )
+      .toBeCloseTo(frame, 1);
+    const { f, one, two } = await boxes();
+    // inside the figure, centred
+    expect(one.width).toBeLessThanOrEqual(f.width + 0.5);
+    expect(one.height).toBeLessThanOrEqual(f.height + 0.5);
+    expect(Math.abs(one.x + one.width / 2 - (f.x + f.width / 2))).toBeLessThan(1);
+    expect(Math.abs(one.y + one.height / 2 - (f.y + f.height / 2))).toBeLessThan(1);
+    // the largest such box: one side touches the figure
+    expect(Math.min(Math.abs(one.width - f.width), Math.abs(one.height - f.height))).toBeLessThan(1);
+    // slide 2 has no frame: it fills the figure, as before framing
+    expect(Math.abs(two.width - f.width) + Math.abs(two.height - f.height)).toBeLessThan(1);
+  }
 });

@@ -3,6 +3,8 @@
 // the empty ratio box. Git holds only licensed stand-ins (docs/PHOTOS.md). Slots with no `credit` are Jon's own photos
 // (decision 48): a private build fetches them over the stand-ins (scripts/fetch-real-photos.mjs); never an original.
 
+import PHOTO_VIEWS_JSON from './photo-views.json' with { type: 'json' };
+
 export type PhotoCredit = { by: string; url: string; licence: string };
 
 export type Photo = {
@@ -157,4 +159,36 @@ export function photoSlides(
 /** How many photos a slot shows in turn (1 = a still photo, or an empty slot). */
 export function slideCount(slot: string, slots: PhotoSlots = PHOTO_SLOTS): number {
   return photoSlides(slot, slots).length + 1;
+}
+
+/** A source's framing at one breakpoint: an object-position, or one inside a centred frame of ratio `frame` (w/h). */
+export type PhotoView = string | { pos: string; frame?: number };
+/** Per slot, per source (photo 1 first): { <ratio key, e.g. 'hero-s'>: PhotoView } (docs/PHOTOS.md, framing). */
+export type PhotoViews = Readonly<Record<string, readonly Readonly<Record<string, PhotoView>>[]>>;
+
+/** src/ui/photo-views.json: {} in this repo; a private build writes the real views (scripts/fetch-real-photos.mjs). */
+export const PHOTO_VIEWS: PhotoViews = PHOTO_VIEWS_JSON as PhotoViews;
+
+/**
+ * The inline style for source `i` (0 = photo 1) of a slot. No view for it: `pos` as a plain object-position (exactly
+ * today's markup), or nothing. With a view: custom properties the photo layer in site.css reads per breakpoint,
+ * `--p-<key>` (position) and `--f-<key>` (frame), plus `--p` (the slot's pos) as the fallback.
+ */
+export function photoViewStyle(
+  slot: string,
+  i: number,
+  pos: string | undefined,
+  views: PhotoViews = PHOTO_VIEWS,
+): Record<string, string | number> | undefined {
+  const view = views[slot]?.[i];
+  if (!view || Object.keys(view).length === 0) return pos ? { objectPosition: pos } : undefined;
+  const style: Record<string, string | number> = pos ? { '--p': pos } : {};
+  for (const [key, v] of Object.entries(view)) {
+    if (typeof v === 'string') style[`--p-${key}`] = v;
+    else {
+      style[`--p-${key}`] = v.pos;
+      if (v.frame !== undefined) style[`--f-${key}`] = v.frame;
+    }
+  }
+  return style;
 }
