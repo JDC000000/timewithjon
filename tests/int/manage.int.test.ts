@@ -533,6 +533,33 @@ describe('guest cancel (T2.7.04, E11 + E12, AC5)', () => {
   });
 });
 
+describe("ENG-13: once the booking has started it is no longer the guest's to cancel or re-ask", () => {
+  it('the page hides Cancel and Ask for another time, the server refuses both; Jon can still cancel', async () => {
+    const { id, slot } = await lockedRequest('2027-05-21');
+    const token = await manageToken(id);
+    const [{ starts_at: start }] = (await q<{ starts_at: Date }>(`select starts_at from slot where id = $1`, [
+      slot,
+    ])) as [{ starts_at: Date }];
+    const before = new Date(start.getTime() - 60_000);
+    const during = new Date(start.getTime() + 30 * 60_000);
+    expect(await loadManageModel(token, before)).toMatchObject({ canCancel: true, canAskAnother: true });
+    expect(await loadManageModel(token, during)).toMatchObject({
+      status: 'locked',
+      canCancel: false,
+      canAskAnother: false,
+    });
+    expect(await cancelByGuest(id, during)).toMatchObject({ ok: false, status: 409, reason: 'already_done' });
+    const later = await slotId('2027-06-24', 'lunch');
+    expect(
+      await rerequest(id, { slotIds: [later], dates: [], overnight: false }, during, {
+        clientKey: randomUUID(),
+      }),
+    ).toEqual({ ok: false, status: 409, reason: 'not_changeable' });
+    expect((await row(id)).status).toBe('locked');
+    expect(await cancelForGuest(id, during)).toMatchObject({ ok: true });
+  });
+});
+
 describe('Ask for another time (T2.7.05, E16) and the manage grant (T2.7.02, AC6)', () => {
   // CR-04: three routes end to end (picker, re-request, calendar delete), so on a loaded runner it outgrows the
   // 5 s default (its own timeout below). The next case keeps its second lock out of this week, so a half-done run

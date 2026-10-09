@@ -1,0 +1,9 @@
+{
+  "id": "meter-counts-test-and-spam",
+  "date": "2026-10-08",
+  "task": "ENG-04",
+  "area": "admin/meter",
+  "summary": "The Big Day meter counted test-invite and spam-suspect bookings, which the export leaves out, so the two disagreed.",
+  "fix": "The meter counts only bookings that are not is_test and not spam_suspect.",
+  "tests": ["tests/int/big-day-meter.int.test.ts"]
+}

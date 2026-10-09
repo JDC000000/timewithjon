@@ -10,8 +10,10 @@ export interface BigDayMeter {
 
 export async function bigDayMeter(): Promise<BigDayMeter> {
   const [row] = await q<{ count: number; target: number | null }>(
+    // ENG-04: test-invite and spam-suspect bookings never count, as they never reach the export (pr50 F1/F2).
     `select (select count(*)::int from request
-              where counts_toward = 'big_day' and status in ('locked','done') and joined_to_request_id is null) as count,
+              where counts_toward = 'big_day' and status in ('locked','done') and joined_to_request_id is null
+                and not is_test and not spam_suspect) as count,
             (select bigday_target from settings where id) as target`,
   );
   if (row?.target == null) throw new Error('settings row missing: run the seed');

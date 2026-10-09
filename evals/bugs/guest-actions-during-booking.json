@@ -1,0 +1,9 @@
+{
+  "id": "guest-actions-during-booking",
+  "date": "2026-10-08",
+  "task": "ENG-13",
+  "area": "requests/manage",
+  "summary": "A guest could Cancel or Ask for another time while the booking was under way: the event was deleted mid-meeting.",
+  "fix": "Once a locked booking has started, the manage page hides Cancel and Ask for another time and the server refuses both (operator pick); Jon's Cancel for the guest is unchanged.",
+  "tests": ["tests/int/manage.int.test.ts"]
+}

@@ -28,6 +28,24 @@ describe('dateWeekStatus (QA r2 M3)', () => {
     expect(state('2027-05-10', { bookings: full })).toBe('spoken_for');
   });
 
+  it('ENG-06: a Something New week reads full once its one-a-week is locked, as canLock refuses a second', () => {
+    const SOMETHING_NEW = {
+      countsToward: 'weekly_cap' as const,
+      dateRule: null,
+      slug: 'something-new',
+      maxPerWeek: 1,
+    };
+    const input = (bookings: ReturnType<typeof booking>[]) => baseInput({ dishWindows: [], bookings });
+    const one = booking('2027-06-09', '19:00', '21:00', 'weekly_cap', { dish: 'something-new' });
+    expect(dateWeekStatus('2027-06-07', input([]), SOMETHING_NEW)).toBe('open');
+    expect(dateWeekStatus('2027-06-07', input([one]), SOMETHING_NEW)).toBe('spoken_for');
+    // Another dish's booking that week doesn't use it up; the dish's own request doesn't count against itself.
+    const other = booking('2027-06-09', '19:00', '21:00', 'weekly_cap', { dish: 'the-encore' });
+    expect(dateWeekStatus('2027-06-07', input([other]), SOMETHING_NEW)).toBe('open');
+    const own = { ...baseInput({ dishWindows: [], bookings: [one] }), viewerRequestId: one.requestId };
+    expect(dateWeekStatus('2027-06-07', own, SOMETHING_NEW)).toBe('open');
+  });
+
   it('away when Jon is away all week; closed before booking opens', () => {
     const away = {
       startDate: '2027-05-03',

@@ -6,6 +6,7 @@ import {
   blockCovering,
   busyClash,
   dateRuleAllows,
+  dishWeekCount,
   heldByOffer,
   HOUSEHOLD_HOLD,
   inSeason,
@@ -91,6 +92,9 @@ export function unavailableDates(input: EngineInput): string[] {
 export interface DateDish {
   countsToward: CountsToward;
   dateRule?: DateRule | null;
+  /** ENG-06: a per-week dish limit (Something New: 1 a week, decision 43(4)), as canLock applies it. */
+  slug?: string;
+  maxPerWeek?: number;
 }
 
 /**
@@ -115,7 +119,11 @@ export function dateWeekStatus(
     rangedBookings(input.bookings, input.viewerRequestId).flatMap((b) => datesTouched(b.startsAt, b.endsAt)),
   );
   const full =
-    dish.countsToward === 'weekly_cap' && isWeekFull(weekStart, input.bookings, input.weeks, input.settings);
+    (dish.countsToward === 'weekly_cap' &&
+      isWeekFull(weekStart, input.bookings, input.weeks, input.settings)) ||
+    (dish.maxPerWeek !== undefined &&
+      dish.slug !== undefined &&
+      dishWeekCount(weekStart, dish.slug, input.bookings, input.viewerRequestId) >= dish.maxPerWeek);
   const free = dates.filter(
     (d) =>
       !off.has(d) &&

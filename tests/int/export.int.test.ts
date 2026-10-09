@@ -272,6 +272,27 @@ describe('POST /api/admin/export: runExport (T3.10.01)', () => {
     }
   });
 
+  it('ENG-05: a story on a cancelled booking is dated by the day it came in, not the time that never happened', async () => {
+    const r = await newRequest('Cancelly');
+    await q(
+      `update request set status = 'cancelled', cancelled_by = 'guest', locked_slot_id = $2,
+              locked_starts_at = '2027-05-27T19:00:00Z', locked_ends_at = '2027-05-27T21:00:00Z' where id = $1`,
+      [r, slotId],
+    );
+    const id = await story({ requestId: r, consent: true });
+    const [{ came }] = (await q<{ came: string }>(
+      `select to_char((created_at at time zone 'America/Vancouver')::date, 'YYYY-MM-DD') as came from story where id = $1`,
+      [id],
+    )) as [{ came: string }];
+    try {
+      const out = await exportStories({ consentedOnly: true, includeEmail: false });
+      expect(out.find((x) => x.id === id)?.date).toBe(came);
+    } finally {
+      await q(`delete from story where id = $1`, [id]);
+      await removeRequests([r]);
+    }
+  });
+
   it('a missing photo object is left out of the zip and the CSV', async () => {
     const id = await story({ consent: true, photos: 2 });
     const first = (

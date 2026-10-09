@@ -11,7 +11,7 @@ import { ALREADY, CLOSED_IN_PERSON_LABEL, ERRORS, GUEST_LABEL, JON_CANCELLED_LAB
 import { dishBySlug } from '@/content/menu-helpers';
 import type { RequestStatus } from '@/features/availability/types';
 import { q } from '@/lib/db';
-import { isJonCancelled } from '@/features/requests/guest-cancel';
+import { hasStarted, isJonCancelled } from '@/features/requests/guest-cancel';
 import { guestWhen } from '@/lib/when';
 import { findToken, tokenState, type ActionToken, type TokenPurpose } from './action-tokens';
 
@@ -67,7 +67,13 @@ async function loadView(
   requestId: string,
   now: Date,
   withPlan: boolean,
-): Promise<{ view: RequestView; ownPlan: string | null; tz: string | null; jonCancelled: boolean } | null> {
+): Promise<{
+  view: RequestView;
+  ownPlan: string | null;
+  tz: string | null;
+  jonCancelled: boolean;
+  started: boolean;
+} | null> {
   const [r] = await q<Row>(
     `select r.status, r.dish, r.closed_in_person, r.cancelled_by::text as cancelled_by, r.guest_time_zone,
             case when r.joined_to_request_id is null then r.locked_starts_at else h.locked_starts_at end as starts_at,
@@ -95,6 +101,7 @@ async function loadView(
     ownPlan: dish?.flow === 'surprise' ? r.own_plan : null,
     tz: r.guest_time_zone,
     jonCancelled: isJonCancelled(r),
+    started: hasStarted(r, now),
   };
 }
 
@@ -125,7 +132,8 @@ export async function loadManageModel(
   const loaded = await loadView(t.request_id, now, true);
   if (!loaded) return { kind: 'not_found' };
   const v = loaded.view;
-  const open = ['requested', 'needs_new_time', 'standby', 'locked'].includes(v.status);
+  // ENG-13: under way (its start passed) = no Cancel and no Ask for another time; the page just reads Locked in.
+  const open = ['requested', 'needs_new_time', 'standby', 'locked'].includes(v.status) && !loaded.started;
   return {
     kind: 'manage',
     ...v,
