@@ -27,6 +27,7 @@ import { keyFor, type KeyedBody } from '@/lib/client-key';
 import { Button } from '@/ui';
 import { announce, moveFocus } from '@/ui/focus';
 import { StoryForm } from '../_guest/story-form';
+import { seasonOf } from './_lib/season';
 import { DateGrid } from '../book/[dish]/DateGrid';
 import { TimePicker } from '../book/[dish]/TimePicker';
 import { calMonths, initialCalMonth, toggleDate, type CalDay } from '../book/[dish]/_lib/date-grid';
@@ -228,20 +229,6 @@ function tilesOnly(months: PickerMonth[]): PickerMonth[] {
   return months
     .map((m) => ({ ...m, rows: m.rows.filter((r) => r.kind === 'week' || r.kind === 'away') }))
     .filter((m) => m.rows.some((r) => r.kind === 'week'));
-}
-
-/** The date grid's range: today (or the first open week) to the last week the engine returned, else ~4 months. */
-function seasonOf(engine: EngineOutput): { start: string; end: string } {
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' });
-  const starts = engine.weeks.map((w) => w.weekStart).sort();
-  const last = starts.at(-1);
-  const end = last ? addDays(last, 6) : addDays(today, 120);
-  return { start: today, end: [...engine.unavailableDates, end].sort().at(-1)! };
-}
-function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
 }
 
 function AnotherTime(p: {

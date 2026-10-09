@@ -1,0 +1,9 @@
+{
+  "id": "manage-today-from-locale-string",
+  "date": "2026-10-09",
+  "task": "T2.7",
+  "area": "manage",
+  "summary": "The /manage re-request date grid took today from toLocaleDateString('en-CA', …) and string-sorted it against engine dates, so a browser whose en-CA short date isn't YYYY-MM-DD (CLDR 42 once changed it) would get a broken range.",
+  "fix": "seasonOf moved to src/app/manage/_lib/season.ts and takes today from civilDateIn(now, TZ) (Intl's numeric parts in Vancouver), with the shared civil-day step.",
+  "tests": ["src/app/manage/__tests__/season.test.ts"]
+}
