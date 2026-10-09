@@ -15,7 +15,7 @@ import {
   type PhotoSlots,
   type PhotoViews,
 } from '@/ui/photo-slots';
-import { SLIDE_MS } from '@/ui/Slideshow';
+import { onAt, SLIDE_MS } from '@/ui/Slideshow';
 
 const FIXTURE: PhotoSlots = {
   show: { file: 'show', w: [480, 800], alt: '', slides: 3 },
@@ -319,5 +319,42 @@ describe('photo framing (photo-views.json)', () => {
     expect(a).toBe(b);
     expect(a).toContain('style="object-position: 40% 20%;"');
     expect(a).not.toContain('--p');
+  });
+});
+
+describe('slideshow stacking (photo round 3, PH-07)', () => {
+  it('only the top photo and the one directly under it are on; the loop back shows the last one fading alone', () => {
+    const on = (active: number) => [1, 2, 3, 4, 5].filter((p) => onAt(p, active));
+    expect(on(0)).toEqual([]); // photo 1 (the base) on top: no slide on, so the last one fades out alone
+    expect(on(1)).toEqual([1]);
+    expect(on(2)).toEqual([1, 2]);
+    expect(on(5)).toEqual([4, 5]); // never slides 2..6 stacked
+  });
+
+  it('the framing fallback ratios match the --ph-ratio-* tokens', () => {
+    const tokens = readFileSync('src/ui/tokens.css', 'utf8');
+    const css = readFileSync('src/ui/site.css', 'utf8');
+    const ratio = (key: string) => {
+      const m = new RegExp(`--ph-ratio-${key}: (\\d+) / (\\d+);`).exec(tokens)!;
+      return Number(m[1]) / Number(m[2]);
+    };
+    for (const key of [
+      'hero-s',
+      'hero-m',
+      'hero',
+      'band',
+      'band-l',
+      'dish',
+      'sheet',
+      'sheet-l',
+      'thumb',
+      'thumb-l',
+      'sent',
+      'sent-m',
+    ]) {
+      const m = new RegExp(`--ph-f: var\\(--f-${key}, ([\\d.]+)\\)`).exec(css);
+      expect(m, key).not.toBeNull();
+      expect(Number(m![1]), key).toBeCloseTo(ratio(key), 3);
+    }
   });
 });

@@ -25,7 +25,7 @@ const FIXTURE_VIEWS: PhotoViews = {
     { band: '30% 40%' },
     { band: { pos: '50% 50%', frame: 0.6 }, 'band-l': { pos: '50% 50%', frame: 0.6 } },
   ],
-  card: [{ dish: { pos: '50% 25%', frame: 1 } }, {}, {}],
+  card: [{ dish: { pos: '50% 25%', frame: 1 } }, { dish: { pos: '50% 50%', frame: 1.3 } }, {}],
 };
 
 export default async function SlidesPage() {

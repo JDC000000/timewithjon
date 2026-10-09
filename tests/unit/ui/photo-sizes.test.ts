@@ -19,7 +19,7 @@ describe('photo sizes', () => {
   });
 
   it('the hero and the /book thumb never claim more than their column on wide screens', () => {
-    expect(PHOTO_SIZES.hero).toContain('(min-width: 1024px) min(50vw, 600px)');
+    expect(PHOTO_SIZES.hero).toContain('(min-width: 1024px) min(50vw, 640px)');
     expect(PHOTO_SIZES.thumb).toContain('(min-width: 1024px) min(53vw, 704px)');
   });
 });
