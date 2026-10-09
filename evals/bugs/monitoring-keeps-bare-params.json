@@ -1,0 +1,9 @@
+{
+  "id": "monitoring-keeps-bare-params",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "observability",
+  "summary": "A t=, for= or token= value written without a '?' (in an error message or a breadcrumb) reached error monitoring, and query/fragment keys were kept.",
+  "fix": "The scrubber blanks those values anywhere in text and drops query and fragment keys.",
+  "tests": ["src/lib/__tests__/sentry-scrub.test.ts"]
+}

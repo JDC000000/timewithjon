@@ -1,0 +1,9 @@
+{
+  "id": "standby-offer-dead-after-lock",
+  "date": "2026-10-09",
+  "task": "standby offers",
+  "area": "requests/lock",
+  "summary": "A lock that made another guest's live stand-by offer unlockable without overlapping it (a Big Day that day, the week reaching its cap) left the offer live: its link failed on take and Jon could not offer that guest another window for 48 hours.",
+  "fix": "After a lock or a promote, live stand-by offers that a take would pass before it and fail after it are withdrawn with the lock, and Jon gets the existing withdrawn line.",
+  "tests": ["tests/int/standby.int.test.ts", "src/features/availability/__tests__/broken-offers.test.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "promote-withdraw-untested",
+  "date": "2026-10-09",
+  "task": "standby offers",
+  "area": "requests/joined",
+  "summary": "Withdrawing the stand-by offers a Promote to host overrides had no test: removing it left the suite green.",
+  "fix": "An int test promotes onto a time another guest's offer holds and checks the offer is released.",
+  "tests": ["tests/int/standby.int.test.ts"]
+}

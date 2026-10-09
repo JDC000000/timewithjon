@@ -108,6 +108,17 @@ describe('POST /api/requests (route level)', () => {
     expect(res.status).toBe(403);
     expect(json.code).toBe('bad_origin');
   });
+  it('a 100 KB body → 413 too_large, nothing stored; a normal-size request is read as before', async () => {
+    const big = body({ email: email('big'), note: 'x'.repeat(100 * 1024) });
+    const { res, json } = await post(big, { cookie });
+    expect(res.status).toBe(413);
+    expect(json).toMatchObject({ ok: false, code: 'too_large' });
+    expect(await requestFor(big.email)).toEqual([]);
+    // The real user's request is never refused for its size (it still reaches the validation below).
+    const { res: bad } = await post({ ...body(), email: 'not-an-email' }, { cookie });
+    expect(bad.status).toBe(400);
+  });
+
   it('a bad email → 400 with the badEmail line', async () => {
     const { res, json } = await post(body({ email: 'not-an-email' }), { cookie });
     expect(res.status).toBe(400);

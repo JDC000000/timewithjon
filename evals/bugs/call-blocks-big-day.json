@@ -1,0 +1,9 @@
+{
+  "id": "call-blocks-big-day",
+  "date": "2026-10-09",
+  "task": "ENG-11 follow-up",
+  "area": "availability",
+  "summary": "After Big Days were made to clash on every day, a booking that counts toward nothing (a phone call) blocked a Big Day that day, and a Big Day blocked a call.",
+  "fix": "A booking that counts toward nothing neither blocks nor is blocked by a Big Day (operator pick); the same time is still refused.",
+  "tests": ["src/features/availability/__tests__/broken-offers.test.ts"]
+}

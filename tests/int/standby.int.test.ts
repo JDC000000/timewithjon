@@ -17,6 +17,7 @@ import { runTick } from '@/features/jobs';
 import { createRequestTx } from '@/features/requests/create';
 import { afterLock, lockRequest, lockWeeksOf, lockWithin } from '@/features/requests/lock';
 import { cancelByGuest } from '@/features/requests/guest-cancel';
+import { joinToBooking, promoteToHost } from '@/features/requests/joined';
 import { findToken } from '@/features/invites/action-tokens';
 import { mockCalendar } from '@/lib/adapters/mock/calendar';
 import { stillOpen } from '@/features/requests/take-offer';
@@ -639,5 +640,129 @@ describe('T2.4.09 the 48-hour expiry (AC3)', () => {
     expect(await expireStandbyOffers(NOW)).toBeGreaterThanOrEqual(2);
     expect((await req(a.id)).awaiting_jon_since).toEqual(earlier);
     expect((await req(b.id)).awaiting_jon_since).toBeNull();
+  });
+});
+
+describe('a lock withdraws the stand-by offers it makes dead, or holds, without overlapping them by slot', () => {
+  // The week of Mon Apr 5: each case starts with no booking on these days and no live stand-by offer anywhere.
+  const DAYS = ['2027-04-08', '2027-04-09', '2027-04-10', '2027-04-11'];
+  const at = (d: string, t: string) => vancouverInstant(d, t);
+  beforeEach(async () => {
+    await q(
+      `update request set status = 'cancelled', cancelled_at = now()
+        where status in ('locked', 'done') and (locked_starts_at at time zone 'America/Vancouver')::date = any($1::date[])`,
+      [DAYS],
+    );
+    await q(
+      `update offer set released_at = now() where kind = 'standby_open' and released_at is null and taken_at is null`,
+    );
+    await q(`update week set cap_override = null where week_start = '2027-04-05'`);
+  });
+  const released = async (offerId: string) =>
+    (await q(`select 1 from offer where id = $1 and released_at is not null`, [offerId])).length === 1;
+  const offerTo = async (requestId: string, window: Parameters<typeof offerStandbyWindow>[1]) => {
+    const r = await offerStandbyWindow(requestId, window, false, NOW);
+    expect(r.ok).toBe(true);
+    return (r as { offerId: string }).offerId;
+  };
+
+  it('a Big Day offer on Saturday: an Encore locked that evening withdraws it (rule 2(e)) and says so', async () => {
+    const grind = await standbyGuest('the-grind');
+    await q(`update request set counts_toward = 'big_day' where id = $1`, [grind.id]);
+    const offerId = await offerTo(grind.id, {
+      startsAt: at('2027-04-10', '09:00'),
+      endsAt: at('2027-04-10', '15:00'),
+      where: null,
+    });
+    const encore = await newRequest({ dish: 'the-encore' });
+    const evening = {
+      startsAt: at('2027-04-10', '19:30'),
+      endsAt: at('2027-04-10', '23:00'),
+      countsToward: 'weekly_cap' as const,
+      where: null,
+    };
+    expect(await lockRequest({ requestId: encore.id, target: evening, mode: 'lock', now: NOW })).toEqual({
+      ok: true,
+      warnings: ['standby_offer_live'],
+    });
+    expect(await released(offerId)).toBe(true);
+  });
+
+  it('a lunch offer: the lock that fills its week (cap 2) withdraws it; while the week has room it stays', async () => {
+    const first = await newRequest();
+    expect(
+      (
+        await lockRequest({
+          requestId: first.id,
+          target: { slotId: await slotId('2027-04-08') },
+          mode: 'lock',
+          now: NOW,
+        })
+      ).ok,
+    ).toBe(true);
+    const waiting = await standbyGuest();
+    const offerId = await offerTo(waiting.id, { slotId: await slotId('2027-04-09') });
+    expect(await released(offerId)).toBe(false); // the first lock left room
+    const second = await newRequest({ dish: 'the-old-haunt' });
+    expect(
+      await lockRequest({
+        requestId: second.id,
+        target: { slotId: await slotId('2027-04-09', 'evening') },
+        mode: 'lock',
+        now: NOW,
+      }),
+    ).toEqual({ ok: true, warnings: ['standby_offer_live'] });
+    expect(await released(offerId)).toBe(true);
+  });
+
+  it('a dates-mode lock over a slot offer’s hours holds that window: the offer is withdrawn', async () => {
+    const waiting = await standbyGuest();
+    const offerId = await offerTo(waiting.id, { slotId: await slotId('2027-04-08') });
+    // One live stand-by offer per window (AC2), whichever way it is named: no range offer over the slot's hours.
+    const other = await standbyGuest('the-encore');
+    expect(
+      await offerStandbyWindow(
+        other.id,
+        { startsAt: at('2027-04-08', '12:00'), endsAt: at('2027-04-08', '13:00'), where: null },
+        false,
+        NOW,
+      ),
+    ).toMatchObject({ ok: false, status: 409, reason: 'held_by_offer' });
+    const encore = await newRequest({ dish: 'the-encore' });
+    const lunchHours = {
+      startsAt: at('2027-04-08', '12:00'),
+      endsAt: at('2027-04-08', '14:00'),
+      countsToward: 'none' as const,
+      where: null,
+    };
+    expect(await lockRequest({ requestId: encore.id, target: lunchHours, mode: 'lock', now: NOW })).toEqual({
+      ok: true,
+      warnings: ['standby_offer_live'],
+    });
+    expect(await released(offerId)).toBe(true);
+  });
+
+  it('Promote to host onto a time another guest’s stand-by offer holds withdraws that offer', async () => {
+    const host = await newRequest({ dish: 'the-encore' });
+    const morning = {
+      startsAt: at('2027-04-11', '10:00'),
+      endsAt: at('2027-04-11', '12:00'),
+      countsToward: 'none' as const,
+      where: null,
+    };
+    expect((await lockRequest({ requestId: host.id, target: morning, mode: 'lock', now: NOW })).ok).toBe(
+      true,
+    );
+    const guest = await newRequest({ dish: 'the-encore' });
+    expect(await joinToBooking(guest.id, host.id, NOW)).toMatchObject({ ok: true });
+    expect(await cancelByGuest(host.id, NOW)).toMatchObject({ ok: true }); // the guest carries the old time
+    const waiting = await standbyGuest('the-encore');
+    const offerId = await offerTo(waiting.id, {
+      startsAt: morning.startsAt,
+      endsAt: morning.endsAt,
+      where: null,
+    });
+    expect(await promoteToHost(guest.id, { now: NOW })).toMatchObject({ ok: true });
+    expect(await released(offerId)).toBe(true);
   });
 });

@@ -1,0 +1,9 @@
+{
+  "id": "stories-row-names-comma",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "a11y",
+  "summary": "Stories list link names read “Name , OK for the book” (a visually hidden “, ” adds a space before it).",
+  "fix": "The link's name is the row's words joined plainly (aria-label), as on Links.",
+  "tests": ["src/app/admin/(app)/stories/_a6/__tests__/stories-list.dom.test.tsx"]
+}

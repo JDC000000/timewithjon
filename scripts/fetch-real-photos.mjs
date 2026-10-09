@@ -27,10 +27,11 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, normalize, sep } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { parseSlots, viewsFor } from './build-real-photos.mjs';
+import { safeRel, storeUrl } from './photos-store-paths.mjs';
 import {
   applyPosOverrides,
   applySlidesOverrides,
@@ -60,22 +61,15 @@ if (base.protocol !== 'https:' && !loopback)
   );
 
 async function get(rel) {
-  const res = await fetch(new URL(rel, base), {
+  // Only under the store's folder, and never followed elsewhere: the Bearer token goes to that folder alone.
+  const res = await fetch(storeUrl(rel, base), {
     headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
-    redirect: 'follow',
+    redirect: 'error',
     signal: AbortSignal.timeout(30_000),
   });
   // log the path only: the base URL may itself carry a signed query
   if (!res.ok) throw new Error(`fetch-real-photos: ${rel} -> HTTP ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
-}
-
-/** a manifest path stays inside the private folder: no absolute paths, no '..', no URL tricks */
-function safeRel(rel) {
-  const n = normalize(String(rel));
-  if (!n || n.startsWith('..') || n.startsWith(sep) || /^[a-z]+:/i.test(n) || n.split(sep).includes('..'))
-    throw new Error(`fetch-real-photos: unsafe path "${rel}"`);
-  return n;
 }
 
 const manifest = JSON.parse((await get('manifest.json')).toString('utf8'));

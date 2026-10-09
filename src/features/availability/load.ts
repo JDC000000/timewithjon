@@ -80,6 +80,7 @@ export async function loadEngineData(now = new Date(), db: Pool | PoolClient = p
       [now],
     ),
   ]);
+  const slotTimes = new Map(slots.map((s) => [s.id, { startsAt: s.starts_at, endsAt: s.ends_at }]));
   return {
     now,
     settings: toEngineSettings(settings),
@@ -112,7 +113,14 @@ export async function loadEngineData(now = new Date(), db: Pool | PoolClient = p
       requestId: o.request_id,
       kind: o.kind,
       slotIds: o.slot_ids,
-      ranges: o.ranges.map((r) => ({ startsAt: new Date(r.starts_at), endsAt: new Date(r.ends_at) })),
+      // A slot offer holds its slot's TIMES too (rule 2(f)): a dates-mode lock or offer over the same hours sees it.
+      ranges: [
+        ...o.ranges.map((r) => ({ startsAt: new Date(r.starts_at), endsAt: new Date(r.ends_at) })),
+        ...o.slot_ids.flatMap((id) => {
+          const t = slotTimes.get(id);
+          return t ? [t] : [];
+        }),
+      ],
       expiresAt: o.expires_at,
       takenAt: o.taken_at,
       releasedAt: o.released_at,

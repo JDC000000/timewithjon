@@ -31,6 +31,17 @@ describe('buildCsp', () => {
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("base-uri 'self'");
   });
+
+  it('images and uploads may reach the configured Supabase project only, never any *.supabase.co', () => {
+    const csp = buildCsp('n', false, 'https://abcd1234.supabase.co');
+    expect(directive(csp, 'img-src')).toBe("img-src 'self' blob: data: https://abcd1234.supabase.co");
+    expect(directive(csp, 'connect-src')).toBe(
+      "connect-src 'self' https://abcd1234.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://challenges.cloudflare.com",
+    );
+    expect(csp).not.toContain('*.supabase.co');
+    // No project configured: no Supabase origin at all (never a wildcard).
+    expect(directive(buildCsp('n'), 'img-src')).toBe("img-src 'self' blob: data:");
+  });
 });
 
 describe('proxy CSP nonce', () => {
@@ -52,6 +63,8 @@ describe('proxy CSP nonce', () => {
     expect(csp).toContain(`'nonce-${reqNonce}'`);
     expect(reqCsp).toBe(csp);
     expect(directive(csp, 'script-src')).not.toContain('unsafe-inline');
+    // The proxy pins the project from SUPABASE_URL (tests/fixtures env: whatever it is, never the wildcard).
+    expect(csp).not.toContain('*.supabase.co');
   });
 
   it('the ?for= branch still rewrites to the resolver', () => {

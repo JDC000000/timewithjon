@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { completeSignIn } from '@/features/admin/verify';
-import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
+import { BODY_TOO_LARGE, clientIp, jsonError, noStore, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { check, peek, type LimitVerdict } from '@/lib/ratelimit';
 import { SIGN_IN } from '@/content/ui/admin-requests';
 
@@ -31,7 +31,9 @@ function emailKey(email: string): string {
 
 async function verifyCode(req: NextRequest): Promise<NextResponse> {
   if (!sameOrigin(req)) return jsonError(403, 'bad_origin', ERRORS.generic);
-  const parsed = VerifyBody.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return tooLarge(ERRORS.generic);
+  const parsed = VerifyBody.safeParse(body);
   if (!parsed.success) return jsonError(400, 'invalid', ERRORS.generic);
   // Per IP: every attempt counts (fail closed: if the limiter can't count, no code is checked at all).
   const verdict: LimitVerdict = await check('adminSignInVerify', clientIp(req));

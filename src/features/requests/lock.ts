@@ -15,7 +15,8 @@ import {
 import { dishBySlug } from '@/content/menu-helpers';
 import { loadEngineData } from '@/features/availability/load';
 import { offersHolding, slotCountsToward } from '@/features/availability/rules';
-import type { CountsToward, RequestStatus, Slot } from '@/features/availability/types';
+import { offersBrokenBy } from '@/features/availability/broken-offers';
+import type { Booking, CountsToward, RequestStatus, Slot } from '@/features/availability/types';
 import { countEvent } from '@/features/analytics/count';
 import { manageLink, type EmailVar } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
@@ -230,7 +231,27 @@ export async function applyLock(
   });
   if (!verdict.ok) return refused(verdict.reason);
   if (i.takenOffer && verdict.warnings.includes('standby_offer_live')) return refused('time_taken');
-  const heldOffers = offersHolding(slot?.id ?? null, range, loaded.offers, now, i.requestId).map((o) => o.id);
+  // The stand-by offers this lock overrides: the ones holding its window, and the ones it makes dead without
+  // overlapping them (a Big Day that day, the week's cap, a dish's one-a-week). Both go after commit, with Jon's
+  // "It's withdrawn" line.
+  const broken = await offersBrokenByLock(c, loaded, now, {
+    requestId: i.requestId,
+    startsAt: range.startsAt,
+    endsAt: range.endsAt,
+    countsToward,
+    joinedToRequestId: null,
+    dish: r.dish,
+  });
+  const heldOffers = [
+    ...new Set([
+      ...offersHolding(slot?.id ?? null, range, loaded.offers, now, i.requestId).map((o) => o.id),
+      ...broken,
+    ]),
+  ];
+  const warnings: LockWarning[] =
+    broken.length && !i.takenOffer && !verdict.warnings.includes('standby_offer_live')
+      ? [...verdict.warnings, 'standby_offer_live']
+      : verdict.warnings;
 
   await c.query(
     `update request
@@ -295,7 +316,7 @@ export async function applyLock(
     ),
   );
   await countEvent('locked', c); // T3.11, in the lock transaction
-  return { ok: true, warnings: verdict.warnings, after, auditId: audit!.id, heldOffers };
+  return { ok: true, warnings, after, auditId: audit!.id, heldOffers };
 }
 
 export function isRangeTaken(e: unknown): boolean {
@@ -314,6 +335,38 @@ export async function lockRequest(i: LockInput): Promise<LockResult> {
     throw e;
   }
   return afterLock(out);
+}
+
+/** The live stand-by offers of other requests this booking breaks (offersBrokenBy), with their owners read. */
+async function offersBrokenByLock(
+  c: PoolClient,
+  loaded: Awaited<ReturnType<typeof loadEngineData>>,
+  now: Date,
+  booking: Booking,
+): Promise<string[]> {
+  const live = loaded.offers.filter((o) => o.requestId !== booking.requestId);
+  if (live.length === 0) return [];
+  const { rows } = await c.query<{
+    id: string;
+    status: RequestStatus;
+    counts_toward: CountsToward;
+    dish: string;
+  }>(`select id, status, counts_toward, dish from request where id = any($1::uuid[])`, [
+    [...new Set(live.map((o) => o.requestId))],
+  ]);
+  return offersBrokenBy({
+    booking,
+    offers: live,
+    owners: new Map(
+      rows.map((r) => [r.id, { status: r.status, countsToward: r.counts_toward, dish: r.dish }]),
+    ),
+    slots: loaded.slots,
+    now,
+    bookings: loaded.bookings,
+    blocks: loaded.blocks,
+    weeks: loaded.weeks,
+    settings: loaded.settings,
+  });
 }
 
 /**

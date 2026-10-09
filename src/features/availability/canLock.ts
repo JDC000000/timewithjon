@@ -102,10 +102,14 @@ export function canLock(i: CanLockInput): CanLockResult {
     if (blockedBy(i.target, i.blocks, i.settings)) return { ok: false, reason: 'blocked' };
     // Rule 2(e), both directions (rule 8). ENG-11 (operator pick): on ANY day, not only Thu/Fri. A Big Day is the
     // whole day, so a second Big Day that Saturday, or an Encore on its evening, needs Book anyway too.
+    // A booking that counts toward nothing (a phone call) is not an outing: it neither blocks a Big Day nor is
+    // blocked by one (operator pick, 2026-10-09). Overlapping times are still refused (time_taken, above).
     if (i.request.countsToward === 'big_day') {
-      const busy = new Set(others.flatMap((b) => datesTouched(b.startsAt, b.endsAt)));
+      const busy = new Set(
+        others.filter((b) => b.countsToward !== 'none').flatMap((b) => datesTouched(b.startsAt, b.endsAt)),
+      );
       if (dates.some((d) => busy.has(d))) return { ok: false, reason: 'big_day_clash' };
-    } else {
+    } else if (i.request.countsToward !== 'none') {
       const bigDays = bigDayDates(i.bookings, self);
       if (dates.some((d) => bigDays.has(d))) return { ok: false, reason: 'big_day_clash' };
     }

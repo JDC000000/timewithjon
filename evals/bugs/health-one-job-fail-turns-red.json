@@ -1,0 +1,9 @@
+{
+  "id": "health-one-job-fail-turns-red",
+  "date": "2026-10-09",
+  "task": "T3.13",
+  "area": "jobs",
+  "summary": "One job that ran out of time at the tick's hard stop (the rest skipped) read as \"every job failed\" (1/1) and turned /api/health red for a quarter of an hour.",
+  "fix": "The tick check is red only when at least two jobs ran and all failed; 1/1 is a warning line.",
+  "tests": ["tests/int/health.int.test.ts"]
+}

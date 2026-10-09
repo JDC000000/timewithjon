@@ -61,9 +61,20 @@ async function freshSave(body: Record<string, unknown>) {
   jar.delete(STORY_COOKIE);
   return pageViewSave(body);
 }
-/** A later save in the same page view: the form marks it `edit`. */
+/** A later save in the same page view: the form marks it `edit` and sends the page's key. */
 const editSave = (body: Record<string, unknown>) =>
   storyPageRoute(post('/api/story-page', { ...body, edit: true }));
+/** One page view of /story, as the form runs it: one key on its first save, its edits and its photo calls. */
+function pageView() {
+  const key = randomUUID();
+  return {
+    key,
+    first: (body: Record<string, unknown>) => pageViewSave({ ...body, clientKey: key }),
+    fresh: (body: Record<string, unknown>) => freshSave({ ...body, clientKey: key }),
+    edit: (body: Record<string, unknown>) => editSave({ ...body, clientKey: key }),
+    sign: () => photoSign(post(`/api/photos/sign?for=story_page&key=${key}`, {})),
+  };
+}
 const storiesOf = (inviteId: string) =>
   q<{ id: string; body: string | null }>(
     `select id, body from story where source = 'story_page' and invite_id = $1 order by created_at`,
@@ -115,12 +126,13 @@ describe('story-page first save', () => {
   it('QA r2 H1: two page views make two stories, though the browser still holds the first twj_story', async () => {
     useInvite(personalId);
     await q(`delete from story where invite_id = $1`, [personalId]);
-    expect((await freshSave({ body: `${tag} S1` })).status).toBe(200);
+    expect((await pageView().fresh({ body: `${tag} S1` })).status).toBe(200);
     expect(jar.has(STORY_COOKIE)).toBe(true);
-    expect((await pageViewSave({ body: `${tag} S2` })).status).toBe(200);
+    const second = pageView();
+    expect((await second.first({ body: `${tag} S2` })).status).toBe(200);
     expect((await storiesOf(personalId)).map((s) => s.body)).toEqual([`${tag} S1`, `${tag} S2`]);
-    // the photo sign now names the story this page view saved, not the first one
-    const signed = await photoSign(post('/api/photos/sign?for=story_page', {}));
+    // the photo sign names the story this page view saved, not the first one
+    const signed = await second.sign();
     expect(signed.status).toBe(200);
   });
 
@@ -151,12 +163,13 @@ describe('story-page first save', () => {
   it('a later save in the same page view (edit) updates the same story and is not counted as new', async () => {
     useInvite(personalId);
     await q(`delete from story where invite_id = $1`, [personalId]);
-    const first = await freshSave({ consent: false });
+    const view = pageView();
+    const first = await view.fresh({ consent: false });
     expect(first.status).toBe(200);
-    for (let i = 0; i < 5; i++) expect((await editSave({ body: `${tag} edit${i}` })).status).toBe(200);
+    for (let i = 0; i < 5; i++) expect((await view.edit({ body: `${tag} edit${i}` })).status).toBe(200);
     expect(await storiesOf(personalId)).toEqual([{ id: expect.any(String), body: `${tag} edit4` }]);
     // now the sign has a story to name
-    const signed = await photoSign(post('/api/photos/sign?for=story_page', {}));
+    const signed = await view.sign();
     expect(signed.status).toBe(200);
   });
 
@@ -166,14 +179,15 @@ describe('story-page first save', () => {
     const res = await freshSave({ body: `${tag} g-bot`, turnstileToken: 'bad' });
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ code: 'bot_check', message: ERRORS.botCheck });
-    expect(ts.verify).toHaveBeenCalledWith('bad', expect.any(String));
+    expect(ts.verify).toHaveBeenCalledWith('bad', expect.any(String), 'story'); // the story page's own action
     expect(await q(`select 1 from story where body = $1`, [`${tag} g-bot`])).toEqual([]);
 
     ts.verify.mockResolvedValue(true);
-    expect((await freshSave({ body: `${tag} g-ok`, turnstileToken: 'good' })).status).toBe(200);
+    const view = pageView();
+    expect((await view.fresh({ body: `${tag} g-ok`, turnstileToken: 'good' })).status).toBe(200);
     ts.verify.mockClear();
-    // the follow-up save in the same page view rides twj_story: no new check
-    expect((await editSave({ body: `${tag} g-ok2` })).status).toBe(200);
+    // the follow-up save in the same page view rides twj_story and its key: no new check
+    expect((await view.edit({ body: `${tag} g-ok2` })).status).toBe(200);
     expect(ts.verify).not.toHaveBeenCalled();
   });
 
@@ -205,18 +219,51 @@ describe('story-page first save', () => {
     expect(await q(`select 1 from story where body = $1`, [`${tag} retry elsewhere`])).toEqual([]);
   });
 
+  it('two tabs share one twj_story but never write into each other’s story (edits and photo signs go by the page key)', async () => {
+    useInvite(personalId);
+    await q(`delete from story where invite_id = $1`, [personalId]);
+    const tabA = pageView();
+    const tabB = pageView();
+    expect((await tabA.fresh({ body: `${tag} A1` })).status).toBe(200);
+    expect((await tabB.first({ body: `${tag} B1` })).status).toBe(200); // twj_story now names B's story
+    const [a, b] = await storiesOf(personalId);
+    // tab A edits ITS story, though the shared cookie names B's
+    expect((await tabA.edit({ body: `${tag} A2` })).status).toBe(200);
+    expect(await storiesOf(personalId)).toEqual([
+      { id: a!.id, body: `${tag} A2` },
+      { id: b!.id, body: `${tag} B1` },
+    ]);
+    // and a photo call from tab A names A's story (this store keeps nothing, so ask which story it resolves to)
+    expect((await tabA.sign()).status).toBe(200);
+    const { callerStoryForSign } = await import('@/features/photos/caller-story');
+    expect(await callerStoryForSign(post(`/api/photos/sign?for=story_page&key=${tabA.key}`, {}))).toEqual({
+      storyId: a!.id,
+    });
+    expect(await callerStoryForSign(post(`/api/photos/sign?for=story_page&key=${tabB.key}`, {}))).toEqual({
+      storyId: b!.id,
+    });
+    // an edit or a sign with no page key, or a key no story of this invite was made with, writes nothing
+    const noKey = await editSave({ body: `${tag} no key` });
+    expect(noKey.status).toBe(403);
+    expect(await noKey.json()).toMatchObject({ code: 'capability_expired', message: ERRORS.stale });
+    expect((await editSave({ body: `${tag} odd key`, clientKey: randomUUID() })).status).toBe(403);
+    expect((await photoSign(post('/api/photos/sign?for=story_page', {}))).status).toBe(403);
+    expect((await storiesOf(personalId)).map((s) => s.body)).toEqual([`${tag} A2`, `${tag} B1`]);
+  });
+
   it('an edit whose story was deleted is refused as stale (403) and creates nothing; so is one with no twj_story', async () => {
     useInvite(personalId);
     await q(`delete from story where invite_id = $1`, [personalId]);
-    expect((await freshSave({ body: `${tag} soon gone` })).status).toBe(200);
+    const view = pageView();
+    expect((await view.fresh({ body: `${tag} soon gone` })).status).toBe(200);
     const id = (await storiesOf(personalId))[0]!.id;
     await q(`delete from story where id = $1`, [id]);
     const before = (await q(`select 1 from story`)).length;
-    const res = await editSave({ body: `${tag} after delete` });
+    const res = await view.edit({ body: `${tag} after delete` });
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ code: 'capability_expired', message: ERRORS.stale });
     jar.delete(STORY_COOKIE);
-    expect((await editSave({ body: `${tag} no cookie` })).status).toBe(403);
+    expect((await view.edit({ body: `${tag} no cookie` })).status).toBe(403);
     expect((await q(`select 1 from story`)).length).toBe(before);
     // the same race at the update itself (deleted after the capability check): no row is made there either
     const { saveStoryPageStory } = await import('@/features/photos/story-page');

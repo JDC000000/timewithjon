@@ -5,6 +5,7 @@
 // ANY answer that is not a saved request (L11: a full slot, a validation error, a bot check, or no answer at all),
 // so the next Send carries a fresh one. With no site key (local, mock mode) or on a personal invite there is no box.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { TurnstileAction } from '@/lib/turnstile-actions';
 
 interface TurnstileApi {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string;
@@ -43,7 +44,7 @@ function loadScript(): Promise<TurnstileApi> {
 }
 
 /** `siteKey` undefined (a personal invite, or no key configured) = no widget, no token, `box` null. */
-export function useGuestTurnstile(siteKey: string | undefined) {
+export function useGuestTurnstile(siteKey: string | undefined, action: TurnstileAction) {
   // A callback ref (state), so the widget renders once its box exists and no ref is read during render.
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const widget = useRef<string | null>(null);
@@ -63,6 +64,7 @@ export function useGuestTurnstile(siteKey: string | undefined) {
         widget.current = api.render(el, {
           sitekey: siteKey,
           ...GUEST_TURNSTILE_OPTS,
+          action, // the route checks it: a token from another form is refused
           callback: (t: string) => settle(t),
           'expired-callback': () => settle(undefined),
           'error-callback': () => settle(undefined),
@@ -74,7 +76,7 @@ export function useGuestTurnstile(siteKey: string | undefined) {
       if (widget.current) window.turnstile?.remove(widget.current);
       widget.current = null;
     };
-  }, [siteKey, el]);
+  }, [siteKey, el, action]);
 
   /** The current token, waiting briefly for Cloudflare. Taken once: the next Send needs `reset()` first. */
   const takeToken = useCallback(async (): Promise<string | undefined> => {

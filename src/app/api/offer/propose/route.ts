@@ -10,7 +10,7 @@ import { VALIDATION_MESSAGE } from '@/features/requests/messages';
 import { offerAnswer } from '@/features/requests/offer-answer';
 import { ProposeBody, proposeTimes } from '@/features/requests/propose';
 import { isHoneypotFilled } from '@/lib/honeypot';
-import { jsonError, sameOrigin, tokenNoStore } from '@/lib/http';
+import { BODY_TOO_LARGE, jsonError, readJson, sameOrigin, tokenNoStore, tooLarge } from '@/lib/http';
 import { limitByIp } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
   if (!sameOrigin(req)) return tokenNoStore(jsonError(403, 'bad_origin', ERRORS.generic));
   const limited = await limitByIp(req, 'offerTake');
   if (limited) return tokenNoStore(limited);
-  const parsed = ProposeBody.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return tokenNoStore(tooLarge(ERRORS.generic));
+  const parsed = ProposeBody.safeParse(body);
   if (!parsed.success) return tokenNoStore(jsonError(400, 'invalid', ERRORS.generic));
   const res = await proposeTimes(parsed.data, isHoneypotFilled(parsed.data.hp));
   if (res === 'spent') {

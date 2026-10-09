@@ -286,6 +286,13 @@ describe('token pages: read-only loaders (T2.7.03, AC1–AC4)', () => {
     expect((await findToken(take))!.used_at).toBeNull();
   });
 
+  it('r5 N-L7: the stored "one night away" reaches the manage model (the new-time form starts ticked)', async () => {
+    const { id } = await lockedRequest('2027-05-27'); // a Thursday no other test here uses
+    expect(await loadManageModel(await manageToken(id))).toMatchObject({ kind: 'manage', overnight: false });
+    await q(`update request set overnight = true where id = $1`, [id]);
+    expect(await loadManageModel(await manageToken(id))).toMatchObject({ kind: 'manage', overnight: true });
+  });
+
   it('manage: status, when, where and the actions; a Surprise Me guest sees their own plan', async () => {
     const { id } = await lockedRequest('2027-06-03');
     expect(await loadManageModel(await manageToken(id))).toMatchObject({

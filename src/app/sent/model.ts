@@ -7,7 +7,8 @@ import { getEnv } from '@/config/env';
 import { q } from '@/lib/db';
 import { loadSettings } from '@/lib/settings';
 import { addDays } from '@/lib/time';
-import { dateLabel, slotLabel } from '../_guest/when';
+import { guestWhen } from '@/lib/when';
+import { dateLabel } from '../_guest/when';
 
 export type SentModel =
   | { kind: 'stale' }
@@ -50,13 +51,15 @@ export function standbyDays(weekStart: string): string {
 
 /** The picked times, then the dates and the rough window, one receipt line each (S11). */
 async function choiceLines(requestId: string, prefs: Row['date_prefs']): Promise<string[]> {
-  const slots = await q<{ starts_at: Date; ends_at: Date; window_kind: 'lunch' | 'evening' }>(
-    `select s.starts_at, s.ends_at, s.window_kind from request_slot_choice c join slot s on s.id = c.slot_id
+  const slots = await q<{ starts_at: Date; ends_at: Date; guest_time_zone: string | null }>(
+    `select s.starts_at, s.ends_at, r.guest_time_zone from request_slot_choice c join slot s on s.id = c.slot_id
+       join request r on r.id = c.request_id
       where c.request_id = $1 order by s.starts_at`,
     [requestId],
   );
   return [
-    ...slots.map((s) => slotLabel(s.starts_at, s.ends_at, s.window_kind)),
+    // r5 N-L4: a time says whose clock it is, as the emails, the locked /manage and /offer do ("… Vancouver time")
+    ...slots.map((s) => guestWhen(s.starts_at, s.ends_at, s.guest_time_zone)),
     ...(prefs?.dates ?? []).map(dateLabel),
     ...(prefs?.window_text ? [prefs.window_text] : []),
   ];

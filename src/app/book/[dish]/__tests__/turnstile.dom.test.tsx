@@ -85,7 +85,12 @@ describe('the guest Turnstile (T1.7.U3)', () => {
     await vi.waitFor(() => expect(api.render).toHaveBeenCalledTimes(1));
     const [el, opts] = api.render.mock.calls[0]!;
     expect(el).toBe(slot);
-    expect(opts).toMatchObject({ sitekey: KEY, appearance: 'interaction-only', 'refresh-expired': 'auto' });
+    expect(opts).toMatchObject({
+      sitekey: KEY,
+      appearance: 'interaction-only',
+      'refresh-expired': 'auto',
+      action: 'request', // the route checks it: a token from another form is refused
+    });
     expect(GUEST_TURNSTILE_OPTS).toEqual({ appearance: 'interaction-only', 'refresh-expired': 'auto' });
   });
 

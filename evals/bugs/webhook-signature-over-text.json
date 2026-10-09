@@ -1,0 +1,9 @@
+{
+  "id": "webhook-signature-over-text",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "email",
+  "summary": "The delivery webhook's signature was checked over the decoded text, and a body with no length header was read whole first.",
+  "fix": "The signature is checked over the raw bytes as sent, read through the bounded reader.",
+  "tests": ["tests/int/email-outcomes.int.test.ts", "src/lib/adapters/__tests__/resend-webhook.test.ts"]
+}

@@ -7,7 +7,7 @@ import { requireManage } from '@/features/invites/require';
 import { VALIDATION_MESSAGE } from '@/features/requests/messages';
 import { RerequestBody, rerequest } from '@/features/requests/rerequest';
 import { isHoneypotFilled } from '@/lib/honeypot';
-import { jsonError, sameOrigin, tokenNoStore } from '@/lib/http';
+import { BODY_TOO_LARGE, jsonError, readJson, sameOrigin, tokenNoStore, tooLarge } from '@/lib/http';
 import { limitByIp } from '@/lib/ratelimit';
 
 export const runtime = 'nodejs';
@@ -19,7 +19,9 @@ export async function POST(req: NextRequest) {
   if (limited) return tokenNoStore(limited);
   const gate = await requireManage(req);
   if ('response' in gate) return tokenNoStore(gate.response);
-  const parsed = RerequestBody.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return tokenNoStore(tooLarge(ERRORS.generic));
+  const parsed = RerequestBody.safeParse(body);
   if (!parsed.success) return tokenNoStore(jsonError(400, 'invalid', ERRORS.generic));
   const { hp, clientKey, ...choices } = parsed.data;
   // AD-9: a filled honeypot is stored as spam_suspect (no E16), never refused: the guest gets the same answer.

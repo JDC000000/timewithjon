@@ -1,0 +1,9 @@
+{
+  "id": "photo-store-path-encoding",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "build",
+  "summary": "A private photo manifest path with encoded dots could resolve outside the store folder, and redirects were followed with the store token.",
+  "fix": "Paths with '%' or a backslash are refused, the resolved URL must stay under the store folder, and a redirect is an error.",
+  "tests": ["tests/unit/photos-store-paths.test.ts"]
+}

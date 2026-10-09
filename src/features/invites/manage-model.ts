@@ -38,6 +38,8 @@ export type ManageModel =
       canAddStory: boolean;
       /** QA4b M3: the booking they joined fell through (the host left, rule 4): nothing of theirs is booked or asked. */
       hostLeft: boolean;
+      /** r5 N-L7: they said it's one night away: the new-time form starts ticked. */
+      overnight: boolean;
     });
 
 export interface OfferWindow {
@@ -53,7 +55,11 @@ export type OfferModel =
 export type NewDateModel =
   | Missing
   | (RequestView & { kind: 'current'; message: string | null })
-  | (RequestView & { kind: 'new_date'; offerId: string | null });
+  | (RequestView & {
+      kind: 'new_date';
+      offerId: string | null;
+      /** r5 N-L7: starts ticked */ overnight: boolean;
+    });
 
 interface Row {
   status: RequestStatus;
@@ -68,6 +74,7 @@ interface Row {
   own_pitch: string | null;
   own_when: string | null;
   joined_to_request_id: string | null;
+  overnight: boolean;
 }
 
 async function loadView(
@@ -82,6 +89,7 @@ async function loadView(
   jonCancelled: boolean;
   started: boolean;
   hostLeft: boolean;
+  overnight: boolean;
 } | null> {
   const [r] = await q<Row>(
     `select r.status, r.dish, r.closed_in_person, r.cancelled_by::text as cancelled_by, r.guest_time_zone,
@@ -90,7 +98,7 @@ async function loadView(
             case when r.joined_to_request_id is null then r.locked_where else h.locked_where end as where_text,
             case when $2 then r.surprise_plan_sealed end as own_plan,
             case when $2 then r.pitch_idea end as own_pitch,
-            case when $2 then r.date_prefs->>'window_text' end as own_when, r.joined_to_request_id
+            case when $2 then r.date_prefs->>'window_text' end as own_when, r.joined_to_request_id, r.overnight
        from request r left join request h on h.id = r.joined_to_request_id
       where r.id = $1`,
     [requestId, withPlan],
@@ -116,6 +124,7 @@ async function loadView(
     started: hasStarted(r, now),
     // A joined guest whose host left (rule 4) still names it, and waits on Jon for a new time.
     hostLeft: r.status === 'needs_new_time' && r.joined_to_request_id !== null,
+    overnight: r.overnight,
   };
 }
 
@@ -158,6 +167,7 @@ export async function loadManageModel(
     canAskAnother: open || loaded.jonCancelled,
     canAddStory: true,
     hostLeft: loaded.hostLeft,
+    overnight: loaded.overnight,
   };
 }
 
@@ -252,5 +262,5 @@ export async function loadNewDateModel(
   const { view } = loaded;
   const live = tokenState(t, now) !== 'used' && view.status === 'needs_new_time';
   if (!live) return { kind: 'current', ...view, message: currentMessage(view) };
-  return { kind: 'new_date', ...view, offerId: t.offer_id };
+  return { kind: 'new_date', ...view, offerId: t.offer_id, overnight: loaded.overnight };
 }

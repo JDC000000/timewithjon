@@ -1,0 +1,9 @@
+{
+  "id": "slot-offer-hours-not-held",
+  "date": "2026-10-09",
+  "task": "standby offers",
+  "area": "availability",
+  "summary": "A stand-by offer on a slot held only that slot id, so a range over the same hours (a dates-mode lock, or a second guest's range offer) did not see it.",
+  "fix": "The engine reads a slot offer's slot times as one of its ranges, so any overlap with its hours is seen.",
+  "tests": ["tests/int/standby.int.test.ts"]
+}
