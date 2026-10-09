@@ -31,6 +31,8 @@ const locked: DetailView = {
   bigDayLocked: true,
   cancelWords: { dish: 'Grind', day: 'Sat May 8' },
   failed: [],
+  joinedTo: null,
+  canPromote: false,
 };
 const after: DetailView = {
   ...locked,
@@ -47,7 +49,6 @@ const props = (view: DetailView): DetailPaneProps => ({
   dish: 'the-grind',
   dishName: 'The Grind',
   season: { start: '2027-04-01', end: '2027-06-30' },
-  joinedToRequestId: null,
   pitchLength: '',
   view,
   options: null,
