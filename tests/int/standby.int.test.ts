@@ -15,7 +15,10 @@ import { engineInput, loadEngineData } from '@/features/availability/load';
 import { openWindows } from '@/features/availability/openWindows';
 import { runTick } from '@/features/jobs';
 import { createRequestTx } from '@/features/requests/create';
-import { lockRequest, lockWeeksOf } from '@/features/requests/lock';
+import { afterLock, lockRequest, lockWeeksOf, lockWithin } from '@/features/requests/lock';
+import { cancelByGuest } from '@/features/requests/guest-cancel';
+import { findToken } from '@/features/invites/action-tokens';
+import { mockCalendar } from '@/lib/adapters/mock/calendar';
 import { stillOpen } from '@/features/requests/take-offer';
 import { RequestBody } from '@/features/requests/schema';
 import { OfferLinkGoneError, resolveLinkVars, takeLink } from '@/features/email/link-vars';
@@ -253,6 +256,71 @@ describe('T2.4.04 Offer a freed window to one stand-by guest → E7', () => {
     expect(after!.released_at).toBeNull();
     expect(after!.taken_at).not.toBeNull();
     expect(await req(id)).toMatchObject({ status: 'locked', awaiting_jon_since: null });
+  });
+
+  it("ENG-02: Jon's lock over a stand-by offer withdraws it: the link shows the state, Needs a reply, the next offer goes at once", async () => {
+    const x = await slotId('2027-04-30');
+    const s = await standbyGuest();
+    const offered = await offerStandbyWindow(s.id, { slotId: x }, false, NOW);
+    expect(offered.ok).toBe(true);
+    const offerId = (offered as { offerId: string }).offerId;
+    const token = tokenIn((await lastMail(s.email))!.text_body)!;
+    const r = await newRequest();
+    // Jon's answer carries the warning ("A stand-by offer was out for that time. It's withdrawn."): now true.
+    expect(await lockRequest({ requestId: r.id, target: { slotId: x }, mode: 'lock', now: NOW })).toEqual({
+      ok: true,
+      warnings: ['standby_offer_live'],
+    });
+    expect(await q(`select 1 from offer where id = $1 and released_at is not null`, [offerId])).toHaveLength(
+      1,
+    );
+    expect((await findToken(token))!.used_at).not.toBeNull(); // the E7 link now shows the current state
+    const back = await req(s.id);
+    expect([back.status, back.awaiting_jon_since !== null]).toEqual(['standby', true]); // Needs a reply
+    // Before: 409 offer_live for 48 h. Now Jon can offer the next freed window at once.
+    expect((await offerStandbyWindow(s.id, { slotId: await slotId('2027-04-29') }, false, NOW)).ok).toBe(
+      true,
+    );
+    await q(`update request set status = 'cancelled', cancelled_at = now() where id = $1`, [r.id]);
+  });
+
+  it('ENG-16: a guest cancel racing the lock ends cancelled, its event deleted, nothing left for the tick', async () => {
+    const x = await slotId('2027-04-30', 'evening');
+    const r = await newRequest({ dish: 'the-old-haunt' });
+    const out = await withTx((c) =>
+      lockWithin(c, { requestId: r.id, target: { slotId: x }, mode: 'lock' }, NOW),
+    );
+    expect(out.ok).toBe(true);
+    // The lock's Google insert is in flight while the guest cancels.
+    let release = () => {};
+    let inFlight = () => {};
+    const gate = new Promise<void>((done) => (release = done));
+    const started = new Promise<void>((done) => (inFlight = done));
+    const insert = mockCalendar.insert.bind(mockCalendar);
+    vi.spyOn(mockCalendar, 'insert').mockImplementationOnce(async (e) => {
+      inFlight();
+      await gate;
+      return insert(e);
+    });
+    const remove = vi.spyOn(mockCalendar, 'remove');
+    const locking = afterLock(out);
+    const open = () =>
+      q<{ kind: string }>(`select kind from outbox where request_id = $1 and done_at is null`, [r.id]);
+    await started; // the create read the booking as locked and is calling Google
+    expect(await cancelByGuest(r.id, NOW)).toMatchObject({ ok: true });
+    expect((await open()).map((o) => o.kind).sort()).toEqual(['calendar_create', 'calendar_delete']); // the delete waits
+    release();
+    await locking;
+    expect(await open()).toEqual([]); // before: the delete waited for the next tick
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        await q<{ status: string; google_event_id: string | null }>(
+          `select status, google_event_id from request where id = $1`,
+          [r.id],
+        )
+      )[0],
+    ).toEqual({ status: 'cancelled', google_event_id: null });
   });
 
   it('pr49-review L-2: one live stand-by offer per guest; a second window is refused while it lives', async () => {

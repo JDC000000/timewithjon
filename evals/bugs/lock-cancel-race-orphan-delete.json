@@ -1,0 +1,9 @@
+{
+  "id": "lock-cancel-race-orphan-delete",
+  "date": "2026-10-08",
+  "task": "ENG-16",
+  "area": "calendar/outbox",
+  "summary": "When the guest cancelled while Jon's lock was creating the event, the cancel's calendar delete waited for the create and was left to the next tick, so the event stayed on the calendar for up to 15 minutes.",
+  "fix": "After a request's own calendar rows run, its rows another action wrote meanwhile (never tried) run too, so the delete follows the create at once.",
+  "tests": ["tests/int/standby.int.test.ts"]
+}

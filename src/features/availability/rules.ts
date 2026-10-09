@@ -173,6 +173,22 @@ export function isOfferLive(o: Offer, now: Date): boolean {
   );
 }
 
+/** Rule 2(f): the live standby_open offers of OTHER requests that hold this slot or range. */
+export function offersHolding(
+  slotId: string | null,
+  range: Range,
+  offers: Offer[],
+  now: Date,
+  viewerRequestId?: string,
+): Offer[] {
+  return offers.filter(
+    (o) =>
+      isOfferLive(o, now) &&
+      o.requestId !== viewerRequestId &&
+      ((slotId !== null && o.slotIds.includes(slotId)) || o.ranges.some((r) => overlaps(r, range))),
+  );
+}
+
 /** Rule 2(f): a live standby_open offer for ANOTHER request holds a slot or range. */
 export function heldByOffer(
   slotId: string | null,
@@ -181,12 +197,7 @@ export function heldByOffer(
   now: Date,
   viewerRequestId?: string,
 ): boolean {
-  return offers.some(
-    (o) =>
-      isOfferLive(o, now) &&
-      o.requestId !== viewerRequestId &&
-      ((slotId !== null && o.slotIds.includes(slotId)) || o.ranges.some((r) => overlaps(r, range))),
-  );
+  return offersHolding(slotId, range, offers, now, viewerRequestId).length > 0;
 }
 
 export function busyClash(range: Range, busy: BusyInterval[] | null): boolean {

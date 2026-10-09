@@ -18,6 +18,7 @@ import {
   type LockResult,
   type LockTarget,
   type TxOutcome,
+  withdrawHeldOffers,
 } from './lock';
 import { releaseLiveOffers } from './offers';
 import { enqueueCalendar, noSideEffects, queuedId, runAfterCommit } from './side-effects';
@@ -244,6 +245,7 @@ export async function promoteToHost(requestId: string, o: PromoteOptions = {}): 
     throw e;
   }
   if (!out.ok || !('after' in out)) return out;
+  await withdrawHeldOffers(out);
   await runAfterCommit(out.after, 'promote');
   return { ok: true, warnings: out.warnings };
 }
