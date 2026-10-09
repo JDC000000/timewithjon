@@ -1,0 +1,9 @@
+{
+  "id": "exports-bucket-too-small",
+  "date": "2026-10-09",
+  "task": "T3.10.01",
+  "area": "export",
+  "summary": "The exports bucket was pinned at 50 MiB, but the book's zip (about 150-250 photos at 3000 px) is expected around 300-400 MiB, so the real export would have been refused at upload.",
+  "fix": "The exports bucket is 450 MiB (under the 512 MB /tmp the zip is built in, and under a 500 MB project-wide limit); free-plan projects use --free-plan (50 MB). The runbook has the dashboard step for the project-wide limit.",
+  "tests": ["tests/unit/bucket-limits.test.ts", "tests/unit/pin-bucket-limits-script.test.ts"]
+}

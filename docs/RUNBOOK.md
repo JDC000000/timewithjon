@@ -68,10 +68,14 @@ Use this first, before any fix-forward, when the live site is broken after a dep
 - Test data on staging or production is removed only with the purge scripts in [STAGING.md](./STAGING.md#purge-test-data-operator-only),
   never by hand-written SQL on production.
 - Storage bucket settings are tracked in `ops/bucket-limits.ts`: `photos` 20 MiB (the app's upload cap) and the
-  photo types the uploaders send, `exports` 50 MiB of zip, both private. After creating or restoring a project, run
-  `pnpm -s tsx ops/pin-bucket-limits.ts` with that project's `SUPABASE_URL` and service role key (a dry run that lists
-  any difference), then again with `--apply`; it reads the settings back and exits 1 if one still differs. Then run
-  `ops/check-photo-bucket.ts` to see the limits hold.
+  photo types the uploaders send, `exports` 450 MiB of zip (the book's zip is expected around 300-400 MiB), both
+  private. After creating or restoring a project, run `pnpm -s tsx ops/pin-bucket-limits.ts` with that project's
+  `SUPABASE_URL` and service role key (a dry run that lists any difference), then again with `--apply`; it reads the
+  settings back and exits 1 if one still differs. Then run `ops/check-photo-bucket.ts` to see the limits hold.
+  - Production (paid plan), once, before `--apply`: dashboard > the project > **Storage** > **Settings** >
+    **Global file size limit** = `500 MB` > **Save**. A bucket can't be set above this project-wide limit.
+  - Proto and staging (free plan, where no upload can exceed 50 MB): add `--free-plan`, which caps `exports` at
+    50 MiB. An export there only fits a test-sized season.
 - Sign-ups are off (`enable_signup = false` in `supabase/config.toml`; set the same in the dashboard under
   Authentication > Sign In / Providers on every hosted project). The one admin account is added by the operator under
   Authentication > Users; the app never creates users.

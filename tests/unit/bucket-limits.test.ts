@@ -4,13 +4,14 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BUCKET_LIMITS } from '../../ops/bucket-limits';
+import { BUCKET_LIMITS, FREE_PLAN_MAX_UPLOAD_BYTES, limitsFor } from '../../ops/bucket-limits';
 import { MAX_UPLOAD_BYTES } from '../../src/features/photos/limits';
 import { EXPORTS_BUCKET } from '../../src/lib/adapters/supabase-exports';
 import { PHOTOS_BUCKET } from '../../src/lib/adapters/supabase-storage';
 
 const ROOT = path.resolve(__dirname, '../..');
-const config = readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8');
+const read = (f: string) => readFileSync(path.join(ROOT, f), 'utf8');
+const config = read('supabase/config.toml');
 const MiB = 1024 * 1024;
 
 /** The `key = value` lines of one [section] of config.toml (no TOML library in the repo; the file is flat). */
@@ -50,15 +51,29 @@ describe('Storage bucket limits', () => {
     expect(types.some((t) => t.includes('*'))).toBe(false);
   });
 
-  it('exports: 50 MiB of zip, the type the export upload sends', () => {
+  it('exports: 450 MiB of zip, the type the export upload sends', () => {
     expect(BUCKET_LIMITS.exports).toEqual({
       public: false,
-      fileSizeLimit: 50 * MiB,
+      fileSizeLimit: 450 * MiB,
       allowedMimeTypes: ['application/zip'],
     });
     expect(readFileSync(path.join(ROOT, 'src/lib/adapters/supabase-exports.ts'), 'utf8')).toContain(
       "contentType: 'application/zip'",
     );
+  });
+
+  it('exports: room for the expected book (300-400 MiB), under the 512 MB /tmp it is built in and a 500 MB project limit', () => {
+    expect(BUCKET_LIMITS.exports.fileSizeLimit).toBeGreaterThan(400 * MiB);
+    expect(BUCKET_LIMITS.exports.fileSizeLimit).toBeLessThan(500 * 1000 * 1000);
+    expect(read('src/features/export/run.ts')).toContain('/tmp');
+  });
+
+  it('a paid plan takes the limits as they are; a free plan caps every bucket at 50 MB', () => {
+    expect(limitsFor('paid')).toEqual(BUCKET_LIMITS);
+    const free = limitsFor('free');
+    expect(free.photos).toEqual(BUCKET_LIMITS.photos); // 20 MiB already fits
+    expect(free.exports).toEqual({ ...BUCKET_LIMITS.exports, fileSizeLimit: FREE_PLAN_MAX_UPLOAD_BYTES });
+    expect(FREE_PLAN_MAX_UPLOAD_BYTES).toBe(50 * MiB);
   });
 
   it.each(Object.entries(BUCKET_LIMITS))(

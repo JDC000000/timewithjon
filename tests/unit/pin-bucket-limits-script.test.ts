@@ -7,6 +7,7 @@ type Row = { public: boolean; file_size_limit?: number | null; allowed_mime_type
 const api = vi.hoisted(() => ({
   buckets: {} as Record<string, Row>,
   ignoreUpdates: false,
+  refuseUpdates: false,
   update: vi.fn(),
 }));
 vi.mock('@supabase/supabase-js', () => ({
@@ -21,6 +22,7 @@ vi.mock('@supabase/supabase-js', () => ({
         o: { public: boolean; fileSizeLimit: number; allowedMimeTypes: string[] },
       ) => {
         api.update(name, o);
+        if (api.refuseUpdates) return { data: null, error: { name: 'StorageApiError' } };
         if (!api.ignoreUpdates)
           api.buckets[name] = {
             public: o.public,
@@ -43,6 +45,7 @@ const saved = { ...process.env };
 beforeEach(() => {
   api.update.mockClear();
   api.ignoreUpdates = false;
+  api.refuseUpdates = false;
   process.exitCode = undefined;
   vi.spyOn(console, 'log').mockImplementation(() => {});
 });
@@ -96,9 +99,23 @@ describe('ops/pin-bucket-limits.ts', () => {
     });
     expect(api.buckets.exports).toEqual({
       public: false,
-      file_size_limit: 50 * 1024 * 1024,
+      file_size_limit: 450 * 1024 * 1024,
       allowed_mime_types: ['application/zip'],
     });
+  });
+
+  it('--free-plan pins exports at 50 MB (a free project takes nothing larger)', async () => {
+    api.buckets = { photos: pinned('photos'), exports: pinned('exports') }; // 450 MiB: too big for free
+    expect(await run(['--free-plan', '--apply'])).toBe(0);
+    expect(api.update).toHaveBeenCalledTimes(1);
+    expect(api.buckets.exports!.file_size_limit).toBe(50 * 1024 * 1024);
+    expect(await run(['--free-plan'])).toBe(0); // now pinned for its plan
+  });
+
+  it('a refused update names the project-wide limit and --free-plan', async () => {
+    api.buckets = { photos: pinned('photos'), exports: { public: false } };
+    api.refuseUpdates = true;
+    await expect(run(['--apply'])).rejects.toThrow(/project-wide upload limit.*--free-plan/);
   });
 
   it('a bucket that still differs after --apply exits 1', async () => {
