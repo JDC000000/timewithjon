@@ -38,6 +38,10 @@ export async function finalisePhotoUpload(
   // A story that is already full: refused before the raw file is read or decoded, and the raw file (maybe with
   // GPS) goes at once. The transaction below re-checks, for a photo that lands in between.
   if (await storyFull(row.story_id)) {
+    // A racing finalise of THIS upload may have committed the very photo that filled the story since our read:
+    // that is a success (its replay), not a refusal.
+    const made = await madePhoto(uploadId);
+    if (made) return made;
     await refuse(uploadId, store, row.incoming_path);
     return { ok: false, code: 'too_many' };
   }

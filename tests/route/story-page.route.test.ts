@@ -165,4 +165,23 @@ describe('POST /api/story-page (T3.12)', () => {
     expect(await res.json()).toMatchObject({ ok: false, code: 'invalid', message: ERRORS.generic });
     expect(await q(`select 1 from story where body = $1`, [`${tag} bidi`])).toEqual([]);
   });
+
+  it('a browser just switched to a personal invite: the typed name is kept, nothing of the invite’s is used', async () => {
+    const a = await fetch(`${BASE}/?for=priya-p4r8t2wz`, { redirect: 'manual' });
+    const first = cookieOf(a, 'twj_invite')!;
+    const b = await fetch(`${BASE}/?for=dave-k7q2m9xp`, { redirect: 'manual', headers: { cookie: first } });
+    const jar = [cookieOf(b, 'twj_invite')!, cookieOf(b, 'twj_switched')!];
+    expect(jar[1]).toBeTruthy();
+    const res = await post(
+      '/api/story-page',
+      { name: 'Sam', body: `${tag} switched`, consent: false, clientKey: randomUUID() },
+      jar.join('; '),
+    );
+    expect(res.status).toBe(200);
+    const [row] = await q<{ from_name: string | null; from_email: string | null }>(
+      `select from_name, from_email::text from story where body = $1`,
+      [`${tag} switched`],
+    );
+    expect(row).toEqual({ from_name: 'Sam', from_email: null });
+  });
 });

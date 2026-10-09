@@ -1,0 +1,9 @@
+{
+  "id": "attendee-sync-resets-answer",
+  "date": "2026-10-09",
+  "task": "T3.15",
+  "area": "calendar",
+  "summary": "A guest who answered between the attendee sync's read and its write had their answer reset to the old one.",
+  "fix": "The write is conditional on the read's etag; on a conflict it reads and diffs again, once.",
+  "tests": ["src/lib/adapters/__tests__/google-calendar.test.ts"]
+}

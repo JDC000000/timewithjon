@@ -24,7 +24,14 @@ describe('calendarEvent', () => {
       startsAt: row.locked_starts_at,
       endsAt: row.locked_ends_at,
       attendees: ['dave@example.com'],
+      guestView: { summary: 'The Long Lunch with Jon', description: 'Where: The pier' },
     });
+  });
+  it('Jon’s own event (no guest on it) still carries the guest’s view for any update that emails a guest', () => {
+    const ev = calendarEvent('req-1', { ...row, calendar_state: 'ics_sent' });
+    expect(ev).toMatchObject({ summary: 'The Long Lunch: Dave', description: 'Crew: 4\nWhere: The pier' });
+    expect(ev.guestView).toEqual({ summary: 'The Long Lunch with Jon', description: 'Where: The pier' });
+    expect(JSON.stringify(ev.guestView)).not.toMatch(/Dave|Crew/);
   });
   it('joined guests are attendees after the host, once each (§6 "Joined requests" rules 2, 3 and 5)', () => {
     expect(

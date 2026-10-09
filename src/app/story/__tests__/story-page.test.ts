@@ -61,4 +61,9 @@ describe('S19 /story', () => {
     expect(g).not.toMatch(/<input[^>]*name="name"[^>]*required/);
     expect(await html(VALID)).not.toContain(`>${STORY_FORM.nameLabel}<`);
   });
+
+  it('a personal link the browser was just switched to asks for a name too (nothing of the invite’s is used)', async () => {
+    expect(await html({ ...VALID, switched: true })).toContain(`>${STORY_FORM.nameLabel}<`);
+    expect(await html({ ...VALID, switched: false })).not.toContain(`>${STORY_FORM.nameLabel}<`);
+  });
 });

@@ -265,6 +265,129 @@ describe('GoogleCalendarGateway', () => {
     expect(JSON.parse(google.calls.at(-1)!.body)).not.toHaveProperty('attendees');
   });
 
+  it('a 409 on a live event (re-sync replaced a pending attendee patch): the attendee list converges too', async () => {
+    await gateway().insert(event());
+    google.calls.length = 0;
+    // Kim joined while Google was down; the re-sync's insert meets the live event.
+    await gateway().insert(event({ attendees: ['sam@example.com', 'kim@example.com'] }));
+    expect(writes()).toEqual([
+      `POST /calendar/v3/calendars/${CAL}/events all`,
+      `GET /calendar/v3/calendars/${CAL}/events/${EVENT_ID} null`,
+      `PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`, // Kim's invite
+    ]);
+    expect(stored_()?.attendees).toEqual([
+      { email: 'sam@example.com' },
+      { email: 'kim@example.com' },
+      { email: JON, responseStatus: 'accepted' },
+    ]);
+    // Kim left while Google was down: the re-sync takes her off (her cancellation).
+    await gateway().insert(event());
+    expect(writes().at(-1)).toBe(`PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`);
+    expect(stored_()?.attendees).toEqual([
+      { email: 'sam@example.com' },
+      { email: JON, responseStatus: 'accepted' },
+    ]);
+    // Same list: content only, silent (the retried-insert case is unchanged).
+    await gateway().insert(event());
+    expect(writes().at(-1)).toBe(`PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} none`);
+    expect(JSON.parse(google.calls.at(-1)!.body)).not.toHaveProperty('attendees');
+  });
+
+  it('the last guest leaving an event that is Jon’s alone afterwards: their cancellation shows the guest’s view, never the host’s name or crew', async () => {
+    const guestView = { summary: 'The Shore Ride with Jon', description: 'Where: The pier' };
+    await gateway().insert(
+      event({
+        summary: guestView.summary,
+        description: guestView.description,
+        attendees: ['kim@example.com'],
+        guestView,
+      }),
+    );
+    google.calls.length = 0;
+    // The .ics host's own event after Kim leaves: Jon's text ("{Dish}: {first name}", crew) and no guest.
+    await gateway().patch(
+      EVENT_ID,
+      event({
+        summary: 'The Shore Ride: Sam',
+        description: 'Crew: 2\nWhere: The pier',
+        attendees: [],
+        guestView,
+      }),
+      { attendees: true },
+    );
+    expect(writes()).toEqual([
+      `GET /calendar/v3/calendars/${CAL}/events/${EVENT_ID} null`,
+      `PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`, // Kim's cancellation
+      `PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} none`, // then Jon's own text, telling no one
+    ]);
+    const removal = google.calls[1]!.body;
+    expect(JSON.parse(removal)).toMatchObject({
+      summary: guestView.summary,
+      description: guestView.description,
+    });
+    expect(removal).not.toMatch(/Sam|Crew/);
+    expect(JSON.parse(google.calls[2]!.body)).not.toHaveProperty('attendees');
+    expect(stored_()).toMatchObject({
+      summary: 'The Shore Ride: Sam',
+      description: 'Crew: 2\nWhere: The pier',
+    });
+  });
+
+  it('the attendee update is conditional on the GET’s etag: a guest who answers in between keeps their answer', async () => {
+    await gateway().insert(event());
+    const key = `${CAL}/${EVENT_ID}`;
+    let raced = false;
+    // Sam accepts between our GET and our PATCH (the GET returns the old copy, Google then changes it).
+    google.state.overrides.push((call) => {
+      if (raced || call.method !== 'GET' || !call.url.pathname.endsWith(EVENT_ID)) return undefined;
+      raced = true;
+      const before = google.events.get(key)!;
+      google.put(key, {
+        ...before,
+        attendees: [
+          { email: 'sam@example.com', responseStatus: 'accepted' },
+          { email: JON, responseStatus: 'accepted' },
+        ],
+      });
+      return { status: 200, json: before };
+    });
+    google.calls.length = 0;
+    await gateway().patch(EVENT_ID, event({ attendees: ['sam@example.com', 'kim@example.com'] }), {
+      attendees: true,
+    });
+    expect(writes()).toEqual([
+      `GET /calendar/v3/calendars/${CAL}/events/${EVENT_ID} null`,
+      `PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`, // 412: the etag moved
+      `GET /calendar/v3/calendars/${CAL}/events/${EVENT_ID} null`,
+      `PATCH /calendar/v3/calendars/${CAL}/events/${EVENT_ID} all`,
+    ]);
+    expect(google.calls[1]!.ifMatch).toBeTruthy();
+    expect(stored_()?.attendees).toEqual([
+      { email: 'sam@example.com', responseStatus: 'accepted' }, // kept, not reset
+      { email: 'kim@example.com' },
+      { email: JON, responseStatus: 'accepted' },
+    ]);
+  });
+
+  it('a second 412 in a row is thrown (the outbox retries later); nothing is written', async () => {
+    await gateway().insert(event());
+    google.state.overrides.push((call) =>
+      call.method === 'PATCH'
+        ? { status: 412, json: { error: { errors: [{ reason: 'conditionNotMet' }] } } }
+        : undefined,
+    );
+    await expect(
+      gateway().patch(EVENT_ID, event({ attendees: ['sam@example.com', 'kim@example.com'] }), {
+        attendees: true,
+      }),
+    ).rejects.toMatchObject({ status: 412 });
+    expect(google.calls.filter((c) => c.method === 'PATCH')).toHaveLength(2);
+    expect(stored_()?.attendees).toEqual([
+      { email: 'sam@example.com' },
+      { email: JON, responseStatus: 'accepted' },
+    ]);
+  });
+
   it.each([['primary'], ['PRIMARY'], ['jon@example.com'], [null], ['']])(
     'the write guard refuses a stored calendar of %j before any call',
     async (bad) => {

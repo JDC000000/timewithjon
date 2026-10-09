@@ -14,6 +14,11 @@ export interface StoryPageInput {
   consent: boolean;
   before60Answer?: string;
   spam?: boolean;
+  /**
+   * The browser was just switched to this invite from another one (session.ts SWITCHED_COOKIE): the visitor may not be
+   * its guest, so nothing of the invite's own name or email is put on the story; a typed name is.
+   */
+  switched?: boolean;
 }
 
 type StoryInvite = Pick<Invite, 'id' | 'kind' | 'display_name' | 'prefill_name' | 'prefill_email'>;
@@ -115,8 +120,8 @@ export async function createStoryPageStory(
       s.consent,
       s.before60Answer ?? null,
       s.spam ?? false,
-      s.name ?? defaultFromName(invite),
-      invite.prefill_email,
+      s.name ?? (s.switched ? null : defaultFromName(invite)),
+      s.switched ? null : invite.prefill_email,
       invite.id,
       clientKey,
       hash,

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ERRORS } from '@/content';
 import { announce } from '@/ui/focus';
-import { send } from './api';
+import { send, type ApiAnswer } from './api';
 
 export function useAction() {
   const router = useRouter();
@@ -17,7 +17,12 @@ export function useAction() {
     method: 'POST' | 'DELETE',
     url: string,
     body: unknown,
-    done: { status: string; after?: () => void },
+    done: {
+      status: string;
+      after?: () => void;
+      /** A refusal the caller handles itself (e.g. one that asks for a tick): true = shown there, not here. */
+      refused?: (res: ApiAnswer) => boolean;
+    },
   ): Promise<boolean> => {
     if (busy) return false;
     setBusy(true);
@@ -25,6 +30,7 @@ export function useAction() {
     const res = await send(method, url, body);
     setBusy(false);
     if (res.status !== 200) {
+      if (done.refused?.(res)) return false;
       setProblem(res.status === 409 && res.message ? res.message : ERRORS.generic);
       return false;
     }

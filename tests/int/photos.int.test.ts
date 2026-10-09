@@ -43,11 +43,20 @@ vi.mock('sharp', async (orig) => {
   };
   return { default: Object.assign(counted, real) };
 });
-const dbFault = vi.hoisted(() => ({ failNextTx: false }));
+const dbFault = vi.hoisted(() => ({ failNextTx: false, staleUploadRead: false }));
 vi.mock('@/lib/db', async (orig) => {
   const real = await orig<typeof import('@/lib/db')>();
   return {
     ...real,
+    // staleUploadRead: finalise's first read of its upload sees it as it was before a racing finalise committed
+    q: async (sql: string, params?: unknown[]) => {
+      const rows = await real.q(sql, params as never);
+      if (dbFault.staleUploadRead && /as refused\s+from photo_upload where id = \$1/.test(sql)) {
+        dbFault.staleUploadRead = false;
+        return (rows as Record<string, unknown>[]).map((r) => ({ ...r, photo_id: null, refused: false }));
+      }
+      return rows;
+    },
     withTx: <T>(fn: Parameters<typeof real.withTx<T>>[0]) => {
       if (!dbFault.failNextTx) return real.withTx(fn);
       dbFault.failNextTx = false;
@@ -740,13 +749,15 @@ describe('the media job (T3.6.04/.05)', () => {
     const backup = createMemoryBackup();
     const release = holdEveryDecodeSlot();
     try {
-      expect(await runMediaJob({ store: mem.store, backup }, 5_000, 0)).toEqual({ done: 0, failed: 1 });
+      // busy is not a failure: no attempt spent, nothing reported (see the 8-run case below)
+      expect(await runMediaJob({ store: mem.store, backup }, 5_000, 0)).toEqual({ done: 0, failed: 0 });
     } finally {
       await release();
     }
     expect((await outbox()).find((o) => o.kind === 'attachment_finalise')).toMatchObject({
       done_at: null,
-      last_error: 'MediaRetryError',
+      last_error: 'busy',
+      attempts: 0,
     });
     expect(
       await q(`select 1 from photo_upload where id = $1 and finalised_at is null`, [s.uploadId]),
@@ -917,4 +928,54 @@ describe('sign: a lifetime cap on upload attempts that end without a photo', () 
     );
     expect(await signPhotoUpload(storyId, mem.store)).toEqual({ ok: false, code: 'too_many_attempts' });
   });
+});
+
+describe('finalise and the media job under load', () => {
+  it('a racing finalise that already made THIS upload’s photo (filling the story) is answered as that photo, not too_many', async () => {
+    const storyId = await newStory();
+    const first = await upload(storyId, await jpegWithGps());
+    expect((await finalisePhotoUpload(first, storyId, mem.store)).ok).toBe(true);
+    const second = await upload(storyId, await jpegWithGps());
+    const made = await finalisePhotoUpload(second, storyId, mem.store); // fills the story (2 of 2)
+    expect(made).toMatchObject({ ok: true, replay: false });
+    // a retry of the same upload whose first read predates that commit: the story now looks full
+    dbFault.staleUploadRead = true;
+    const retry = await finalisePhotoUpload(second, storyId, mem.store);
+    expect(retry).toEqual({ ok: true, photoId: (made as { photoId: string }).photoId, replay: true });
+    expect(dbFault.staleUploadRead).toBe(false); // the stale read really happened
+    // nothing was refused or removed
+    expect(await q(`select 1 from photo where story_id = $1`, [storyId])).toHaveLength(2);
+  });
+
+  it('eight busy runs of the media job spend no attempt and report nothing', async () => {
+    const storyId = (
+      await q<{ id: string }>(`insert into story (source) values ('email_in') returning id`)
+    )[0]!.id;
+    const s = await signPhotoUpload(storyId, mem.store);
+    if (!s.ok) throw new Error(s.code);
+    mem.store.put(s.path, await png());
+    await q(`insert into outbox (kind, payload) values ('attachment_finalise', $1)`, [
+      { photoUploadId: s.uploadId },
+    ]);
+    report.mockClear();
+    const backup = createMemoryBackup();
+    const release = holdEveryDecodeSlot();
+    try {
+      for (let i = 0; i < MEDIA_MAX_ATTEMPTS; i++) {
+        await q(`update outbox set next_attempt_at = now() where kind = 'attachment_finalise'`);
+        expect(await runMediaJob({ store: mem.store, backup }, 5_000, 0)).toEqual({ done: 0, failed: 0 });
+      }
+    } finally {
+      await release();
+    }
+    expect((await outbox()).find((o) => o.kind === 'attachment_finalise')).toMatchObject({
+      attempts: 0,
+      last_error: 'busy',
+      done_at: null,
+    });
+    expect(report).not.toHaveBeenCalled();
+    // and once a slot frees it simply finalises
+    await q(`update outbox set next_attempt_at = now()`);
+    expect(await runMediaJob({ store: mem.store, backup }, 20_000, 0)).toEqual({ done: 2, failed: 0 });
+  }, 60_000);
 });

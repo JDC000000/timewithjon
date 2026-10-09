@@ -29,6 +29,30 @@ export type OfferActionResult =
 
 export const SUGGESTABLE = new Set(['requested', 'standby', 'needs_new_time']);
 
+/**
+ * A joined guest rides its host's booking: no offers of its own while that host is on (locked or done). Once the
+ * host has gone (rule 4: cancelled, weather-called, re-requested), the guest is back in Needs a reply and Jon can
+ * offer them times or stand-by like anyone (QA5 N-M2: it answered not_allowed). True = still riding a live host.
+ */
+export async function ridesLiveHost(c: PoolClient, joinedTo: string | null): Promise<boolean> {
+  if (!joinedTo) return false;
+  const { rows } = await c.query<{ on: boolean }>(
+    `select status in ('locked', 'done') as on from request where id = $1`,
+    [joinedTo],
+  );
+  return rows[0]?.on ?? false;
+}
+
+/**
+ * Offering a guest whose host has gone their own times detaches them from that host: the old host's time copied
+ * onto their row (kept only for Promote to host) goes with it. A no-op for anyone else.
+ */
+export const DETACH_GONE_HOST = `joined_to_request_id = null,
+  locked_slot_id = case when joined_to_request_id is null then locked_slot_id end,
+  locked_starts_at = case when joined_to_request_id is null then locked_starts_at end,
+  locked_ends_at = case when joined_to_request_id is null then locked_ends_at end,
+  locked_where = case when joined_to_request_id is null then locked_where end`;
+
 export interface RequestForOffer {
   status: RequestStatus;
   dish: string;
@@ -107,7 +131,7 @@ async function suggestTx(
   const none = noSideEffects();
   const r = await requestForOffer(c, a.requestId);
   if (!r) return { result: { ok: false, status: 404, reason: 'request_not_found' }, after: none };
-  if (!SUGGESTABLE.has(r.status) || r.joined_to_request_id) {
+  if (!SUGGESTABLE.has(r.status) || (await ridesLiveHost(c, r.joined_to_request_id))) {
     return { result: { ok: false, status: 409, reason: 'not_allowed' }, after: none };
   }
   const times = await offeredTimes(c, a.options, r.dish, a.now);
@@ -129,9 +153,10 @@ async function suggestTx(
 
   await releaseLiveOffers(c, a.requestId);
   const offerId = await createOffer(c, { requestId: a.requestId, kind: 'suggested_times', ...a.options });
-  await c.query(`update request set status = 'needs_new_time', awaiting_jon_since = null where id = $1`, [
-    a.requestId,
-  ]);
+  await c.query(
+    `update request set status = 'needs_new_time', awaiting_jon_since = null, ${DETACH_GONE_HOST} where id = $1`,
+    [a.requestId],
+  );
   await audit(c, a.requestId, 'times_suggested', {
     from_status: r.status,
     to_status: 'needs_new_time',

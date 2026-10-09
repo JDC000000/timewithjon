@@ -17,6 +17,8 @@ export interface RecordedCall {
   url: URL;
   body: string;
   auth: string | null;
+  /** The If-Match header, when sent. */
+  ifMatch: string | null;
 }
 
 export function idToken(claims: Record<string, unknown>): string {
@@ -33,6 +35,11 @@ export function fakeGoogle() {
   /** Events by `${calendarId}/${eventId}`; a deleted event stays with status 'cancelled' (as Google keeps it). */
   const events = new Map<string, Record<string, unknown>>();
   let nextCalendar = 1;
+  /** Every stored event carries an etag; each write gives it a new one (as Google does). */
+  let nextEtag = 1;
+  const etag = () => `"${nextEtag++}"`;
+  /** Store an event with a fresh etag (a test changing an event behind the app's back uses it too). */
+  const put = (key: string, e: Record<string, unknown>) => events.set(key, { ...e, etag: etag() });
   const state = {
     /** What the token endpoint answers for an authorization_code exchange. */
     account: 'jon@example.com',
@@ -121,21 +128,24 @@ export function fakeGoogle() {
       if (method === 'POST' && !ev[2]) {
         const key = `${calId}/${String(body.id)}`;
         if (events.has(key)) return { status: 409, json: { error: { errors: [{ reason: 'duplicate' }] } } };
-        events.set(key, { status: 'confirmed', ...body });
+        put(key, { status: 'confirmed', ...body });
         return { status: 200, json: events.get(key) };
       }
       const key = `${calId}/${decodeURIComponent(ev[2] ?? '')}`;
       const existing = events.get(key);
       if (!existing) return { status: 404, json: { error: { errors: [{ reason: 'notFound' }] } } };
       if (method === 'GET') return { status: 200, json: existing }; // cancelled events too, as Google does
+      // A conditional write against a changed event: 412, nothing written (Google's If-Match).
+      if (call.ifMatch && call.ifMatch !== existing.etag)
+        return { status: 412, json: { error: { errors: [{ reason: 'conditionNotMet' }] } } };
       if (method === 'PATCH') {
-        events.set(key, { ...existing, ...body });
+        put(key, { ...existing, ...body });
         return { status: 200, json: events.get(key) };
       }
       if (method === 'DELETE') {
         if (existing.status === 'cancelled')
           return { status: 410, json: { error: { errors: [{ reason: 'deleted' }] } } };
-        events.set(key, { ...existing, status: 'cancelled' });
+        put(key, { ...existing, status: 'cancelled' });
         return { status: 204 };
       }
     }
@@ -149,6 +159,7 @@ export function fakeGoogle() {
       url: new URL(String(input)),
       body: typeof init?.body === 'string' ? init.body : '',
       auth: headers.get('authorization'),
+      ifMatch: headers.get('if-match'),
     };
     calls.push(call);
     for (const o of state.overrides) {
@@ -158,5 +169,5 @@ export function fakeGoogle() {
     return reply(route(call));
   }
 
-  return { fetch: fetchImpl, calls, calendars, events, state };
+  return { fetch: fetchImpl, calls, calendars, events, state, put };
 }

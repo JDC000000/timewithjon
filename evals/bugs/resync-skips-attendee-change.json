@@ -1,0 +1,13 @@
+{
+  "id": "resync-skips-attendee-change",
+  "date": "2026-10-09",
+  "task": "T3.15",
+  "area": "calendar",
+  "summary": "A joined guest's attendee change that failed while Google was down was never applied by Re-sync: the re-sync's 409 path only patched the event's content.",
+  "fix": "On a live event the 409 path also brings the attendee list in line (an invite or cancellation only for the guests that changed).",
+  "tests": [
+    "src/lib/adapters/__tests__/google-calendar.test.ts",
+    "tests/int/calendar-resync.int.test.ts",
+    "src/features/calendar/__tests__/outbox-wiring.test.ts"
+  ]
+}

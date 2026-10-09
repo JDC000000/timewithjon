@@ -46,7 +46,15 @@ type TxArgs = Omit<CreateArgs, 'capGuestEmails'> & { sendGuestEmails?: boolean }
 
 /** ENG-01: the body a client key stands for (the key itself and the one-use Turnstile token aside). */
 export function requestPayloadHash(b: RequestBody): string {
-  return payloadHash({ ...b, clientKey: undefined, turnstileToken: undefined }); // undefined keys drop out
+  // The picks are a set: the form appends them in tap order, so B, A after Back is the same request as A, B.
+  const sorted = (a: string[]) => [...a].sort();
+  return payloadHash({
+    ...b,
+    slotIds: sorted(b.slotIds),
+    dates: sorted(b.dates),
+    clientKey: undefined, // undefined keys drop out
+    turnstileToken: undefined,
+  });
 }
 
 type StoredKey = { id: string; invite_id: string; client_payload_hash: string | null };
@@ -212,7 +220,7 @@ export async function createRequestTx(
  * CR-02: the general invite's cap is counted BEFORE the transaction. hit() goes through the pool; taken inside the
  * transaction it needed a second connection while this one was held, so a few concurrent general-link Sends used
  * up the pool (3), waited out its 5 s timeout, and the limiter failed open (the cap went uncounted). A bot (spam)
- * never counts. A replayed client_key counts once more; it queues no email, so that only makes the cap stricter.
+ * never counts. A replay or a Back-after-Send duplicate never reaches here (the route answers it first).
  */
 export async function createRequest({ capGuestEmails, ...a }: CreateArgs) {
   const sendGuestEmails =

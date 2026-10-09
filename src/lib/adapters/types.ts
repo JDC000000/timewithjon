@@ -29,6 +29,9 @@ export interface CalendarEvent {
   startsAt: Date;
   endsAt: Date;
   attendees: string[];
+  /** What a guest sees (src/features/calendar/event.ts): the text any update that emails a guest carries, even
+   *  when the event itself is Jon's alone afterwards (the last guest leaving). Absent = summary/description. */
+  guestView?: { summary: string; description: string };
 }
 /** One event's attendees as the app sees them (T3.15.01): Google's raw answers never leave the adapter. */
 export interface EventRsvps {
