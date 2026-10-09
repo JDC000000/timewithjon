@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { pool, q, withTx } from '@/lib/db';
-import { createRequestTx, ReplayConflictError } from '@/features/requests/create';
+import { createRequest, createRequestTx, ReplayConflictError } from '@/features/requests/create';
 import { RequestBody } from '@/features/requests/schema';
 import { saveAfterSendStory } from '@/features/photos/after-send';
 import { deliverRequestEmails, queueEmail, sendTemplate } from '@/features/email/send';
@@ -192,12 +192,15 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
   it('the general invite: the 21st request in a day queues E2 but not E1, and is still stored (B006)', async () => {
     await q(`delete from rate_limit where scope = 'requestSendInvite'`);
     try {
-      const capped = (b: ReturnType<typeof mk>) => ({ ...args(b), capGuestEmails: true });
+      // CR-02: through createRequest, which takes the cap before its transaction.
+      const capped = (b: ReturnType<typeof mk>) => createRequest({ ...args(b), capGuestEmails: true });
+      // A bot (the honeypot) never counts toward it: the 20 after it still get their E1.
+      await createRequest({ ...args(mk(), true), capGuestEmails: true });
       for (let i = 0; i < 20; i++) {
-        const { requestId } = await create(capped(mk()));
+        const { requestId } = await capped(mk());
         expect((await emailsFor(requestId)).map((e) => e.template)).toEqual(['E1', 'E2']);
       }
-      const { requestId } = await create(capped(mk()));
+      const { requestId } = await capped(mk());
       expect((await emailsFor(requestId)).map((e) => e.template)).toEqual(['E2']);
       expect(await q(`select 1 from request where id = $1`, [requestId])).toHaveLength(1);
       // A personal invite is never capped.
