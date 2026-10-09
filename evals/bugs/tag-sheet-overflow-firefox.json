@@ -1,0 +1,9 @@
+{
+  "id": "tag-sheet-overflow-firefox",
+  "date": "2026-10-09",
+  "task": "UX-A11Y",
+  "area": "guest",
+  "summary": "/tag scrolled sideways in Firefox on phones: the Letter preview stayed 680 px, because its scale used calc(length / length) (unsupported in Firefox) and nothing set the --sheet-k fallback.",
+  "fix": "The scale is zoom: min(1, tan(atan2(100cqi, --letter-w))), a number every current engine computes; SheetFit sets --sheet-k from the column where even that isn't supported.",
+  "tests": ["src/app/tag/__tests__/sheet-fit.dom.test.tsx", "src/app/tag/__tests__/tag-page.dom.test.tsx"]
+}

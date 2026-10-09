@@ -1,0 +1,9 @@
+{
+  "id": "month-tabs-narrow-wide-screens",
+  "date": "2026-10-09",
+  "task": "UX-A11Y",
+  "area": "a11y",
+  "summary": "From 1024 px the picker’s month tabs were 29–35 px wide (text width).",
+  "fix": "Each month keeps --s2 at its sides (taken out of the row gap, so the months sit where they did), at least --tap wide; the underline stays under the words.",
+  "tests": ["tests/unit/ui/ux-targets-css.test.ts", "tests/e2e/ui/ux-targets.spec.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "toast-pauses-under-pointer",
+  "date": "2026-10-09",
+  "task": "UX-A11Y",
+  "area": "a11y",
+  "summary": "On a phone-width layout with a pointer, the lock toast appeared under the pointer that pressed Lock in and paused itself at once.",
+  "fix": "An enter in the toast’s first 600 ms (the pointer was already there) pauses only once the pointer really moves to another place; a later enter is a hover and pauses as before.",
+  "tests": ["tests/unit/ui/primitives.dom.test.tsx"]
+}

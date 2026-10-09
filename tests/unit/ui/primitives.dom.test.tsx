@@ -2,7 +2,7 @@
 // behaviour, driven by user-event. Sheet, Menu placement and Toast-in-view run in real browsers
 // (tests/e2e/ui/primitives.spec.ts).
 import { readFileSync } from 'node:fs';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFocusGuard } from '@/ui/focus';
@@ -372,6 +372,33 @@ describe('Toast (jsdom: always in view)', () => {
     expect(region.textContent).toContain('Paused.');
     await user.unhover(region);
     await act(() => new Promise((r) => setTimeout(r, 20)));
+    expect(region.textContent).toContain('Invite goes out in 10 s.');
+  });
+});
+
+describe('Toast under a still pointer (UX-07)', () => {
+  const props = {
+    message: 'Locked in: Priya.',
+    sub: (s: number) => `Invite goes out in ${s} s.`,
+    pausedText: 'Paused.',
+    undoLabel: 'Undo',
+    undoVh: ' lock-in for Priya',
+  };
+  it('appearing under the pointer that pressed Lock in, it keeps counting; a real move then pauses it', () => {
+    vi.useFakeTimers();
+    render(<Toast {...props} seconds={10} onUndo={() => {}} onExpire={() => {}} />);
+    const region = screen.getByRole('region');
+    // the enter the browser reports as the toast lands under the pointer, and its same-place layout moves
+    fireEvent.mouseEnter(region);
+    fireEvent.mouseMove(region, { clientX: 200, clientY: 700 });
+    act(() => vi.advanceTimersByTime(2000));
+    fireEvent.mouseMove(region, { clientX: 200, clientY: 700 });
+    expect(region.textContent).toContain('Invite goes out in 8 s.');
+    expect(region.textContent).not.toContain('Paused.');
+    fireEvent.mouseMove(region, { clientX: 210, clientY: 690 }); // the pointer really moves over it: a hover
+    expect(region.textContent).toContain('Paused.');
+    fireEvent.mouseLeave(region);
+    act(() => vi.advanceTimersByTime(20));
     expect(region.textContent).toContain('Invite goes out in 10 s.');
   });
 });

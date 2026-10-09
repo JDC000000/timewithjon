@@ -106,6 +106,14 @@ export function DetailPane(p: DetailPaneProps) {
   useEffect(() => {
     if (confirmCancel) moveFocus(questionRef.current, 'script');
   }, [confirmCancel]);
+  // UX-02: after the weather call the request re-reads as needing a new time and its "Weather call ›" button is gone, so
+  // the sheet has nothing to give focus back to: it goes to the caption (the new status), as after a lock.
+  const weatherSent = useRef(false);
+  useEffect(() => {
+    if (!weatherSent.current || view.filter === 'locked') return;
+    weatherSent.current = false;
+    moveFocus(capRef.current, 'script');
+  }, [view.filter]);
 
   const startWindow = (target: Target, label: string) => {
     if (locking || !lockCtl.start({ requestId, target, ticks })) return;
@@ -653,6 +661,7 @@ export function DetailPane(p: DetailPaneProps) {
           dish={p.dishName}
           open={sheet === 'weather'}
           onClose={close}
+          onSent={() => (weatherSent.current = true)}
         />
       ) : null}
     </>
