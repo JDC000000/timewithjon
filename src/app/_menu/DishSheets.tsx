@@ -57,7 +57,8 @@ export function SheetBody({ line, sheet, gate }: { line: string; sheet: DishShee
         </p>
       ) : null}
       {gate.kind === 'book' ? (
-        <p style={{ marginTop: 'var(--s5)' }}>
+        // M2 (Jon, 2026-10-09): pinned to the sheet's bottom edge (site.css .sheet-book), so Book is always in reach
+        <p className="sheet-book">
           <Button href={sheet.book.href} block>
             {sheet.book.label}
           </Button>
