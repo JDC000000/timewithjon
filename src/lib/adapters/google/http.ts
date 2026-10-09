@@ -78,6 +78,8 @@ export interface GoogleRequest {
   accessToken?: string;
   json?: unknown;
   form?: Record<string, string>;
+  /** The resource's etag: Google answers 412 when it changed since (a guest answered in between). */
+  ifMatch?: string;
 }
 
 /** One in-request retry, short enough for a Vercel function; the outbox/job retries the rest (pr35 F6). */
@@ -129,6 +131,7 @@ async function googleFetchOnce<T>(url: string, req: GoogleRequest): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
   let body: string | undefined;
   if (req.accessToken) headers.authorization = `Bearer ${req.accessToken}`;
+  if (req.ifMatch) headers['if-match'] = req.ifMatch;
   if (req.form) {
     headers['content-type'] = 'application/x-www-form-urlencoded';
     body = new URLSearchParams(req.form).toString();

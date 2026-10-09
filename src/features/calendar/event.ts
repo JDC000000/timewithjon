@@ -41,17 +41,20 @@ export function calendarEvent(
   const attendees = r.calendar_state === 'ics_sent' ? others : [r.contact_email, ...others];
   const guestSees = forGuest || attendees.length > 0;
   const where = r.locked_where ? fill(CALENDAR_EVENT.where, { where: r.locked_where }) : null;
-  const description = guestSees
-    ? (where ?? '')
-    : [fill(CALENDAR_EVENT.crew, { crew: r.crew_size }), where].filter(Boolean).join('\n');
+  const guestView = { summary: fill(CALENDAR_EVENT.guestSummary, { dish }), description: where ?? '' };
   return {
     requestId,
-    summary: guestSees
-      ? fill(CALENDAR_EVENT.guestSummary, { dish })
-      : fill(CALENDAR_EVENT.summary, { dish, firstName }),
-    description,
+    ...(guestSees
+      ? guestView
+      : {
+          summary: fill(CALENDAR_EVENT.summary, { dish, firstName }),
+          description: [fill(CALENDAR_EVENT.crew, { crew: r.crew_size }), where].filter(Boolean).join('\n'),
+        }),
     startsAt: r.locked_starts_at!,
     endsAt: r.locked_ends_at!,
     attendees,
+    // The text any update that emails a guest carries, even when the event is Jon's alone after it (the last
+    // joined guest leaving an .ics host's event: their cancellation must not show the host's name or crew).
+    guestView,
   };
 }
