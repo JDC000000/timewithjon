@@ -10,7 +10,7 @@ export function E1({ vars, tagUrl }: { vars: Record<string, string | number>; ta
   const copy = copyFor('E1', vars);
   return (
     <Layout title={fill(copy.subject, vars)} signOff note ps={postScriptFor('E1', tagUrl)}>
-      <Body copy={copy.body} vars={vars} lists={['times']} buttons={{ manageLink: GUEST_BUTTON.E1 }} />
+      <Body copy={copy.body} vars={vars} lists={['times']} buttons={{ manageLink: GUEST_BUTTON.E1 }} note />
     </Layout>
   );
 }

@@ -4,7 +4,7 @@
 // - note (every guest email, r6 fix 3, approved: Jon 2026-10-09): a personal note: plain left-aligned text in the
 //   system font, no canvas, no card, no mark; the action is an underlined text link with the same words; the italic
 //   "Jon" stays. (A designed, branded template is what Gmail files under Promotions.)
-import { createContext, useContext, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { MARK } from '@/content/ui/foundation';
 import { POSTSCRIPT, SIGN_OFF, fill, type TemplateId } from '@/content/emails';
 
@@ -33,9 +33,6 @@ export function postScriptFor(id: TemplateId, tagUrl: string): PostScript | unde
     ...(ps.tagLink ? { link: { label: ps.words.printTag, href: tagUrl } } : {}),
   };
 }
-
-/** Set by Layout: in a note, a Button draws as an underlined text link. */
-const NoteLook = createContext(false);
 
 export interface LayoutProps {
   /** The subject: the <title> of the document. */
@@ -103,7 +100,7 @@ export function Layout({ title, children, signOff, ps, note = false }: LayoutPro
               wordBreak: 'break-word',
             }}
           >
-            <NoteLook.Provider value>{children}</NoteLook.Provider>
+            {children}
             <SignOffAndPs signOff={signOff} ps={ps} />
           </div>
         </body>
@@ -172,10 +169,19 @@ export function Layout({ title, children, signOff, ps, note = false }: LayoutPro
 
 /**
  * A button is a plain link to a page (N2): the page does the work on its own POST, never the GET. In a note (a guest
- * email) it is an underlined text link with the same words; in a card (Jon-facing) the dark button.
+ * email, `note`) it is an underlined text link with the same words; in a card (Jon-facing) the dark button. (The look
+ * is passed down, not read from a React context: these templates also render inside server modules.)
  */
-export function Button({ href, children }: { href: string; children: ReactNode }) {
-  if (useContext(NoteLook))
+export function Button({
+  href,
+  children,
+  note = false,
+}: {
+  href: string;
+  children: ReactNode;
+  note?: boolean;
+}) {
+  if (note)
     return (
       <p style={{ margin: '20px 0 0' }}>
         <a href={href} style={{ color: INK, textDecoration: 'underline' }}>
@@ -212,6 +218,8 @@ export interface BodyOptions {
   lists?: string[];
   /** Vars whose line in the body is a URL: drawn as a Button with this label (E2 {adminLink}). */
   buttons?: Record<string, string>;
+  /** A guest email's note look: its button lines are text links. */
+  note?: boolean;
 }
 
 /**
@@ -224,6 +232,7 @@ export function Body({
   vars,
   lists = [],
   buttons = {},
+  note = false,
 }: { copy: string; vars: Record<string, string | number> } & BodyOptions) {
   const lines = copy.split('\n').filter((line) => fill(line, vars).trim());
   return (
@@ -242,7 +251,7 @@ export function Body({
         }
         if (only && buttons[only]) {
           return (
-            <Button key={i} href={String(vars[only])}>
+            <Button key={i} href={String(vars[only])} note={note}>
               {buttons[only]}
             </Button>
           );

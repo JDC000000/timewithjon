@@ -39,15 +39,15 @@ export function Mail({
   const body = at >= 0 ? lines.slice(0, at).join('\n') : copy;
   const notes = at >= 0 ? lines.slice(at + 1).filter((l) => l.trim()) : [];
   if (href && !button) throw new MissingButtonLabelError(id);
+  const guest = !JON_FACING.includes(id); // every guest email is a personal note (r6 fix 3); Jon's keep the card
   return (
-    <Layout
-      title={fill(copyFor(id, vars).subject, vars)}
-      signOff={!JON_FACING.includes(id)}
-      note={!JON_FACING.includes(id)} // every guest email is a personal note (r6 fix 3); Jon's keep the card
-      ps={ps}
-    >
-      <Body copy={body} vars={vars} lists={lists} />
-      {href && <Button href={href}>{button}</Button>}
+    <Layout title={fill(copyFor(id, vars).subject, vars)} signOff={guest} note={guest} ps={ps}>
+      <Body copy={body} vars={vars} lists={lists} note={guest} />
+      {href && (
+        <Button href={href} note={guest}>
+          {button}
+        </Button>
+      )}
       {href &&
         notes.map((note, i) => (
           <p key={i} style={{ margin: '8px 0 0', fontSize: 15, color: INK_2 }}>
