@@ -1,0 +1,9 @@
+{
+  "id": "db-default-privileges-later-objects",
+  "date": "2026-10-09",
+  "task": "T0.2.10",
+  "area": "database",
+  "summary": "Objects a later migration creates were not all locked down: a new function was executable by anon and authenticated (Postgres's built-in PUBLIC default can't be removed by a per-schema default), the default for new sequences was never revoked, and nothing checked that every table keeps RLS on with no policies.",
+  "fix": "A migration revokes the defaults for later sequences (anon, authenticated) and later functions (PUBLIC, globally for the migration role); an integration test checks every public table has RLS on and no policy, the two roles hold no privilege on any table, sequence or function, and objects created later get none.",
+  "tests": ["tests/int/db-lockdown.int.test.ts"]
+}

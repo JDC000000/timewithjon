@@ -48,6 +48,8 @@ const REVIEWED_MIGRATIONS = new Set<string>([
   '20261102000700_request_overnight_night.sql',
   // ENG-01/ENG-14: one nullable hash column (and the audit detail key); reads no row, never names the plan.
   '20261102000750_client_payload_hash.sql',
+  // AD-3 default privileges for later sequences and functions: no table, no row, no trigger (its "new" is prose).
+  '20261102000760_default_privileges_sequences.sql',
 ]);
 const migrationHits = (name: string, text: string) => [
   ...(PLAN.test(text) ? [`${name}: names the plan`] : []),
