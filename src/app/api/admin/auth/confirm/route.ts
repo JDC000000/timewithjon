@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getEnv } from '@/config/env';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
+import { setKnownDevice } from '@/features/admin/known-device';
 import { completeSignIn } from '@/features/admin/verify';
 import { clientIp, jsonError, noStore, readBytesAtMost, sameOrigin } from '@/lib/http';
 import { check } from '@/lib/ratelimit';
@@ -71,5 +72,8 @@ export async function POST(req: NextRequest) {
   if (!result.ok && result.reason === 'not_admin') {
     return noStore(jsonError(401, 'unauthorized', ERRORS.generic));
   }
-  return see(result.ok ? ADMIN_HOME : SIGN_IN_FAILED);
+  if (!result.ok) return see(SIGN_IN_FAILED);
+  const res = see(ADMIN_HOME);
+  setKnownDevice(res, result.email); // the link signed in: this browser is now the admin's known device
+  return res;
 }

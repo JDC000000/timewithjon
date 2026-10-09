@@ -12,15 +12,27 @@ export interface Slot {
 
 /** AD-7 / review F1: the P0 sign-in cap per UTC day. Set in code by APP_MODE, never by an env var. */
 export const SIGNIN_CAP: Record<AppMode, number> = { production: 8, prototype: 2, staging: 2 };
+/**
+ * Of the cap, this many sign-in emails a day are kept for the admin's known device (features/admin/known-device.ts):
+ * a start from any other browser stops at SIGNIN_CAP - this, so the admin's own sign-in always has room.
+ */
+export const SIGNIN_KNOWN_DEVICE_RESERVE: Record<AppMode, number> = {
+  production: 2,
+  prototype: 1,
+  staging: 1,
+};
 
 /**
  * Reserves one send in today's row, atomically. A sign-in slot also bumps signin_count, and only while it's
- * under the cap: no row back means capped (null). App slots are never capped here.
+ * under the cap (for a browser that isn't the admin's known device, under the cap less the kept slots): no row
+ * back means capped (null). App slots are never capped here.
  */
 export async function takeSlot(
   kind: SlotKind = 'app',
   mode: AppMode = getEnv().APP_MODE,
+  knownDevice = false,
 ): Promise<Slot | null> {
+  const cap = knownDevice ? SIGNIN_CAP[mode] : SIGNIN_CAP[mode] - SIGNIN_KNOWN_DEVICE_RESERVE[mode];
   const rows = await q<Slot>(
     `insert into email_budget (utc_day, sent_count, signin_count)
      values ((now() at time zone 'utc')::date, 1, $1)
@@ -30,7 +42,7 @@ export async function takeSlot(
            updated_at = now()
        where $1 = 0 or email_budget.signin_count < $2
      returning utc_day::text as day, sent_count as count`,
-    [kind === 'signin' ? 1 : 0, SIGNIN_CAP[mode]],
+    [kind === 'signin' ? 1 : 0, cap],
   );
   return rows[0] ?? null;
 }

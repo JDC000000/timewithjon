@@ -5,8 +5,10 @@ import { isAuthRetryableFetchError, type AuthError } from '@supabase/supabase-js
 import { getEnv, type AppMode } from '@/config/env';
 import { releaseSlot, takeSlot } from '@/features/email/budget';
 import { q } from '@/lib/db';
+import { check } from '@/lib/ratelimit';
 import { reportMessage } from '@/lib/report';
 import { isAdminEmail } from './auth';
+import { addressKey } from './known-device';
 import { sendOtpEmail } from './supabase';
 
 export const SIGNIN_FAILED_KEY = 'signin_email_failed_at';
@@ -14,7 +16,7 @@ export const SIGNIN_FAILED_KEY = 'signin_email_failed_at';
 const QUOTA_WARN_AT = 100;
 
 export type SignInFailure = 'smtp' | 'quota' | 'capped';
-export type SignInOutcome = 'not_allowlisted' | 'capped' | 'sent' | 'refused' | 'unknown';
+export type SignInOutcome = 'not_allowlisted' | 'limited' | 'capped' | 'sent' | 'refused' | 'unknown';
 
 /** T2.1.09: /api/health (T3.14) reads this row; a successful verify or callback (T2.1.04) clears it. */
 export async function flagSignInFailure(reason: SignInFailure): Promise<void> {
@@ -35,13 +37,28 @@ function isSupabaseThrottle(error: AuthError): boolean {
   return error.status === 429;
 }
 
+/**
+ * @param knownDevice the start came from the browser the admin last signed in on (a valid known-device cookie): it
+ *   skips the per-address limit and may use the sign-in emails kept back for it, so a stranger who knows the
+ *   address can't use up the day's sign-in emails before the admin's own request. Any other browser counts against
+ *   LIMITS.adminSignInStartEmail and stops short of the kept slots.
+ */
 export async function sendAdminSignIn(
   email: string,
   mode: AppMode = getEnv().APP_MODE,
+  knownDevice = false,
 ): Promise<SignInOutcome> {
   if (!isAdminEmail(email)) return 'not_allowlisted';
+  if (!knownDevice) {
+    // Fail closed: no limiter, no email (the known device never depends on it).
+    const verdict = await check('adminSignInStartEmail', addressKey(email));
+    if (verdict !== 'allowed') {
+      console.warn(JSON.stringify({ level: 'warn', event: 'signin_address_limited', mode }));
+      return 'limited';
+    }
+  }
 
-  const slot = await takeSlot('signin', mode);
+  const slot = await takeSlot('signin', mode, knownDevice);
   if (!slot) {
     console.warn(JSON.stringify({ level: 'warn', event: 'signin_capped', mode }));
     await flagSignInFailure('capped');

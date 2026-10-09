@@ -1,5 +1,7 @@
 // T2.1.04 + T2.1.06 (TSD T2.1 AC3, AC4, AC6, AC9) against the real test DB. The Supabase Auth client is a fake,
 // so no email is sent and no real session is made; what's tested is our routing, checks and bookkeeping.
+// Regression register: evals/bugs/signin-emails-per-address.json
+// Regression register: evals/bugs/signin-wrong-code-count-race.json
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -15,6 +17,7 @@ import { POST as signout } from '@/app/api/admin/auth/signout/route';
 import { POST as confirm } from '@/app/api/admin/auth/confirm/route';
 import ConfirmSignInPage from '@/app/admin/auth/callback/page';
 import { signConfirm } from '@/app/admin/auth/confirm-token';
+import { isKnownDevice, KNOWN_DEVICE_COOKIE } from '@/features/admin/known-device';
 
 const auth = vi.hoisted(() => ({ verifyOtp: vi.fn(), signOut: vi.fn() }));
 vi.mock('@/lib/report', () => ({ report: vi.fn(), reportMessage: vi.fn() }));
@@ -192,11 +195,29 @@ describe('POST /api/admin/auth/verify: limits, caching and Sentry (review F1, L2
     expect(res.status).toBe(200);
   });
 
-  it('a correct code does not count toward the per-address bucket', async () => {
+  it('a correct code does not count toward the per-address bucket (counted first, then given back)', async () => {
     auth.verifyOtp.mockResolvedValue(session(ADMIN));
     for (let i = 0; i < 3; i++)
       await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '123456' });
-    expect(await q(`select 1 from rate_limit where scope = 'adminSignInVerifyEmail'`)).toHaveLength(0);
+    const [row] = await q<{ n: number }>(
+      `select coalesce(sum(count), 0)::int as n from rate_limit where scope = 'adminSignInVerifyEmail'`,
+    );
+    expect(row!.n).toBe(0);
+  });
+
+  it('a right code marks the browser as the known device; a wrong one does not', async () => {
+    auth.verifyOtp.mockResolvedValueOnce(refused()).mockResolvedValueOnce(session(ADMIN));
+    const wrong = await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '000000' });
+    expect(wrong.headers.get('set-cookie') ?? '').not.toContain(KNOWN_DEVICE_COOKIE);
+    const right = await post(verify, '/api/admin/auth/verify', { email: ADMIN, code: '123456' });
+    const cookie = right.headers.get('set-cookie') ?? '';
+    expect(cookie).toContain(`${KNOWN_DEVICE_COOKIE}=`);
+    expect(cookie).toMatch(/HttpOnly/i);
+    expect(cookie).toMatch(/SameSite=strict/i);
+    expect(cookie).toMatch(/Path=\/api\/admin\/auth/i);
+    expect(cookie).not.toContain('example.com'); // it names a hash of the address, never the address
+    const value = cookie.split(';')[0]!.split('=').slice(1).join('=');
+    expect(isKnownDevice(value, ADMIN)).toBe(true);
   });
 
   it('the rate_limit table holds no email address', async () => {
@@ -289,6 +310,15 @@ describe('POST /api/admin/auth/confirm ("Sign me in" on A1c), AC3/AC4', () => {
     expect(auth.verifyOtp).toHaveBeenCalledTimes(1);
     expect(auth.verifyOtp).toHaveBeenCalledWith({ token_hash: HASH, type: 'email' });
     expect(await flag()).toBeNull();
+  });
+
+  it('a link sign-in marks the browser as the known device; a failed one does not', async () => {
+    auth.verifyOtp.mockResolvedValueOnce(refused()).mockResolvedValueOnce(session(ADMIN));
+    expect((await tap(link())).headers.get('set-cookie') ?? '').not.toContain(KNOWN_DEVICE_COOKIE);
+    const cookie = (await tap(link())).headers.get('set-cookie') ?? '';
+    const value = cookie.split(';')[0]!.split('=').slice(1).join('=');
+    expect(cookie).toContain(`${KNOWN_DEVICE_COOKIE}=`);
+    expect(isKnownDevice(value, ADMIN)).toBe(true);
   });
 
   it('always lands on a fixed /admin: next, redirect_to and redirect are ignored (no open redirect)', async () => {

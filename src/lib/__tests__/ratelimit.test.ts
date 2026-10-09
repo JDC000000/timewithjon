@@ -27,7 +27,8 @@ vi.mock('@/lib/db', () => ({
 const report = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/report', () => ({ report, reportMessage: vi.fn() }));
 
-const { check, hit, limitByIp, overLimitByIp, FAIL_CLOSED, LIMITS } = await import('@/lib/ratelimit');
+const { check, hit, limitByIp, overLimitByIp, reserve, FAIL_CLOSED, LIMITS } =
+  await import('@/lib/ratelimit');
 const post = () => new NextRequest(`${SITE}/api/requests`, { method: 'POST', headers: { origin: SITE } });
 
 beforeEach(() => {
@@ -88,7 +89,13 @@ describe('hit fails open (AC4)', () => {
 });
 
 describe('auth scopes fail CLOSED (security review 2026-09-30, C1)', () => {
-  const AUTH = ['adminSignInStart', 'adminSignInVerify', 'adminSignInVerifyEmail', 'devLogin'] as const;
+  const AUTH = [
+    'adminSignInStart',
+    'adminSignInStartEmail',
+    'adminSignInVerify',
+    'adminSignInVerifyEmail',
+    'devLogin',
+  ] as const;
 
   it('covers every sign-in and guessing scope', () => {
     expect([...FAIL_CLOSED].sort()).toEqual([...AUTH].sort());
@@ -99,6 +106,7 @@ describe('auth scopes fail CLOSED (security review 2026-09-30, C1)', () => {
     for (const scope of AUTH) {
       expect(await hit(scope, '1.2.3.4'), scope).toBe(false);
       expect(await check(scope, '1.2.3.4'), scope).toBe('unavailable');
+      expect((await reserve(scope, '1.2.3.4')).verdict, scope).toBe('unavailable');
       expect(report).toHaveBeenCalledWith(expect.any(Error), {
         area: 'ratelimit',
         scope,
