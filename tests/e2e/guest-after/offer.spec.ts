@@ -239,12 +239,12 @@ test.describe('AC4', () => {
     const full = await slot('2027-04-22');
     const open = await slot('2027-04-29');
     const s = await seed({ slotIds: [full.id, open.id] });
-    // Fill the week of Apr 19: cap 1, and another guest locked on Apr 23.
+    await page.goto(offerUrl(s.token));
+    // While the page is open, the week of Apr 19 fills: cap 1, and another guest locked on Apr 23.
     capped.push('2027-04-19');
     await db((c) => c.query(`update week set cap_override = 1 where week_start = '2027-04-19'`));
     const apr23 = await slot('2027-04-23');
     await seed({ status: 'locked', lock: { start: apr23.starts_at, end: apr23.ends_at } });
-    await page.goto(offerUrl(s.token));
     await page.getByRole('radio', { name: /^Thu Apr 22 · / }).check();
     const take = page.waitForResponse(
       (r) => r.url().endsWith('/api/offer/take') && r.request().method() === 'POST',
@@ -260,6 +260,10 @@ test.describe('AC4', () => {
     const r = await row(s.requestId);
     expect(r.status).toBe('needs_new_time');
     expect(r.awaiting_jon_since).not.toBeNull();
+    // QA4b L1: a reload doesn't list the gone time again.
+    await page.reload();
+    await expect(page.getByRole('radio')).toHaveCount(1);
+    await expect(page.getByRole('radio', { name: /^Thu Apr 29 · / })).toBeVisible();
     expect(pageErrors).toHaveLength(1);
     expect(pageErrors[0]).toMatch(/\b409\b/);
   });

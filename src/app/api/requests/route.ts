@@ -11,7 +11,12 @@ import { clientIp, jsonError, sameOrigin } from '@/lib/http';
 import { isReleased, opensAt } from '@/features/invites/release';
 import { requireInvite } from '@/features/invites/require';
 import { limitByIp } from '@/lib/ratelimit';
-import { createRequest, findReplay, ReplayConflictError } from '@/features/requests/create';
+import {
+  createRequest,
+  findRecentDuplicate,
+  findReplay,
+  ReplayConflictError,
+} from '@/features/requests/create';
 import { report } from '@/lib/report';
 import { VALIDATION_MESSAGE } from '@/features/requests/messages';
 import { RequestBody } from '@/features/requests/schema';
@@ -62,7 +67,8 @@ export async function POST(req: NextRequest) {
   const stored = storableBody(body, dish);
   let requestId: string | null;
   try {
-    requestId = await findReplay(stored, invite.id);
+    // QA4b M1: or the same request again under a new key (Back after Send, then Send).
+    requestId = (await findReplay(stored, invite.id)) ?? (await findRecentDuplicate(stored, invite.id));
   } catch (e) {
     if (e instanceof ReplayConflictError) return jsonError(409, 'replay_conflict', ERRORS.generic);
     throw e;

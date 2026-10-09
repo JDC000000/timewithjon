@@ -1,0 +1,9 @@
+{
+  "id": "e13-digest-test-real-clock",
+  "date": "2026-10-09",
+  "task": "CI flake",
+  "area": "tests",
+  "summary": "jobs-t39's E13 digest case read back any E13 row; after 18:00 PT a tick that ran on the real clock earlier in the run had written today's E13, so the case read '2026-10-08' instead of its own '2027-03-14'.",
+  "fix": "Each E13 case starts with no E13 rows, and the case asserts the only row is its own.",
+  "tests": ["tests/int/jobs-t39.int.test.ts"]
+}

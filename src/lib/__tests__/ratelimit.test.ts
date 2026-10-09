@@ -1,4 +1,5 @@
-// T3.8 AC3 + AC4: the 11th request from one IP gets the friendly 429; a limiter error fails OPEN and reports.
+// T3.8 AC3 + AC4: over the limit from one IP gets the friendly 429; a limiter error fails OPEN and reports.
+// QA4 M3: guest Sends are 30 in a sliding hour and a refused try gives its count back (the real SQL: the int test).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { SITE } from '../../../tests/fixtures/unit-env';
@@ -9,6 +10,14 @@ vi.mock('@/lib/db', () => ({
   q: vi.fn(async (sql: string, [scope, key]: [string, string]) => {
     if (db.fail) throw new Error('connection refused');
     const k = `${scope}|${key}`;
+    if (sql.trim().startsWith('update rate_limit set count = count - 1')) {
+      db.counts.set(k, db.counts.get(k)! - 1); // a refused sliding try gives its count back
+      return [];
+    }
+    if (sql.includes('with mine as')) {
+      db.counts.set(k, (db.counts.get(k) ?? 0) + 1);
+      return [{ bucket: new Date(0), total: db.counts.get(k) }];
+    }
     if (sql.trim().startsWith('select')) return db.counts.has(k) ? [{ count: db.counts.get(k) }] : [];
     db.counts.set(k, (db.counts.get(k) ?? 0) + 1);
     return [{ count: db.counts.get(k) }];
@@ -27,16 +36,19 @@ beforeEach(() => {
 });
 
 describe('limitByIp (T3.8.02)', () => {
-  it('allows 10 request sends an hour, then answers the friendly 429 (AC3)', async () => {
-    expect(LIMITS.requestSend).toEqual({ limit: 10, windowSec: 3600 });
-    for (let i = 1; i <= 10; i++) expect(await limitByIp(post(), 'requestSend'), `send ${i}`).toBeNull();
+  it('allows 30 request sends in a sliding hour, then answers the friendly 429 (AC3, QA4 M3)', async () => {
+    expect(LIMITS.requestSend).toEqual({ limit: 30, windowSec: 3600, bucketSec: 300 });
+    for (let i = 1; i <= 30; i++) expect(await limitByIp(post(), 'requestSend'), `send ${i}`).toBeNull();
     const res = await limitByIp(post(), 'requestSend');
     expect(res?.status).toBe(429);
     expect(await res?.json()).toEqual({ ok: false, code: 'rate_limited', message: ERRORS.rateLimited });
+    // QA4 M3: the refused tries never count, so the block doesn't grow with each retry.
+    for (let i = 0; i < 5; i++) await limitByIp(post(), 'requestSend');
+    expect([...db.counts.values()]).toEqual([30]);
   });
 
   it('keeps separate buckets per scope', async () => {
-    for (let i = 0; i < 10; i++) await limitByIp(post(), 'requestSend');
+    for (let i = 0; i < 30; i++) await limitByIp(post(), 'requestSend');
     expect(await limitByIp(post(), 'storySave')).toBeNull();
   });
 

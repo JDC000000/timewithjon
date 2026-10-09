@@ -2,7 +2,13 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { pool, q, withTx } from '@/lib/db';
-import { createRequest, createRequestTx, findReplay, ReplayConflictError } from '@/features/requests/create';
+import {
+  createRequest,
+  createRequestTx,
+  findRecentDuplicate,
+  findReplay,
+  ReplayConflictError,
+} from '@/features/requests/create';
 import { RequestBody } from '@/features/requests/schema';
 import { saveAfterSendStory } from '@/features/photos/after-send';
 import { deliverRequestEmails, queueEmail, sendTemplate } from '@/features/email/send';
@@ -98,6 +104,20 @@ describe('request intake', () => {
       )[0]!.w;
     expect(await waits(standby.requestId)).toBe(false);
     expect(await waits(plain.requestId)).toBe(true);
+  });
+  it('QA4b M1: the same request again under a new key is the one already sent; a different one is new', async () => {
+    const b = mk();
+    const first = await create(args(b));
+    const again = { ...b, clientKey: randomUUID() }; // Back after Send, then Send
+    expect(await findRecentDuplicate(again, inviteId)).toBe(first.requestId);
+    // Both halves: a deliberate second, DIFFERENT request still goes through.
+    expect(await findRecentDuplicate({ ...again, slotIds: [slotIds[1]!] }, inviteId)).toBeNull();
+    expect(await findRecentDuplicate({ ...again, note: 'And my partner' }, inviteId)).toBeNull();
+    expect(await findRecentDuplicate(again, personalInviteId)).toBeNull(); // another invite
+    await q(`update request set created_at = now() - interval '11 minutes' where id = $1`, [first.requestId]);
+    expect(await findRecentDuplicate(again, inviteId)).toBeNull(); // past the 10 minutes: a new request
+    await q(`update request set created_at = now(), status = 'cancelled' where id = $1`, [first.requestId]);
+    expect(await findRecentDuplicate(again, inviteId)).toBeNull(); // cancelled since: a new request
   });
   it('L3 a client_key replayed from another invite is refused', async () => {
     const b = mk();

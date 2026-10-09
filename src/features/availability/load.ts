@@ -135,3 +135,14 @@ export function withoutOwnBooking(loaded: Loaded, requestId: string | null): Loa
   if (!requestId) return loaded;
   return { ...loaded, bookings: loaded.bookings.filter((b) => b.requestId !== requestId) };
 }
+
+/** QA4 L2: the slot a request is booked on now (a joined guest's: its host's), or null. */
+export async function bookedSlotOf(requestId: string): Promise<string | null> {
+  const { rows } = await pool().query<{ slot: string | null }>(
+    `select coalesce(r.locked_slot_id, h.locked_slot_id) as slot
+       from request r left join request h on h.id = r.joined_to_request_id
+      where r.id = $1 and r.status = 'locked'`,
+    [requestId],
+  );
+  return rows[0]?.slot ?? null;
+}

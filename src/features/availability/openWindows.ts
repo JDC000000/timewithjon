@@ -158,3 +158,19 @@ export function openWindows(input: EngineInput): EngineOutput {
   if (away) out.awayNotice = { until: away.endDate, confirmBy: away.confirmBy };
   return out;
 }
+
+/**
+ * QA4 L2: Ask for another time never lists the time already booked (sending it would un-book it and re-ask Jon for
+ * the same window). The rest of that week stays: the guest's own booking doesn't cap it (withoutOwnBooking).
+ */
+export function withoutSlot(out: EngineOutput, slotId: string | null): EngineOutput {
+  if (!slotId) return out;
+  return {
+    ...out,
+    weeks: out.weeks.map((w) => {
+      if (!w.windows.some((x) => x.slotId === slotId)) return w;
+      const windows = w.windows.filter((x) => x.slotId !== slotId);
+      return { ...w, windows, state: windows.length > 0 ? w.state : 'spoken_for' };
+    }),
+  };
+}

@@ -14,7 +14,7 @@ const calls: unknown[][] = [];
 vi.mock('@/lib/db', () => ({
   q: vi.fn(async (...args: unknown[]) => {
     calls.push(args);
-    return [{ count: 1_000_000 }];
+    return [{ count: 1_000_000, total: 1_000_000, bucket: new Date(0) }]; // fixed and sliding (QA4 M3) limiters
   }),
   withTx: vi.fn(() => {
     throw new Error('no transaction before the limiter');
@@ -94,8 +94,9 @@ describe('every public write route', () => {
         );
         expect(res.status, `${method} ${file}`).toBe(429);
         expect(await res.json()).toEqual({ ok: false, code: 'rate_limited', message: ERRORS.rateLimited });
-        expect(calls).toHaveLength(1);
-        expect(String(calls[0]![0])).toMatch(/\brate_limit\b/);
+        // Only the limiter's own queries (a sliding limiter's refused try also gives its count back, QA4 M3).
+        expect(calls.length).toBeGreaterThan(0);
+        for (const c of calls) expect(String(c[0])).toMatch(/\brate_limit\b/);
       }
     },
     20_000,

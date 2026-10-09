@@ -63,6 +63,26 @@ export async function findReplay(b: RequestBody, inviteId: string): Promise<stri
   return replayed((await q<StoredKey>(STORED_KEY, [b.clientKey]))[0], b, inviteId);
 }
 
+/** QA4b M1: how long the same request again (under a new key) counts as the one already sent. */
+export const DUPLICATE_WINDOW_MINUTES = 10;
+
+/**
+ * QA4b M1: Back after Send shows an empty form, and Send again (a new key) with the same dish, picks and details
+ * made a second request. The same body from the same invite within DUPLICATE_WINDOW_MINUTES (and not cancelled
+ * since) is the request already sent: the guest gets it back, as a replay. Any difference (other times, another
+ * note, another email) is a new request.
+ */
+export async function findRecentDuplicate(b: RequestBody, inviteId: string): Promise<string | null> {
+  const rows = await q<{ id: string }>(
+    `select id from request
+      where invite_id = $1 and client_payload_hash = $2 and status <> 'cancelled'
+        and created_at > now() - make_interval(mins => $3)
+      order by created_at desc limit 1`,
+    [inviteId, requestPayloadHash(b), DUPLICATE_WINDOW_MINUTES],
+  );
+  return rows[0]?.id ?? null;
+}
+
 /** The intake emails addressed to the guest (to whatever address the form carried). */
 const GUEST_INTAKE = new Set(['E1', 'E6']);
 
