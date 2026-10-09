@@ -55,6 +55,10 @@ describe('the database lockdown (AD-3)', () => {
     const functions = await q<{ name: string }>(
       `select p.proname as name from pg_proc p join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public' and has_function_privilege($1, p.oid, 'EXECUTE')
+          -- An extension's own functions (citext's comparison and regex helpers) are left out: on Supabase they belong
+          -- to the platform's admin role, they read no data, and the type needs them.
+          and not exists (select 1 from pg_depend d
+                           where d.classid = 'pg_proc'::regclass and d.objid = p.oid and d.deptype = 'e')
         order by 1`,
       [role],
     );
