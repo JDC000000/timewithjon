@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getEnv } from '@/config/env';
 import { clientIp, safeRedirectTarget } from '@/lib/http';
 import { findInviteById, findInviteBySecret, recordOpen } from '@/features/invites/repo';
-import { INVITE_COOKIE, INVITE_TTL_SECONDS, STALE_COOKIE } from '@/features/invites/session';
+import { INVITE_COOKIE, INVITE_TTL_SECONDS, STALE_COOKIE, SWITCHED_COOKIE } from '@/features/invites/session';
 import { hit } from '@/lib/ratelimit';
 import { isPreviewBot } from '@/features/invites/bots';
 import { countEvent } from '@/features/analytics/count';
@@ -20,12 +20,17 @@ function cleanTarget(req: NextRequest): URL {
   return url;
 }
 
+/** The invite a valid, unrevoked session names, if any. */
+async function sessionInviteId(req: NextRequest): Promise<string | null> {
+  const id = verifyCookie('invite', req.cookies.get(INVITE_COOKIE)?.value, getEnv().SESSION_SIGNING_SECRET);
+  if (!id) return null;
+  const current = await findInviteById(id);
+  return current && !current.revoked_at ? current.id : null;
+}
+
 /** L2: a mistyped, old or hostile link must not log out a guest who already has a valid session. */
 async function hasValidSession(req: NextRequest): Promise<boolean> {
-  const id = verifyCookie('invite', req.cookies.get(INVITE_COOKIE)?.value, getEnv().SESSION_SIGNING_SECRET);
-  if (!id) return false;
-  const current = await findInviteById(id);
-  return Boolean(current && !current.revoked_at);
+  return (await sessionInviteId(req)) !== null;
 }
 
 export async function GET(req: NextRequest) {
@@ -62,6 +67,19 @@ export async function GET(req: NextRequest) {
     },
   );
   res.cookies.delete(STALE_COOKIE);
+  // A link for another invite than the one this browser holds: the visitor may not be that invite's guest, so the
+  // booking form won't fill in its name or email (SWITCHED_COOKIE). The same link again changes nothing; a first visit
+  // (no valid session) keeps the prefill.
+  const previous = await sessionInviteId(req);
+  if (previous && previous !== invite.id) {
+    res.cookies.set(
+      SWITCHED_COOKIE,
+      signCookie('switch', invite.id, INVITE_TTL_SECONDS, getEnv().SESSION_SIGNING_SECRET),
+      { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: INVITE_TTL_SECONDS },
+    );
+  } else if (!previous) {
+    res.cookies.delete(SWITCHED_COOKIE);
+  }
   return res;
 }
 export const HEAD = GET;

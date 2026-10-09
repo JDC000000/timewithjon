@@ -23,7 +23,7 @@ export function parseForParam(raw: string | null | undefined): { slug: string; s
 const b64u = (b: Buffer) => b.toString('base64url');
 
 /** What a signed cookie is for. The MAC covers it, so an invite cookie never verifies as a request capability (L1). */
-export type CookiePurpose = 'invite' | 'req' | 'dev' | 'story';
+export type CookiePurpose = 'invite' | 'req' | 'dev' | 'story' | 'switch';
 
 const cookieMac = (purpose: CookiePurpose, value: string, exp: number, key: string) =>
   createHmac('sha256', key).update(`${purpose}.${value}.${exp}`).digest();

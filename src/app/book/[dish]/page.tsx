@@ -63,7 +63,7 @@ export default async function BookPage({ params, searchParams }: Params) {
   } else {
     const { engine, season } = await loadDishAvailability(dish, session.invite.kind);
     const notices = flowNotices(engine);
-    const guest = guestView(session.invite, getEnv().NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+    const guest = guestView(session.invite, getEnv().NEXT_PUBLIC_TURNSTILE_SITE_KEY, session.switched);
     const weekend = weekendMode(dish, await searchParams);
     const months = pickerMonths(engine.weeks);
     const weekendDates = () => (

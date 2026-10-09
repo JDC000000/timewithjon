@@ -1,0 +1,9 @@
+{
+  "id": "invite-link-switch-prefill",
+  "date": "2026-10-09",
+  "task": "T1.4",
+  "area": "guest",
+  "summary": "Opening a link for a different invite replaced the browser's invite, and the booking form then filled in that invite's name and email behind the collapsed summary, so a visitor could send a request with someone else's contact details without noticing.",
+  "fix": "When a link replaces a session that named a different valid invite, a signed marker for the new invite is set; while it names the current invite, the booking form shows no name or email from it and the visitor types their own. A first visit and the same link again keep the prefill.",
+  "tests": ["tests/int/invite-switch.int.test.ts", "src/app/book/[dish]/_lib/__tests__/send.test.ts"]
+}
