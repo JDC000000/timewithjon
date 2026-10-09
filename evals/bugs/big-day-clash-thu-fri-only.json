@@ -1,0 +1,12 @@
+{
+  "id": "big-day-clash-thu-fri-only",
+  "date": "2026-10-09",
+  "task": "ENG-11",
+  "area": "availability",
+  "summary": "Rule 2(e) only checked Thu/Fri: two Big Days on the same Saturday, or an Encore on a Big Day Saturday evening, locked without Book anyway, and the meter showed two Big Days on one day.",
+  "fix": "A Big Day clashes with any other booking on any day it touches, both directions (operator pick); Book anyway goes ahead. The stand-by sheet reads the same rule.",
+  "tests": [
+    "src/features/availability/__tests__/canLock.test.ts",
+    "src/features/availability/__tests__/date-dish.test.ts"
+  ]
+}

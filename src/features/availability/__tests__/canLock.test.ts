@@ -200,3 +200,28 @@ describe('CR-05 rule 2(i): a guest is never locked into a window the dish does n
     expect(canLock(input({ ...as('the-long-lunch'), target: evening })).ok).toBe(true);
   });
 });
+
+describe('ENG-11 rule 2(e) on any day: a Big Day is the whole day', () => {
+  const at = (date: string, from: string, to: string) => ({
+    range: { startsAt: vancouverInstant(date, from), endsAt: vancouverInstant(date, to) },
+  });
+  const as = (countsToward: 'big_day' | 'weekly_cap', dish: string) => ({
+    request: { id: 'me', status: 'requested' as const, countsToward, dish },
+  });
+  const grindSat = booking('2027-05-22', '07:00', '12:00', 'big_day');
+  it('a second Big Day on that Saturday, or an Encore on its evening, needs Book anyway', () => {
+    const clash = { ok: false, reason: 'big_day_clash' };
+    const shoreRide = { ...as('big_day', 'the-shore-ride'), target: at('2027-05-22', '13:00', '18:00') };
+    const encore = { ...as('weekly_cap', 'the-encore'), target: at('2027-05-22', '19:30', '23:00') };
+    expect(canLock(input({ ...shoreRide, bookings: [grindSat] }))).toEqual(clash);
+    expect(canLock(input({ ...encore, bookings: [grindSat] }))).toEqual(clash);
+    // And the other way: a Big Day on a Saturday that already has an Encore.
+    const encoreBooked = booking('2027-05-22', '19:30', '23:00', 'weekly_cap');
+    expect(canLock(input({ ...shoreRide, bookings: [encoreBooked] }))).toEqual(clash);
+    // Book anyway goes ahead; another Saturday is free.
+    expect(canLock(input({ ...shoreRide, bookings: [grindSat], bookAnyway: true })).ok).toBe(true);
+    expect(
+      canLock(input({ ...encore, target: at('2027-05-29', '19:30', '23:00'), bookings: [grindSat] })).ok,
+    ).toBe(true);
+  });
+});
