@@ -58,9 +58,13 @@ describe('checkSweepTargets', () => {
   it("refuses any bucket but the env's own", () => {
     expect(checkSweepTargets({ ...ok, r2Bucket: 'timewithjon-photos' })).toMatch(/not the staging bucket/);
   });
-  it('refuses production until T3.1 registers its bucket', () => {
-    expect(R2_BACKUP_BUCKETS.production).toBeNull();
-    expect(checkSweepTargets({ ...ok, env: 'production' })).toMatch(/no R2 backup bucket/);
+  it("production (T3.1) takes only its own bucket, never staging's", () => {
+    expect(R2_BACKUP_BUCKETS.production).toBe('timewithjon-photos-production');
+    expect(R2_BACKUP_BUCKETS.production).not.toBe(R2_BACKUP_BUCKETS.staging);
+    const prod = { ...ok, env: 'production' as const, r2Bucket: 'timewithjon-photos-production' };
+    expect(checkSweepTargets(prod)).toBeNull();
+    expect(checkSweepTargets({ ...ok, env: 'production' })).toMatch(/not the production bucket/);
+    expect(checkSweepTargets({ ...prod, env: 'staging' })).toMatch(/not the staging bucket/);
   });
 });
 
