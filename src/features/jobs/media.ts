@@ -35,6 +35,7 @@ const HANDLERS: Record<MediaKind, (payload: Record<string, unknown>, ports: Port
   async attachment_finalise(payload, { store }) {
     const out = await finalisePhotoUpload(String(payload.photoUploadId), null, store);
     if (!out.ok && out.code === 'not_uploaded') throw new MediaRetryError('upload not there yet');
+    if (!out.ok && out.code === 'busy') throw new MediaRetryError('every decode slot was taken');
     if (!out.ok && out.code !== 'too_many')
       report(new MediaRetryError(out.code), { area: 'media', step: out.code });
   },

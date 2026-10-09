@@ -8,11 +8,12 @@ import { q, withTx } from '@/lib/db';
 import type { ObjectStore } from '@/lib/adapters/photos';
 import { report } from '@/lib/report';
 import { MAX_PHOTOS, MAX_UPLOAD_BYTES } from './limits';
+import { DecodeBusyError } from './decode-gate';
 import { toCleanJpeg, UnreadableImageError } from './reencode';
 
 export type FinaliseResult =
   | { ok: true; photoId: string; replay: boolean }
-  | { ok: false; code: 'not_found' | 'not_uploaded' | 'too_big' | 'unreadable' | 'too_many' };
+  | { ok: false; code: 'not_found' | 'not_uploaded' | 'too_big' | 'unreadable' | 'too_many' | 'busy' };
 
 /**
  * @param callerStoryId the guest's own story (from the capability); null only for trusted server callers
@@ -53,6 +54,8 @@ export async function finalisePhotoUpload(
   try {
     clean = await toCleanJpeg(raw);
   } catch (e) {
+    // Every decode slot stayed taken: nothing is refused or deleted, so the same finalise can simply be retried.
+    if (e instanceof DecodeBusyError) return { ok: false, code: 'busy' };
     if (!(e instanceof UnreadableImageError)) throw e;
     await refuse(uploadId, store, row.incoming_path); // raw bytes (maybe GPS) never linger
     return { ok: false, code: 'unreadable' };

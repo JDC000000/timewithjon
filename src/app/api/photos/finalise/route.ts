@@ -20,6 +20,9 @@ const REFUSED = {
   too_big: [413, ERRORS.generic],
   unreadable: [422, ERRORS.generic],
   too_many: [409, ERRORS.generic],
+  // Every decode slot on this instance stayed taken (decode-gate.ts): nothing was refused, so the uploader's own
+  // retry of a 5xx finalises the same upload a moment later.
+  busy: [503, ERRORS.generic],
 } as const;
 
 export async function POST(req: NextRequest) {
@@ -34,7 +37,9 @@ export async function POST(req: NextRequest) {
   const out = await finalisePhotoUpload(parsed.data.photoUploadId, caller.storyId, photoStore());
   if (!out.ok) {
     const [status, message] = REFUSED[out.code];
-    return noStore(jsonError(status, out.code, message));
+    const res = jsonError(status, out.code, message);
+    if (out.code === 'busy') res.headers.set('Retry-After', '2');
+    return noStore(res);
   }
   if (!out.replay) await hit('photoFinalise', clientIp(req));
   return noStore(NextResponse.json({ ok: true, photoId: out.photoId }));

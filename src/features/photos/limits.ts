@@ -14,6 +14,13 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
  * photo is 8064 x 6048 = 48.8 MP. A file that claims more is refused from its header, before pixels are allocated.
  */
 export const MAX_INPUT_PIXELS = 50_000_000;
+/**
+ * Photo decodes at once per server instance (decode-gate.ts): each may hold ~200 MB of pixels at the ceiling above.
+ * A decode waits up to DECODE_WAIT_MS for a slot; with ENCODE_TIMEOUT_SECONDS (40 s) that still fits finalise's
+ * 60 s maxDuration, so a refused wait answers "try again" before the function is killed.
+ */
+export const MAX_CONCURRENT_DECODES = 2;
+export const DECODE_WAIT_MS = 15_000;
 /** Jon's admin thumbnails are 10-minute signed URLs (AD-4, T3.6.07). */
 export const THUMB_URL_TTL_SECONDS = 600;
 /** Raw uploads (with GPS) never outlive this (T3.6 AC7: gone within 1 h 15 min with the 15-min tick). */

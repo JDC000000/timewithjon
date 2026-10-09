@@ -1,7 +1,7 @@
 // T3.6.03/.08 (AC2): every stored photo is a clean JPEG: no EXIF, no GPS; HEIC and PNG are converted;
 // orientation is baked in; C-5 caps the long edge at 3000 px.
 import { crc32, deflateSync } from 'node:zlib';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 import {
   exifHasGps,
@@ -11,6 +11,7 @@ import {
   noisyJpeg,
   png,
 } from '../../../../tests/fixtures/images';
+import { decodeGate } from '../decode-gate';
 import { MAX_INPUT_PIXELS } from '../limits';
 import { isHeif, sniffFormat, toCleanJpeg, UnreadableImageError } from '../reencode';
 
@@ -167,6 +168,49 @@ describe('toCleanJpeg', () => {
       .png({ compressionLevel: 9 })
       .toBuffer();
     await expect(toCleanJpeg(bomb)).rejects.toBeInstanceOf(UnreadableImageError);
+  });
+});
+
+describe('decode slots (toCleanJpeg through the instance gate)', () => {
+  it('six photos at once: never more than 2 decoding, and every one re-encoded', async () => {
+    const run = decodeGate.run.bind(decodeGate);
+    let live = 0;
+    let peak = 0;
+    const spy = vi.spyOn(decodeGate, 'run').mockImplementation((work) =>
+      run(async () => {
+        peak = Math.max(peak, ++live);
+        try {
+          return await work();
+        } finally {
+          live--;
+        }
+      }),
+    );
+    try {
+      const inputs = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => png(400 + i, 300)));
+      const outs = await Promise.all(inputs.map((b) => toCleanJpeg(b)));
+      expect(outs.map((o) => o.width)).toEqual([400, 401, 402, 403, 404, 405]);
+      expect(spy).toHaveBeenCalledTimes(6);
+      expect(peak).toBeGreaterThan(0);
+      expect(peak).toBeLessThanOrEqual(2);
+      expect([decodeGate.running, decodeGate.waiting]).toEqual([0, 0]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('a file refused by its leading bytes or header never takes a slot', async () => {
+    const spy = vi.spyOn(decodeGate, 'run');
+    try {
+      await expect(toCleanJpeg(Buffer.from('not an image'))).rejects.toBeInstanceOf(UnreadableImageError);
+      const gif = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#000' } })
+        .gif()
+        .toBuffer();
+      await expect(toCleanJpeg(gif)).rejects.toBeInstanceOf(UnreadableImageError);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
