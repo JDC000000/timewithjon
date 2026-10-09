@@ -10,13 +10,26 @@ import { expect, test } from '../support/fixtures';
 const PICKER_DISH = DISHES.find((d) => d.flow === 'picker' && isBookable(d))?.slug;
 const TAP = 44;
 
-test('UX-03: "Copy the address" has a 44 px tall hit area, inline in its sentence', async ({ page }) => {
+test('UX-03: "Copy the address" has a 44 px tall hit area, without changing its sentence', async ({
+  page,
+}) => {
   await page.goto('/');
   const copy = page.locator('#story').getByRole('button', { name: COPY_ADDRESS.label });
   await copy.scrollIntoViewIfNeeded();
   const rects = await copy.evaluate((e) => [...e.getClientRects()].map((r) => r.height));
   expect(Math.max(...rects)).toBeGreaterThanOrEqual(TAP);
-  expect(await copy.evaluate((e) => getComputedStyle(e).display)).toBe('inline');
+  // the sentence's lines keep their spacing: the paragraph is as tall as it is without the target's padding
+  const [withTarget, without] = await copy.evaluate((e) => {
+    const p = e.closest('p')!;
+    const h = p.getBoundingClientRect().height;
+    (e as HTMLElement).style.setProperty('padding-block', '0');
+    (e as HTMLElement).style.setProperty('margin-block', '0');
+    const h0 = p.getBoundingClientRect().height;
+    (e as HTMLElement).style.removeProperty('padding-block');
+    (e as HTMLElement).style.removeProperty('margin-block');
+    return [h, h0];
+  });
+  expect(Math.abs(withTarget - without)).toBeLessThanOrEqual(1);
 });
 
 test('UX-04: the month tabs are at least 44 px wide on a wide screen', async ({ page, baseURL }) => {

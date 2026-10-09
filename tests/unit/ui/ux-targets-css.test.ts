@@ -6,10 +6,11 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(path.resolve(__dirname, '../../../src/ui/site.css'), 'utf8');
 
 describe('44 px targets (UX-03, UX-04)', () => {
-  it('UX-03: the inline "Copy the address" grows its hit area with block padding, staying inline', () => {
+  it('UX-03: the inline "Copy the address" grows its hit area with block padding, matched by a negative margin', () => {
     const rule = /\.story-block \.textbtn \{([^}]*)\}/.exec(css)![1]!;
     expect(rule).toContain('display: inline;');
     expect(rule).toContain('padding-block: calc((var(--tap) - 1em) / 2);');
+    expect(rule).toContain('margin-block: calc((var(--tap) - 1em) / -2);'); // the line keeps its height
   });
   it('UX-04: from 1024 px a month tab is at least --tap wide, its side padding taken out of the gap', () => {
     const block = css.slice(css.indexOf('UX-04: each month keeps'));

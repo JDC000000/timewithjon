@@ -4,6 +4,6 @@
   "task": "UX-A11Y",
   "area": "a11y",
   "summary": "The landing’s inline “Copy the address” button was 25 px tall (its 44 px minimum was removed to sit in the sentence).",
-  "fix": "Inline block padding grows its hit area to 44 px without moving the line or the underline.",
+  "fix": "Block padding grows its hit area to 44 px, matched by a negative margin of the same size (a button set to display: inline lays out as inline-block), so the line and the underline stay put.",
   "tests": ["tests/unit/ui/ux-targets-css.test.ts", "tests/e2e/ui/ux-targets.spec.ts"]
 }

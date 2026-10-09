@@ -3561,9 +3561,11 @@ li[hidden] {
   min-width: 0;
   font: inherit;
   vertical-align: baseline;
-  /* UX-03: an inline box's vertical padding doesn't move the line, so this only grows the hit area to the 44 px target
-     (25 px of text + 2 × (44 px − 1em) / 2); the underline is a text-decoration and stays put */
+  /* UX-03: a hit area of the 44 px target without changing the line: a <button> set to display: inline is laid out as
+     inline-block, so its block padding is matched by a negative margin of the same size (the line box keeps its height,
+     the text its baseline); the underline is a text-decoration and stays put */
   padding-block: calc((var(--tap) - 1em) / 2);
+  margin-block: calc((var(--tap) - 1em) / -2);
 }
 .story-block .body + .body {
   margin-top: var(--s4);
