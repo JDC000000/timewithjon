@@ -5,11 +5,11 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { withTx } from '@/lib/db';
 import type { ObjectStore } from '@/lib/adapters/photos';
-import { MAX_PHOTOS } from './limits';
+import { FAILED_UPLOADS_PER_PHOTO, MAX_PHOTOS } from './limits';
 
 export type SignResult =
   | { ok: true; uploadId: string; path: string; signedUrl: string; token: string }
-  | { ok: false; code: 'no_story' | 'too_many' }
+  | { ok: false; code: 'no_story' | 'too_many' | 'too_many_attempts' }
   | { ok: false; code: 'not_stored' }; // prototype (§5.5)
 
 class NotStored extends Error {}
@@ -34,6 +34,17 @@ export async function signPhotoUpload(storyId: string, store: ObjectStore): Prom
         )
       ).rows[0]!.n;
       if (Number(used) >= MAX_PHOTOS[story.source]) return { ok: false, code: 'too_many' } as const;
+      // Attempts that ended without a photo (refused, or expired unfinished), over the story's whole life. Rows are
+      // never deleted while the story lives, so this can't be reset; a finalised photo keeps its photo_id.
+      const failed = (
+        await c.query<{ n: number }>(
+          `select count(*) as n from photo_upload
+            where story_id = $1 and photo_id is null and (finalised_at is not null or expires_at <= now())`,
+          [storyId],
+        )
+      ).rows[0]!.n;
+      if (Number(failed) >= MAX_PHOTOS[story.source] * FAILED_UPLOADS_PER_PHOTO)
+        return { ok: false, code: 'too_many_attempts' } as const;
       const uploadId = randomUUID();
       const path = `incoming/${uploadId}`;
       await c.query(`insert into photo_upload (id, story_id, incoming_path) values ($1, $2, $3)`, [

@@ -4,6 +4,12 @@ export const MAX_PHOTOS: Record<'after_send' | 'story_page' | 'email_in', number
   story_page: 2, // T3.12 reuses the S11 picker
   email_in: 5, // T3.7.03: Jon adds up to 5 for an emailed story
 };
+/**
+ * Upload attempts a story may spend WITHOUT getting a photo (refused at finalise, or signed and never finished), for
+ * its whole life: MAX_PHOTOS x this. A guest who retries a few unreadable files is never near it; sign -> upload ->
+ * refused can't repeat without end (each round costs a full download and a parse). Successful uploads never count.
+ */
+export const FAILED_UPLOADS_PER_PHOTO = 5;
 /** TSD C-5: stored at 3000 px on the long edge, which is also the export resolution (never enlarged). */
 export const MAX_LONG_EDGE_PX = 3000;
 /** The bucket's own limit is 20 MB (AD-4); re-checked server side before decoding. */

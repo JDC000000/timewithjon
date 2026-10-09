@@ -25,5 +25,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
   if (out.code === 'not_stored') return noStore(NextResponse.json({ mock: true }));
   if (out.code === 'too_many') return noStore(jsonError(409, 'too_many_photos', ERRORS.generic));
+  if (out.code === 'too_many_attempts') return noStore(jsonError(409, 'too_many_attempts', ERRORS.generic));
   return noStore(jsonError(404, 'not_found', ERRORS.generic));
 }

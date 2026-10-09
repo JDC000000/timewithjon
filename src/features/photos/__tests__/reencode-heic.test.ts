@@ -1,75 +1,74 @@
-// pr38 F1/F2: every top-level image in a HEIC is measured from the container before any pixels are decoded
-// (heic-decode decodes images[0], which needn't be the primary), and the decoded RGBA goes straight to sharp.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+// pr38 F1/F2 + the HEIC deadline: the HEIC decode runs in a worker (heic-worker.ts) with stand-in decoders
+// (tests/fixtures/heic-decoders). Every top-level image is measured from the container before any pixels are decoded,
+// the decoded RGBA goes straight to sharp, and a decode that never finishes is refused inside the budget.
+// (The real heic-decode on a real iPhone HEIC: reencode.test.ts.)
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import { HEIC } from '../../../../tests/fixtures/images';
+import { heicWorkerForTests, toCleanJpeg, UnreadableImageError } from '../reencode';
 
-const h = vi.hoisted(() => ({
-  images: [] as { width: number; height: number; decode: () => unknown }[],
-  dispose: vi.fn(),
-}));
-vi.mock('heic-decode', () => ({
-  default: { all: vi.fn(async () => Object.assign([...h.images], { dispose: h.dispose })) },
-}));
-const { toCleanJpeg, UnreadableImageError } = await import('../reencode');
-
-const rgba = (width: number, height: number) => ({
-  width,
-  height,
-  data: new Uint8ClampedArray(width * height * 4).fill(200),
-});
-const image = (width: number, height: number) => ({
-  width,
-  height,
-  decode: vi.fn(async () => rgba(width, height)),
+const decoder = (name: string) => path.join(process.cwd(), 'tests/fixtures/heic-decoders', `${name}.cjs`);
+const use = (name: string, budgetMs?: number) => {
+  heicWorkerForTests.modulePath = decoder(name);
+  heicWorkerForTests.budgetMs = budgetMs;
+};
+afterEach(() => {
+  heicWorkerForTests.modulePath = undefined;
+  heicWorkerForTests.budgetMs = undefined;
 });
 
-describe('HEIC path', () => {
-  beforeEach(() => {
-    h.dispose.mockClear();
-  });
-
-  it('refuses when ANY image is over 50 MP, without decoding one, and frees the decoder', async () => {
-    const small = image(1000, 800);
-    const huge = image(10_000, 6_000);
-    h.images = [small, huge];
-    await expect(toCleanJpeg(HEIC())).rejects.toBeInstanceOf(UnreadableImageError);
-    expect(small.decode).not.toHaveBeenCalled();
-    expect(huge.decode).not.toHaveBeenCalled();
-    expect(h.dispose).toHaveBeenCalledOnce();
+describe('HEIC path (in a worker)', () => {
+  it('refuses when ANY image is over 50 MP, without decoding one', async () => {
+    use('any-too-big');
+    // a decode would answer "could not be converted": this message proves none ran
+    await expect(toCleanJpeg(HEIC())).rejects.toThrow('HEIC too large or unreadable');
   });
 
   it('refuses when the first image alone is over 50 MP', async () => {
-    const huge = image(8_000, 7_000);
-    h.images = [huge, image(100, 100)];
+    use('first-too-big');
     await expect(toCleanJpeg(HEIC())).rejects.toThrow('HEIC too large or unreadable');
-    expect(huge.decode).not.toHaveBeenCalled();
   });
 
   it('refuses a HEIC with no image', async () => {
-    h.images = [];
+    use('none');
     await expect(toCleanJpeg(HEIC())).rejects.toBeInstanceOf(UnreadableImageError);
   });
 
-  it('encodes the decoded RGBA directly (no JPEG round trip) and frees the decoder', async () => {
-    const first = image(40, 30);
-    h.images = [first, image(40, 30)];
+  it('encodes the decoded RGBA directly (no JPEG round trip)', async () => {
+    use('ok');
     const out = await toCleanJpeg(HEIC());
-    expect(first.decode).toHaveBeenCalledOnce();
     expect([out.width, out.height]).toEqual([40, 30]);
     expect((await sharp(out.data).metadata()).format).toBe('jpeg');
-    expect(h.dispose).toHaveBeenCalledOnce();
   });
 
-  it('a decode failure is unreadable and still frees the decoder', async () => {
-    h.images = [
-      {
-        width: 10,
-        height: 10,
-        decode: vi.fn(async () => Promise.reject(new Error('HEIF processing error'))),
-      },
-    ];
+  it('a decode failure is unreadable', async () => {
+    use('decode-fails');
     await expect(toCleanJpeg(HEIC())).rejects.toThrow('HEIC could not be converted');
-    expect(h.dispose).toHaveBeenCalledOnce();
   });
+});
+
+describe('HEIC deadline: a slow file answers within the budget', () => {
+  it('a decoder that blocks its thread (sync, never returns) is stopped: unreadable, on time', async () => {
+    use('hangs-sync', 1500);
+    const t0 = Date.now();
+    await expect(toCleanJpeg(HEIC())).rejects.toThrow('HEIC took too long');
+    expect(Date.now() - t0).toBeLessThan(5000);
+  }, 15_000);
+
+  it('a pixel decode that never finishes is stopped the same way', async () => {
+    use('decode-hangs', 1500);
+    const t0 = Date.now();
+    const err = await toCleanJpeg(HEIC()).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UnreadableImageError);
+    expect((err as Error).message).toBe('HEIC took too long');
+    expect(Date.now() - t0).toBeLessThan(5000);
+  }, 15_000);
+
+  it('the real decoder converts a real HEIC well inside the default budget', async () => {
+    const t0 = Date.now();
+    const out = await toCleanJpeg(HEIC());
+    expect((await sharp(out.data).metadata()).format).toBe('jpeg');
+    expect(Date.now() - t0).toBeLessThan(30_000);
+  }, 40_000);
 });
