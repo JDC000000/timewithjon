@@ -11,7 +11,7 @@ import { clientIp, jsonError, sameOrigin } from '@/lib/http';
 import { isReleased, opensAt } from '@/features/invites/release';
 import { requireInvite } from '@/features/invites/require';
 import { limitByIp } from '@/lib/ratelimit';
-import { createRequest, ReplayConflictError } from '@/features/requests/create';
+import { createRequest, findReplay, ReplayConflictError } from '@/features/requests/create';
 import { report } from '@/lib/report';
 import { VALIDATION_MESSAGE } from '@/features/requests/messages';
 import { RequestBody } from '@/features/requests/schema';
@@ -57,6 +57,18 @@ export async function POST(req: NextRequest) {
   if (invite.kind === 'general' && !(await verifyTurnstile(body.turnstileToken, ip)))
     return jsonError(400, 'bot_check', ERRORS.botCheck);
 
+  // ENG-03: a retry of a saved request (same key, same body) gets that request back BEFORE the engine is asked:
+  // the time may have gone, or the week reopened, since it was saved.
+  const stored = storableBody(body, dish);
+  let requestId: string | null;
+  try {
+    requestId = await findReplay(stored, invite.id);
+  } catch (e) {
+    if (e instanceof ReplayConflictError) return jsonError(409, 'replay_conflict', ERRORS.generic);
+    throw e;
+  }
+  if (requestId) return answer(requestId, body.email);
+
   const loaded = await loadEngineData();
   const busy = await getBusy({ start: settings.season_start, end: settings.season_end });
   const engine = openWindows(engineInput(loaded, busy, invite.kind, dish.windows));
@@ -64,10 +76,9 @@ export async function POST(req: NextRequest) {
   if (!v.ok) return jsonError(409, v.code, VALIDATION_MESSAGE[v.code]);
 
   const spam = isHoneypotFilled(body.hp); // AD-9: stored, never refused
-  let requestId: string;
   try {
     ({ requestId } = await createRequest({
-      body: storableBody(body, dish),
+      body: stored,
       inviteId: invite.id,
       isTest: invite.is_test,
       spam,
@@ -82,15 +93,22 @@ export async function POST(req: NextRequest) {
     if (e instanceof ReplayConflictError) return jsonError(409, 'replay_conflict', ERRORS.generic);
     throw e;
   }
-  // Committed. Send the queued emails now, awaited (AD-1, L-3). This also covers an idempotent replay
-  // whose first attempt died before sending. A send problem never turns a saved request into an error:
-  // the row stays 'pending'/'failed' and the tick's email-retry job re-sends it.
+  return answer(requestId, body.email);
+}
+
+/**
+ * Committed. Send the queued emails now, awaited (AD-1, L-3). This also covers an idempotent replay whose first
+ * attempt died before sending. A send problem never turns a saved request into an error: the row stays
+ * 'pending'/'failed' and the tick's email-retry job re-sends it. `sentTo` is the stored address: a replay's body is
+ * the saved one (ENG-01).
+ */
+async function answer(requestId: string, sentTo: string): Promise<Response> {
   try {
     await deliverRequestEmails(requestId);
   } catch (e) {
     report(e, { area: 'email', step: 'post_commit' });
   }
-  const res = NextResponse.json({ ok: true, sentTo: body.email });
+  const res = NextResponse.json({ ok: true, sentTo });
   setRequestCapability(res, requestId);
   return res;
 }

@@ -1,0 +1,9 @@
+{
+  "id": "guest-standby-gets-e3-nudge",
+  "date": "2026-10-08",
+  "task": "ENG-12",
+  "area": "requests/intake",
+  "summary": "A guest's own 'Put me on stand-by' request waited on Jon and got the E3 'still waiting' nudge after 24 h; when Jon moves a request to stand-by the wait is cleared.",
+  "fix": "A guest stand-by request is stored with no wait on Jon (operator pick), as Jon's Move to stand-by leaves it.",
+  "tests": ["tests/int/requests.int.test.ts"]
+}

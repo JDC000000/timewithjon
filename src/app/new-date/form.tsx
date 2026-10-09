@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { flushSync } from 'react-dom';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { ERRORS, FLOW } from '@/content';
+import { keyFor, type KeyedBody } from '@/lib/client-key';
 import { DATES } from '@/content/ui/booking';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import { Button } from '@/ui';
@@ -43,7 +44,7 @@ export function NewDateForm(p: {
   const [failed, setFailed] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [clientKey] = useState(() => crypto.randomUUID());
+  const keyed = useRef<KeyedBody | null>(null); // one key per set of choices (ENG-14)
   const errRef = useRef<HTMLParagraphElement>(null);
 
   function onDay(d: CalDay) {
@@ -63,7 +64,13 @@ export function NewDateForm(p: {
     setBusy(true);
     setFailed(null);
     const choices = { dates: order, ...(rough.trim() ? { windowText: rough.trim() } : {}), overnight };
-    const json = await postJson('/api/offer/propose', { token: p.token, ...choices, clientKey, hp: '' });
+    keyed.current = keyFor(keyed.current, choices);
+    const json = await postJson('/api/offer/propose', {
+      token: p.token,
+      ...choices,
+      clientKey: keyed.current.key,
+      hp: '',
+    });
     setBusy(false);
     if (!json.ok) return setFailed(json.message ?? ERRORS.generic);
     if (json.message) setSaid(json.message);

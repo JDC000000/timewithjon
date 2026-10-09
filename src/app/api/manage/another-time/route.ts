@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   const res = await rerequest(gate.requestId, choices, new Date(), { clientKey, spam: isHoneypotFilled(hp) });
   if (res.ok) return tokenNoStore(NextResponse.json({ ok: true }));
   if (res.status === 404) return tokenNoStore(jsonError(404, res.reason, ERRORS.generic));
-  if (res.reason === 'not_changeable') return tokenNoStore(jsonError(409, res.reason, ERRORS.generic));
+  if (res.reason === 'not_changeable' || res.reason === 'replay_conflict')
+    return tokenNoStore(jsonError(409, res.reason, ERRORS.generic));
   return tokenNoStore(jsonError(409, res.reason, VALIDATION_MESSAGE[res.reason]));
 }

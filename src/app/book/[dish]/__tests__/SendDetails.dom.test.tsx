@@ -139,4 +139,22 @@ describe('the guest Send (T1.7.U4)', () => {
     const keys = f.mock.calls.map((c) => (JSON.parse(String(c[1]?.body)) as { clientKey: string }).clientKey);
     expect(keys[0]).toBe(keys[1]);
   });
+
+  it('ENG-01: no answer, then the guest fixes the email: the retry is a NEW key (a new request, not a replay)', async () => {
+    const f = stubFetch(async () => Promise.reject(new TypeError('offline')));
+    const user = userEvent.setup();
+    render(<Harness guest={SAM} go={vi.fn()} />);
+    await user.click(sendButton());
+    expect((await screen.findByRole('alert')).textContent).toBe(ERRORS.generic);
+    await user.click(screen.getByRole('button', { name: SEND_AS.change }));
+    await user.clear(box(FLOW.emailLabel));
+    await user.type(box(FLOW.emailLabel), 'sam.fixed@example.com');
+    await user.click(sendButton());
+    await vi.waitFor(() => expect(f).toHaveBeenCalledTimes(2));
+    const sent = f.mock.calls.map(
+      (c) => JSON.parse(String(c[1]?.body)) as { clientKey: string; email: string },
+    );
+    expect(sent.map((b) => b.email)).toEqual(['sam@example.com', 'sam.fixed@example.com']);
+    expect(sent[0]!.clientKey).not.toBe(sent[1]!.clientKey);
+  });
 });

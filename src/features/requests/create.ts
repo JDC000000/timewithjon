@@ -3,14 +3,18 @@ import 'server-only';
 import type { PoolClient } from 'pg';
 import { getEnv } from '@/config/env';
 import { countEvent } from '@/features/analytics/count';
-import { withTx } from '@/lib/db';
+import { q, withTx } from '@/lib/db';
+import { payloadHash } from '@/lib/payload-hash';
 import { hit } from '@/lib/ratelimit';
 import type { CountsToward } from '@/features/availability/types';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { intakeEmails, requestedTimeLines } from './intake-emails';
 import type { RequestBody } from './schema';
 
-/** A client_key replayed from a different invite (review T4.2.00 L3). The route answers 409. */
+/**
+ * A client_key replayed from a different invite (review T4.2.00 L3), or with a different body (ENG-01: an edited
+ * form re-sent under the key of a request already saved must never be answered as if the edits went). 409.
+ */
 export class ReplayConflictError extends Error {
   override name = 'ReplayConflictError';
 }
@@ -32,6 +36,33 @@ export interface CreateArgs {
 /** What the transaction is told: whether the guest's intake email may go (the cap was taken before it, CR-02). */
 type TxArgs = Omit<CreateArgs, 'capGuestEmails'> & { sendGuestEmails?: boolean };
 
+/** ENG-01: the body a client key stands for (the key itself and the one-use Turnstile token aside). */
+export function requestPayloadHash(b: RequestBody): string {
+  return payloadHash({ ...b, clientKey: undefined, turnstileToken: undefined }); // undefined keys drop out
+}
+
+type StoredKey = { id: string; invite_id: string; client_payload_hash: string | null };
+
+/** The request this key already made, or null; a conflict (another invite, another body) throws. */
+function replayed(row: StoredKey | undefined, b: RequestBody, inviteId: string): string | null {
+  if (!row) return null;
+  if (row.invite_id !== inviteId) throw new ReplayConflictError();
+  // A row from before the hash was stored replays as before.
+  if (row.client_payload_hash !== null && row.client_payload_hash !== requestPayloadHash(b))
+    throw new ReplayConflictError();
+  return row.id;
+}
+
+const STORED_KEY = `select id, invite_id, client_payload_hash from request where client_key = $1`;
+
+/**
+ * ENG-03: the replay is looked up BEFORE the request is validated against the engine. A retry after a lost answer
+ * must get its saved request back even if the time has since gone or the week has reopened.
+ */
+export async function findReplay(b: RequestBody, inviteId: string): Promise<string | null> {
+  return replayed((await q<StoredKey>(STORED_KEY, [b.clientKey]))[0], b, inviteId);
+}
+
 /** The intake emails addressed to the guest (to whatever address the form carried). */
 const GUEST_INTAKE = new Set(['E1', 'E6']);
 
@@ -41,13 +72,8 @@ export async function createRequestTx(
 ): Promise<{ requestId: string; created: boolean }> {
   const b = a.body;
   const replay = async () => {
-    const { rows } = await c.query<{ id: string; invite_id: string }>(
-      `select id, invite_id from request where client_key = $1`,
-      [b.clientKey],
-    );
-    if (!rows[0]) return null;
-    if (rows[0].invite_id !== a.inviteId) throw new ReplayConflictError();
-    return { requestId: rows[0].id, created: false };
+    const id = replayed((await c.query<StoredKey>(STORED_KEY, [b.clientKey])).rows[0], b, a.inviteId);
+    return id ? { requestId: id, created: false } : null;
   };
   const existing = await replay();
   if (existing) return existing;
@@ -59,11 +85,16 @@ export async function createRequestTx(
   const {
     rows: [guest],
   } = await c.query<{ id: string }>(`select id from guest where email = $1`, [b.email]);
+  // No wait on Jon for a bot (AD-9), nor for a guest's own stand-by (ENG-12): it waits on a freed window, not on
+  // Jon, as when Jon moves a request to stand-by (standby.ts). So no E3 "still waiting" nudge either.
   const ins = await c.query<{ id: string }>(
     `insert into request (is_test, client_key, guest_id, invite_id, contact_name, contact_email, contact_phone, dish, mode, status,
                           spam_suspect, crew_size, big_crew, guest_time_zone, note, date_prefs, overnight, pitch_idea,
-                          surprise_need_to_know, surprise_plan_sealed, standby_week, counts_toward, overnight_night, awaiting_jon_since)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23, case when $11 then null else now() end)
+                          surprise_need_to_know, surprise_plan_sealed, standby_week, counts_toward, overnight_night, awaiting_jon_since,
+                          client_payload_hash)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+             case when $11 or $10::request_status = 'standby' then null else now() end,
+             $24)
      on conflict (client_key) do nothing returning id`,
     [
       a.isTest,
@@ -89,6 +120,7 @@ export async function createRequestTx(
       b.standbyWeek ?? null,
       a.countsToward,
       (b.overnight && b.overnightNight) || null,
+      requestPayloadHash(b),
     ],
   );
   if (!ins.rows[0]) return (await replay())!; // lost a double-tap race: same result

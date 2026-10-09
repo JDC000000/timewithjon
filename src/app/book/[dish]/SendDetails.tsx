@@ -17,6 +17,7 @@ import { clearDraft, draftStore } from './_lib/draft';
 import { errorFor, FIELD_IDS, type FormError } from './_lib/form-errors';
 import type { GuestView } from './_lib/flow-view';
 import { prefill, SEND_AS } from './_lib/prefill';
+import { keyFor, type KeyedBody } from '@/lib/client-key';
 import { createSender, requestPayload, type Picks } from './_lib/send';
 
 const toPage = (href: string) => window.location.assign(href);
@@ -33,8 +34,9 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const busy = useRef(false);
-  /** One key per request: a retry after a lost answer replays it; a refusal the server answered gets a new one. */
-  const clientKey = useRef<string | null>(null);
+  /** One key per body (ENG-01): a retry of the same body after a lost answer replays it; an edited body, or a
+   * refusal the server answered, gets a new one. */
+  const keyed = useRef<KeyedBody | null>(null);
   const [send] = useState(() => createSender());
   const turnstile = useGuestTurnstile(guest.general ? guest.siteKey : undefined);
 
@@ -43,15 +45,16 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     busy.current = true;
     setFailed(null);
     setSending(true);
-    clientKey.current ??= crypto.randomUUID();
+    const details = { name, email, hp };
+    keyed.current = keyFor(keyed.current, requestPayload('', dish, details, picks));
     const token = guest.general ? await turnstile.takeToken() : undefined;
-    const res = await send(requestPayload(clientKey.current, dish, { name, email, hp }, picks, token));
+    const res = await send(requestPayload(keyed.current.key, dish, details, picks, token));
     if (res === null) return;
     if (res.ok) {
       clearDraft(draftStore(), dish);
       return go(ROUTES.sent); // stays "Sending…" while the page changes
     }
-    if (res.code !== 'network') clientKey.current = null;
+    if (res.code !== 'network') keyed.current = null;
     turnstile.reset(); // L11: the token went with the refused (or unanswered) request
     busy.current = false;
     flushSync(() => {

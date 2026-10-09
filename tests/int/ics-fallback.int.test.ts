@@ -229,6 +229,7 @@ describe('the .ics fallback (T3.4.04-.06, AD-6)', () => {
         },
         now: at(60),
         clientKey: randomUUID(),
+        payloadHash: '0'.repeat(64),
       }),
     );
     await runAfterCommit(after, 'test');

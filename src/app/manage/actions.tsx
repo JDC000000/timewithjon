@@ -23,6 +23,7 @@ import { MANAGE_UI } from '@/content/manage';
 import { DATES, PICKER } from '@/content/ui/booking';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import type { EngineOutput } from '@/features/availability/types';
+import { keyFor, type KeyedBody } from '@/lib/client-key';
 import { Button } from '@/ui';
 import { announce, moveFocus } from '@/ui/focus';
 import { StoryForm } from '../_guest/story-form';
@@ -298,7 +299,7 @@ function AnotherForm(p: {
   const [need, setNeed] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [clientKey] = useState(() => crypto.randomUUID());
+  const keyed = useRef<KeyedBody | null>(null); // one key per set of choices (ENG-14)
   const [tileRefs] = useState(() => new Map<string, HTMLButtonElement>());
   const errRef = useRef<HTMLParagraphElement>(null);
 
@@ -331,7 +332,12 @@ function AnotherForm(p: {
       p.form === 'slots'
         ? { slotIds: [...selection.picks] }
         : { dates: order, ...(rough.trim() ? { windowText: rough.trim() } : {}), overnight };
-    const json = await post('/api/manage/another-time', p.auth, { ...choices, clientKey, hp: '' });
+    keyed.current = keyFor(keyed.current, choices);
+    const json = await post('/api/manage/another-time', p.auth, {
+      ...choices,
+      clientKey: keyed.current.key,
+      hp: '',
+    });
     setBusy(false);
     if (json.ok) return p.onDone();
     setFailed(json.message ?? ERRORS.generic);
