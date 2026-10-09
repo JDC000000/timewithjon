@@ -864,6 +864,11 @@ describe('Add a story or photo through the manage grant (T2.7.06)', () => {
   it("saves to the manage token's own request, even with a twj_req for another request in the jar", async () => {
     const mine = await newRequest([]);
     const other = await newRequest([]);
+    // On a live invite: AC6 above rotated (revoked) the general link, and a request cookie only works while its
+    // invite is live.
+    await q(`update request set invite_id = (select id from invite where name_slug = 'dave') where id = $1`, [
+      other,
+    ]);
     jar.set(REQ_COOKIE, signCookie('req', other, 3600, process.env.SESSION_SIGNING_SECRET!));
     const token = await manageToken(mine);
     const res = await storyRoute(post('/api/stories', token, { body: 'We got lost', consent: true }));

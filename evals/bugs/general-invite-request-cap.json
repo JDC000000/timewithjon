@@ -1,0 +1,9 @@
+{
+  "id": "general-invite-request-cap",
+  "date": "2026-10-09",
+  "task": "guest-send-caps",
+  "area": "requests/intake",
+  "summary": "The shared general link had no limit on new requests a day; each one emails Jon, so a flood spent the shared daily email budget.",
+  "fix": "At most 40 new requests a day per general invite (429 with the usual message past it); a replay or a Back-after-Send duplicate is never counted, and personal invites are not held by it.",
+  "tests": ["tests/int/guest-send-caps.int.test.ts"]
+}

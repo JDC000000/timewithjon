@@ -1,0 +1,9 @@
+{
+  "id": "general-link-duplicate-other-browser",
+  "date": "2026-10-09",
+  "task": "guest-send-caps",
+  "area": "requests/intake",
+  "summary": "On the shared general link, 'the same request again' could match another browser's byte-identical request and hand back its cookie.",
+  "fix": "On the general link only the request this browser sent (its request cookie) counts as the same request.",
+  "tests": ["tests/int/guest-send-caps.int.test.ts"]
+}

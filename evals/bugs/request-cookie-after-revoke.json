@@ -1,0 +1,9 @@
+{
+  "id": "request-cookie-after-revoke",
+  "date": "2026-10-09",
+  "task": "guest-send-caps",
+  "area": "invites",
+  "summary": "A request cookie kept posting stories, signing photos and reading the Sent page after its invite was revoked, until the cookie expired.",
+  "fix": "The request cookie only grants access while the request's invite is live.",
+  "tests": ["tests/int/guest-send-caps.int.test.ts"]
+}

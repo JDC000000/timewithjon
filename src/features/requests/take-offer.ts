@@ -68,7 +68,7 @@ async function takeTx(c: PoolClient, b: TakeBody, honeypot: boolean, now: Date):
   const t = await consumeToken(c, b.token);
   if (!t) return { kind: 'spent' };
   if (t.purpose !== 'take_offer' || !t.offer_id) throw new Abort(); // rolled back: not spent
-  const offer = await liveOfferForUpdate(c, t.offer_id, now);
+  const offer = await liveOfferForUpdate(c, t.offer_id, t.request_id, now);
   if (!offer) return { kind: 'spent' }; // released (re-suggested, cancelled) or expired: the current state
   let target: LockTarget;
   if ('slotId' in b) {

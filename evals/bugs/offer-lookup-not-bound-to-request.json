@@ -1,0 +1,9 @@
+{
+  "id": "offer-lookup-not-bound-to-request",
+  "date": "2026-10-09",
+  "task": "guest-send-caps",
+  "area": "requests/offers",
+  "summary": "The take path looked an offer up by its id alone, not also by the token's request.",
+  "fix": "The offer lookup also requires the token's request.",
+  "tests": ["tests/int/guest-send-caps.int.test.ts"]
+}

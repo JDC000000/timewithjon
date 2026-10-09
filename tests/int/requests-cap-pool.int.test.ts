@@ -53,7 +53,7 @@ const send = async () => {
     countsToward: 'weekly_cap',
     bigCrew: false,
     dishName: 'The Long Lunch',
-    capGuestEmails: true,
+    capGuestEmails: 'general' as const,
   });
   made.push(requestId);
   return requestId;

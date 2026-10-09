@@ -131,17 +131,22 @@ export interface LiveOffer {
   expires_at: Date | null;
 }
 
-/** The offer, if it can still be taken: not taken, not released, not past its expiry. Locks the row. */
+/**
+ * The offer, if it can still be taken: not taken, not released, not past its expiry, and the token's own request's
+ * (a token names both; they must agree). Locks the row.
+ */
 export async function liveOfferForUpdate(
   c: PoolClient,
   offerId: string,
+  requestId: string,
   now: Date,
 ): Promise<LiveOffer | null> {
   const { rows } = await c.query<LiveOffer>(
     `select id, request_id, kind, slot_ids, ranges, expires_at from offer
-      where id = $1 and taken_at is null and released_at is null and (expires_at is null or expires_at > $2)
+      where id = $1 and request_id = $3 and taken_at is null and released_at is null
+        and (expires_at is null or expires_at > $2)
         for update`,
-    [offerId, now],
+    [offerId, now, requestId],
   );
   return rows[0] ?? null;
 }

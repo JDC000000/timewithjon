@@ -5,8 +5,8 @@ import { getEnv } from '@/config/env';
 import { countEvent } from '@/features/analytics/count';
 import { q, withTx } from '@/lib/db';
 import { payloadHash } from '@/lib/payload-hash';
-import { hit } from '@/lib/ratelimit';
-import type { CountsToward } from '@/features/availability/types';
+import { hit, type LimitScope } from '@/lib/ratelimit';
+import type { CountsToward, InviteKind } from '@/features/availability/types';
 import { jonEmail, queueEmail } from '@/features/email/send';
 import { intakeEmails, jonDetails, requestedTimeLines } from './intake-emails';
 import type { RequestBody } from './schema';
@@ -29,9 +29,17 @@ export interface CreateArgs {
   countsToward: CountsToward;
   bigCrew: boolean;
   dishName: string;
-  /** The general invite: guest intake emails count toward its daily cap (requestSendInvite). */
-  capGuestEmails?: boolean;
+  /**
+   * The invite's kind: its guest intake emails count toward that invite's daily cap (requestSendInvite for the
+   * general link, requestSendPersonalInvite for a personal one). Unset: not counted (tests, operator scripts).
+   */
+  capGuestEmails?: InviteKind;
 }
+
+const GUEST_EMAIL_CAP: Record<InviteKind, LimitScope> = {
+  general: 'requestSendInvite',
+  personal: 'requestSendPersonalInvite',
+};
 
 /** What the transaction is told: whether the guest's intake email may go (the cap was taken before it, CR-02). */
 type TxArgs = Omit<CreateArgs, 'capGuestEmails'> & { sendGuestEmails?: boolean };
@@ -70,15 +78,21 @@ export const DUPLICATE_WINDOW_MINUTES = 10;
  * QA4b M1: Back after Send shows an empty form, and Send again (a new key) with the same dish, picks and details
  * made a second request. The same body from the same invite within DUPLICATE_WINDOW_MINUTES (and not cancelled
  * since) is the request already sent: the guest gets it back, as a replay. Any difference (other times, another
- * note, another email) is a new request.
+ * note, another email) is a new request. `ownRequestId`, on the shared general link: only the request this
+ * browser sent counts as "the same" (its twj_req), never another guest's identical one.
  */
-export async function findRecentDuplicate(b: RequestBody, inviteId: string): Promise<string | null> {
+export async function findRecentDuplicate(
+  b: RequestBody,
+  inviteId: string,
+  ownRequestId?: string,
+): Promise<string | null> {
   const rows = await q<{ id: string }>(
     `select id from request
       where invite_id = $1 and client_payload_hash = $2 and status <> 'cancelled'
         and created_at > now() - make_interval(mins => $3)
+        and ($4::text is null or id::text = $4)
       order by created_at desc limit 1`,
-    [inviteId, requestPayloadHash(b), DUPLICATE_WINDOW_MINUTES],
+    [inviteId, requestPayloadHash(b), DUPLICATE_WINDOW_MINUTES, ownRequestId ?? null],
   );
   return rows[0]?.id ?? null;
 }
@@ -201,6 +215,7 @@ export async function createRequestTx(
  * never counts. A replayed client_key counts once more; it queues no email, so that only makes the cap stricter.
  */
 export async function createRequest({ capGuestEmails, ...a }: CreateArgs) {
-  const sendGuestEmails = a.spam || !capGuestEmails || (await hit('requestSendInvite', a.inviteId));
+  const sendGuestEmails =
+    a.spam || !capGuestEmails || (await hit(GUEST_EMAIL_CAP[capGuestEmails], a.inviteId));
   return withTx((c) => createRequestTx(c, { ...a, sendGuestEmails }));
 }
