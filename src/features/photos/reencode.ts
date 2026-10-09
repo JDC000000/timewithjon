@@ -3,6 +3,7 @@
 import 'server-only';
 import sharp from 'sharp';
 import heicDecode from 'heic-decode';
+import { decodeGate } from './decode-gate';
 import { MAX_INPUT_PIXELS, MAX_LONG_EDGE_PX } from './limits';
 
 export class UnreadableImageError extends Error {
@@ -104,12 +105,15 @@ export async function toCleanJpeg(raw: Buffer): Promise<CleanJpeg> {
     .catch(() => null);
   if (!meta?.format || !ACCEPTED_FORMATS.has(meta.format) || meta.format !== sniffed)
     throw new UnreadableImageError('not an accepted image');
-  try {
-    return await encode(raw);
-  } catch (sharpError) {
-    if (meta.format !== 'heif' || !isHeif(raw)) {
-      throw new UnreadableImageError('not a readable image', { cause: sharpError });
+  // The pixel work holds a decode slot (decode-gate.ts); it throws DecodeBusyError if none frees up in time.
+  return decodeGate.run(async () => {
+    try {
+      return await encode(raw);
+    } catch (sharpError) {
+      if (meta.format !== 'heif' || !isHeif(raw)) {
+        throw new UnreadableImageError('not a readable image', { cause: sharpError });
+      }
+      return heicToCleanJpeg(raw);
     }
-    return heicToCleanJpeg(raw);
-  }
+  });
 }

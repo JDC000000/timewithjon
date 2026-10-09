@@ -9,6 +9,7 @@ import { saveAfterSendStory } from '@/features/photos/after-send';
 import { afterSendStoryId, ensureAfterSendStory } from '@/features/photos/story';
 import { signPhotoUpload } from '@/features/photos/sign';
 import { finalisePhotoUpload } from '@/features/photos/finalise';
+import { decodeGate } from '@/features/photos/decode-gate';
 import { storyPhotosForAdmin } from '@/features/photos/thumbnails';
 import { MEDIA_MAX_ATTEMPTS, runMediaJob } from '@/features/jobs/media';
 import { FINALISE_STALE_MS } from '@/features/jobs/media-limits';
@@ -24,6 +25,11 @@ const mem = vi.hoisted(() => ({ store: null as unknown as MemoryStore }));
 vi.mock('@/lib/adapters/photos', async (orig) => ({
   ...(await orig<typeof import('@/lib/adapters/photos')>()),
   photoStore: () => mem.store,
+}));
+// A short decode-slot wait, so the "every slot taken" cases answer in a moment (the real wait is 15 s).
+vi.mock('@/features/photos/limits', async (orig) => ({
+  ...(await orig<typeof import('@/features/photos/limits')>()),
+  DECODE_WAIT_MS: 200,
 }));
 // Counts every sharp() call (the real sharp still runs), so a test can prove some bytes never reached it.
 const sharpCalls = vi.hoisted(() => ({ n: 0 }));
@@ -102,6 +108,16 @@ async function newRequest(): Promise<string> {
   return requestId;
 }
 const newStory = async () => (await ensureAfterSendStory(await newRequest()))!;
+/** Takes every decode slot of this instance until the returned release() is called. */
+function holdEveryDecodeSlot(): () => Promise<void> {
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  const holders = [decodeGate.run(() => held), decodeGate.run(() => held)];
+  return async () => {
+    release();
+    await Promise.all(holders);
+  };
+}
 async function upload(storyId: string, bytes: Buffer, store = mem.store) {
   const s = await signPhotoUpload(storyId, store);
   if (!s.ok) throw new Error(s.code);
@@ -432,6 +448,38 @@ describe('finalise (T3.6.03)', () => {
     // refused for good: its place is freed and a later finalise of it reads nothing
     expect(await finalisePhotoUpload(third, storyId, mem.store)).toEqual({ ok: false, code: 'not_found' });
   });
+  it('every decode slot taken: busy, nothing refused or deleted, and the same upload finalises once one frees', async () => {
+    const storyId = await newStory();
+    const uploadId = await upload(storyId, await png());
+    const release = holdEveryDecodeSlot();
+    try {
+      expect(await finalisePhotoUpload(uploadId, storyId, mem.store)).toEqual({ ok: false, code: 'busy' });
+      expect(mem.store.objects.has(`incoming/${uploadId}`)).toBe(true);
+      const [row] = await q<{ finalised_at: Date | null }>(
+        `select finalised_at from photo_upload where id = $1`,
+        [uploadId],
+      );
+      expect(row!.finalised_at).toBeNull();
+    } finally {
+      await release();
+    }
+    const out = await finalisePhotoUpload(uploadId, storyId, mem.store);
+    expect(out.ok).toBe(true);
+    expect(await q(`select 1 from photo where story_id = $1`, [storyId])).toHaveLength(1);
+  });
+  it('a refused file never takes a decode slot (it is refused even while every slot is taken)', async () => {
+    const storyId = await newStory();
+    const uploadId = await upload(storyId, Buffer.from('definitely not a photo'));
+    const release = holdEveryDecodeSlot();
+    try {
+      expect(await finalisePhotoUpload(uploadId, storyId, mem.store)).toEqual({
+        ok: false,
+        code: 'unreadable',
+      });
+    } finally {
+      await release();
+    }
+  });
   it('an unreadable file is refused and its raw bytes deleted at once', async () => {
     const storyId = await newStory();
     const uploadId = await upload(storyId, Buffer.from('definitely not a photo'));
@@ -571,6 +619,26 @@ describe('POST /api/photos/finalise: 20/h counts successes only (AD-9, pr38 F3)'
     expect(await used()).toBe(1);
   });
 
+  it('every decode slot taken: 503 with Retry-After, not counted, and a retry finalises', async () => {
+    const storyId = await newStory();
+    cap.requestId = (
+      await q<{ request_id: string }>(`select request_id from story where id = $1`, [storyId])
+    )[0]!.request_id;
+    const id = await upload(storyId, await png(40, 30));
+    const release = holdEveryDecodeSlot();
+    let res: Response;
+    try {
+      res = await finalise(id);
+    } finally {
+      await release();
+    }
+    expect(res.status).toBe(503);
+    expect(res.headers.get('retry-after')).toBe('2');
+    expect(await res.json()).toMatchObject({ ok: false, code: 'busy' });
+    expect(await used()).toBe(0);
+    expect((await finalise(id)).status).toBe(200);
+    expect(await used()).toBe(1);
+  });
   it('at 20 the route answers 429 before downloading anything', async () => {
     const storyId = await newStory();
     cap.requestId = (
@@ -656,6 +724,34 @@ describe('the media job (T3.6.04/.05)', () => {
     expect(await runMediaJob({ store: mem.store, backup }, 20_000, 0)).toEqual({ done: 2, failed: 0 });
     expect(await q(`select 1 from photo where story_id = $1`, [storyId])).toHaveLength(1);
     expect(backup.objects.size).toBe(1);
+  }, 30_000);
+  it('attachment_finalise with every decode slot taken is retried on a later run, not lost', async () => {
+    const storyId = (
+      await q<{ id: string }>(`insert into story (source) values ('email_in') returning id`)
+    )[0]!.id;
+    const s = await signPhotoUpload(storyId, mem.store);
+    if (!s.ok) throw new Error(s.code);
+    mem.store.put(s.path, await png());
+    await q(`insert into outbox (kind, payload) values ('attachment_finalise', $1)`, [
+      { photoUploadId: s.uploadId },
+    ]);
+    const backup = createMemoryBackup();
+    const release = holdEveryDecodeSlot();
+    try {
+      expect(await runMediaJob({ store: mem.store, backup }, 5_000, 0)).toEqual({ done: 0, failed: 1 });
+    } finally {
+      await release();
+    }
+    expect((await outbox()).find((o) => o.kind === 'attachment_finalise')).toMatchObject({
+      done_at: null,
+      last_error: 'MediaRetryError',
+    });
+    expect(
+      await q(`select 1 from photo_upload where id = $1 and finalised_at is null`, [s.uploadId]),
+    ).toHaveLength(1);
+    await q(`update outbox set next_attempt_at = now()`);
+    expect(await runMediaJob({ store: mem.store, backup }, 20_000, 0)).toEqual({ done: 2, failed: 0 });
+    expect(await q(`select 1 from photo where story_id = $1`, [storyId])).toHaveLength(1);
   }, 30_000);
   it('stops taking items once its budget is spent', async () => {
     await q(`insert into outbox (kind, payload) values ('r2_copy', $1), ('r2_copy', $2)`, [

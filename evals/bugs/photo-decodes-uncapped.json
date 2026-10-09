@@ -1,0 +1,13 @@
+{
+  "id": "photo-decodes-uncapped",
+  "date": "2026-10-09",
+  "task": "T3.6.03",
+  "area": "photos",
+  "summary": "Nothing capped how many photo decodes ran at once in one server instance; several 50 MP photos finalised together (~200 MB of pixels each) could run it out of memory.",
+  "fix": "Every decode goes through a per-instance gate of 2 slots (decode-gate.ts). A decode with a free slot starts at once; the rest wait first come, first served, for up to 15 s, then finalise answers busy (503 + Retry-After, nothing refused or deleted) and the uploader's retry or the media job's next run finalises the same upload.",
+  "tests": [
+    "src/features/photos/__tests__/decode-gate.test.ts",
+    "src/features/photos/__tests__/reencode.test.ts",
+    "tests/int/photos.int.test.ts"
+  ]
+}
