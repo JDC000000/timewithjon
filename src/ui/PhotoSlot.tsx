@@ -16,6 +16,7 @@ import {
   type PhotoSlots,
   type PhotoViews,
 } from './photo-slots';
+import { PHOTO_SIZES } from './photo-sizes';
 import { SlideshowScope, SlideshowSlides, SlideshowToggle } from './Slideshow';
 
 /** The v2.0 slot kinds (placement + ratio). */
@@ -27,7 +28,7 @@ export type PhotoSlotProps = {
   kind: PhotoKind;
   /** overrides the slot's alt; '' = decorative (the words next to it say the same) */
   alt?: string;
-  /** the <img sizes>; default: the full viewport width */
+  /** the <img sizes>; default: the kind's measured widths (photo-sizes.ts) */
   sizes?: string;
   /**
    * 'hero' = THE page hero (one per page, first viewport): eager, fetchpriority high and preloaded.
@@ -51,7 +52,7 @@ export function PhotoSlot({
   slot,
   kind,
   alt,
-  sizes = '100vw',
+  sizes,
   priority,
   className,
   controls = 'inside',
@@ -59,6 +60,7 @@ export function PhotoSlot({
   views = PHOTO_VIEWS,
 }: PhotoSlotProps) {
   const cls = cx('ph', `ph--${kind}`, className);
+  sizes ??= PHOTO_SIZES[kind];
   const src = photoSources(slot, slots);
   if (!src) return <figure className={cls} data-slot={slot} data-alt={alt ?? ''} aria-hidden="true" />;
   if (priority === 'hero')

@@ -24,7 +24,7 @@ export function HeroFrame({ children }: { children: ReactNode }) {
     <section className="hero" aria-labelledby="hero-h">
       <div className="wrap grid">
         <div className="hero-in">{children}</div>
-        <PhotoSlot slot="hero" kind="hero" sizes="(min-width: 1024px) 50vw, 100vw" priority="hero" />
+        <PhotoSlot slot="hero" kind="hero" priority="hero" />
       </div>
     </section>
   );

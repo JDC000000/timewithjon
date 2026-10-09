@@ -78,7 +78,7 @@ describe('photo-slots slides', () => {
 });
 
 describe('PhotoSlot slideshow', () => {
-  it('renders one image (photo 1, as a still photo) until the page loads, then all n', () => {
+  it('renders one image (photo 1, as a still photo) until the page loads, then only the next photo joins', () => {
     const { container } = render(<PhotoSlot slot="show" kind="hero" priority="hero" slots={FIXTURE} />);
     expect(imgs(container)).toHaveLength(1);
     const first = imgs(container)[0]!;
@@ -88,40 +88,75 @@ describe('PhotoSlot slideshow', () => {
     expect(screen.queryByRole('button')).toBeNull();
     pageLoads();
     const all = imgs(container);
-    expect(all.map((i) => i.getAttribute('src'))).toEqual([
-      '/img/show-480.webp',
-      '/img/show-2-480.webp',
-      '/img/show-3-480.webp',
-    ]);
-    for (const i of all.slice(1)) {
-      expect(i.getAttribute('loading')).toBe('lazy');
-      expect(i.getAttribute('alt')).toBe('');
-    }
+    // photo 3 is not fetched until photo 2 is on top: a visitor downloads only what the rotation reaches
+    expect(all.map((i) => i.getAttribute('src'))).toEqual(['/img/show-480.webp', '/img/show-2-480.webp']);
+    expect(all[1]!.getAttribute('loading')).toBe('lazy');
+    expect(all[1]!.getAttribute('fetchpriority')).toBe('low');
+    expect(all[1]!.getAttribute('alt')).toBe('');
     expect(container.querySelector('figure')!.dataset.slides).toBe('3');
   });
 
-  it('a page already loaded adds the photos at once', () => {
+  it('a page already loaded adds the next photo at once', () => {
     readyState = 'complete';
     const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
-    expect(imgs(container)).toHaveLength(3);
+    expect(imgs(container)).toHaveLength(2);
   });
 
-  it('advances every SLIDE_MS, loops back to photo 1, and skips a photo not loaded yet', () => {
+  it('advances every SLIDE_MS, one photo ahead in the page, holds until the next has loaded, loops to photo 1', () => {
     vi.useFakeTimers();
     readyState = 'complete';
     const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
     expect(onTop(container)).toBe(1);
     act(() => void vi.advanceTimersByTime(SLIDE_MS));
-    expect(onTop(container)).toBe(1); // photo 2 has not loaded: stays on photo 1
+    expect(onTop(container)).toBe(1); // photo 2 has not loaded: photo 1 stays
     slidesLoad(container);
     act(() => void vi.advanceTimersByTime(SLIDE_MS));
     expect(onTop(container)).toBe(2);
+    expect(imgs(container)).toHaveLength(3); // photo 2 on top: photo 3 joins now
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(onTop(container)).toBe(2); // photo 3 not loaded yet: photo 2 holds
+    slidesLoad(container);
     act(() => void vi.advanceTimersByTime(SLIDE_MS - 1));
     expect(onTop(container)).toBe(2);
     act(() => void vi.advanceTimersByTime(1));
     expect(onTop(container)).toBe(3);
     act(() => void vi.advanceTimersByTime(SLIDE_MS));
     expect(onTop(container)).toBe(1);
+    expect(imgs(container)).toHaveLength(3); // once in the page, a photo stays (no refetch)
+  });
+
+  it('off screen: no photo beyond the first is fetched, and nothing rotates, until the figure is seen', () => {
+    vi.useFakeTimers();
+    readyState = 'complete';
+    const observers: { cb: IntersectionObserverCallback }[] = [];
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: IntersectionObserverCallback) {
+          observers.push({ cb });
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
+    const report = (isIntersecting: boolean) =>
+      act(() =>
+        observers.forEach((o) => o.cb([{ isIntersecting } as IntersectionObserverEntry], {} as never)),
+      );
+    expect(imgs(container)).toHaveLength(1);
+    report(false);
+    act(() => void vi.advanceTimersByTime(SLIDE_MS * 2));
+    expect(imgs(container)).toHaveLength(1);
+    report(true);
+    expect(imgs(container)).toHaveLength(2);
+    slidesLoad(container);
+    act(() => void vi.advanceTimersByTime(SLIDE_MS));
+    expect(onTop(container)).toBe(2);
+    report(false); // scrolled away: the rotation stops
+    act(() => void vi.advanceTimersByTime(SLIDE_MS * 3));
+    expect(onTop(container)).toBe(2);
+    vi.unstubAllGlobals();
   });
 
   it('Pause stops the rotation; Play resumes it (QA4 L8: one name, aria-pressed = paused; the word shown flips)', () => {
@@ -261,8 +296,11 @@ describe('photo framing (photo-views.json)', () => {
   });
 
   it("photo 1 and EACH slide carry their own view (a slide never borrows photo 1's position)", () => {
+    vi.useFakeTimers();
     readyState = 'complete';
     const { container } = render(<PhotoSlot slot="show" kind="hero" slots={SLOTS} views={VIEWS} />);
+    slidesLoad(container);
+    act(() => void vi.advanceTimersByTime(SLIDE_MS)); // photo 2 on top: photo 3 joins
     const [first, second, third] = imgs(container);
     expect(css(first!)).toContain('--p-hero-s: 50% 13.9%');
     expect(css(first!)).toContain('--f-hero-s: 1.141');

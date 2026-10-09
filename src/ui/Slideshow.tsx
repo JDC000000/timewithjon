@@ -1,10 +1,12 @@
 'use client';
 // src/ui/Slideshow.tsx: a PhotoSlot whose slot shows several photos in turn (photo-slots.ts `slides`, written only by
 // a private build: scripts/fetch-real-photos.mjs). Photo 1 is PhotoSlot's own server-rendered <img>, loaded exactly
-// as a still photo (eager/priority unchanged), so the page's largest paint is the same. Photos 2..n join only after
-// the page's load event (lazy, low priority), stack over photo 1 in the same box (no layout shift) and crossfade in
-// turn every SLIDE_MS. A Pause/Play toggle sits on the photo. Reduced motion: photo 1 only, no toggle. The rotation
-// stops while the tab is hidden. A photo that has not loaded yet is skipped (back to photo 1).
+// as a still photo (eager/priority unchanged), so the page's largest paint is the same. Nothing more starts before
+// the page's load event and an idle moment, and nothing while the figure is off screen. Then photos join ONE AT A
+// TIME: only the next photo is in the page (lazy, low priority), loading during the SLIDE_MS the current one shows, so
+// a visitor downloads only the photos the rotation reaches. They stack over photo 1 in the same box (no layout shift)
+// and crossfade in turn. A Pause/Play toggle sits on the photo. Reduced motion: photo 1 only, no toggle. The rotation
+// stops while the tab is hidden or the figure is off screen, and holds the current photo until the next has loaded.
 import {
   createContext,
   useCallback,
@@ -30,8 +32,12 @@ type SlideshowState = {
   /** 0-based index of the photo on top */
   active: number;
   paused: boolean;
+  /** how many of photos 2..n are in the page (the ones reached so far, plus the next one) */
+  mounted: number;
   toggle: () => void;
   loaded: (i: number) => void;
+  /** the figure entered or left the screen (SlideshowSlides' sentinel) */
+  seen: (visible: boolean) => void;
 };
 
 const SlideshowContext = createContext<SlideshowState | null>(null);
@@ -58,17 +64,27 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   const [reduced, setReduced] = useState(true);
   const [hidden, setHidden] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [active, setActive] = useState(0);
+  // the photo on top, and the furthest the rotation has reached (photos up to reach + 1 stay in the page)
+  const [{ active, reach }, setShow] = useState({ active: 0, reach: 0 });
+  // on screen: until the sentinel reports, unknown (false): nothing is fetched for a figure no one has scrolled to
+  const [visible, setVisible] = useState(false);
+  const [everSeen, setEverSeen] = useState(false);
   const ready = useRef<boolean[]>([true]);
 
   useEffect(() => {
-    const done = () => setPageLoaded(true);
-    if (document.readyState === 'complete') {
-      done();
-      return;
-    }
-    window.addEventListener('load', done, { once: true });
-    return () => window.removeEventListener('load', done);
+    // after the load event, at the next idle moment (where the browser can say): the photos come after everything else
+    let idle: number | undefined;
+    const done = () => {
+      if (typeof window.requestIdleCallback === 'function')
+        idle = window.requestIdleCallback(() => setPageLoaded(true), { timeout: 2000 });
+      else setPageLoaded(true);
+    };
+    if (document.readyState === 'complete') done();
+    else window.addEventListener('load', done, { once: true });
+    return () => {
+      window.removeEventListener('load', done);
+      if (idle !== undefined) window.cancelIdleCallback(idle);
+    };
   }, []);
   useEffect(() => subscribeMedia('(prefers-reduced-motion: reduce)', setReduced), []);
   useEffect(() => {
@@ -79,25 +95,31 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   }, []);
 
   const on = count > 1 && pageLoaded && !reduced;
-  const running = on && !paused && !hidden;
+  const running = on && !paused && !hidden && visible;
   useEffect(() => {
     if (!running) return;
     const t = window.setInterval(() => {
-      setActive((a) => {
-        const next = (a + 1) % count;
-        return ready.current[next] ? next : 0;
+      // the next photo, once it has loaded; until then the current one stays
+      setShow((s) => {
+        const next = (s.active + 1) % count;
+        return ready.current[next] ? { active: next, reach: Math.max(s.reach, next) } : s;
       });
     }, SLIDE_MS);
     return () => window.clearInterval(t);
   }, [running, count]);
-
   const toggle = useCallback(() => setPaused((p) => !p), []);
   const loaded = useCallback((i: number) => {
     ready.current[i] = true;
   }, []);
+  const seen = useCallback((v: boolean) => {
+    setVisible(v);
+    if (v) setEverSeen(true);
+  }, []);
+  // photos reached so far + the next one; none until the figure has been on screen
+  const mounted = on && everSeen ? Math.min(count - 1, reach + 1) : 0;
   const value = useMemo(
-    () => ({ count, on, active: on ? active : 0, paused, toggle, loaded }),
-    [count, on, active, paused, toggle, loaded],
+    () => ({ count, on, active: on ? active : 0, paused, mounted, toggle, loaded, seen }),
+    [count, on, active, paused, mounted, toggle, loaded, seen],
   );
   return <SlideshowContext.Provider value={value}>{children}</SlideshowContext.Provider>;
 }
@@ -113,6 +135,39 @@ export function SlideshowSlides({
 }) {
   const show = useContext(SlideshowContext);
   if (!show?.on) return null;
+  return (
+    <>
+      <SlideshowSentinel seen={show.seen} />
+      {renderSlides(slides.slice(0, show.mounted), sizes, show)}
+    </>
+  );
+}
+
+/** Covers the figure (no box of its own to the user): tells the show whether the figure is on screen. */
+function SlideshowSentinel({ seen }: { seen: (visible: boolean) => void }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // no IntersectionObserver (old browsers, test DOMs): treat the figure as on screen
+    if (typeof IntersectionObserver !== 'function') {
+      seen(true);
+      return;
+    }
+    const io = new IntersectionObserver(([e]) => seen(Boolean(e?.isIntersecting)), {
+      rootMargin: '200px 0px',
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  return <span ref={ref} className="ph-seen" aria-hidden="true" />;
+}
+
+function renderSlides(
+  slides: readonly { src: string; srcSet: string; style?: Record<string, string | number> }[],
+  sizes: string,
+  show: SlideshowState,
+) {
   // Each slide is an unfiltered frame box (the paper around a framed photo) holding its graded <img>: site.css.
   return slides.map((s, i) => (
     <span

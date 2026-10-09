@@ -3388,6 +3388,11 @@ html:has(.menu-head + nav) {
 .ph {
   container-type: size;
 }
+/* a size container needs a definite height for cqh: the closing photo's min-height alone resolves cqh to 0 (its only
+   children are absolute, so the min-height was already its height) */
+.ph--close {
+  height: var(--ph-close-min, 26rem);
+}
 .ph img {
   inset: auto;
   top: 50%;
@@ -3413,6 +3418,12 @@ html:has(.menu-head + nav) {
   height: min(100cqh, 100cqw / var(--ph-f, 0.001));
   overflow: hidden;
   box-shadow: 0 0 0 100vmax var(--c-canvas);
+}
+/* the slideshow's on-screen sentinel (Slideshow.tsx): the figure's box, invisible, never in the way */
+.ph .ph-seen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 .ph .ph-slide > img {
   top: 0;

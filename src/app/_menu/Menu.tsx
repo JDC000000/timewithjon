@@ -9,8 +9,6 @@ import type { BookGate } from '@/app/_landing/book-gate';
 import { DishLink, DishSheets } from './DishSheets';
 import type { DishRowModel, MenuModel } from './menu-model';
 
-const DISH_SIZES = '(min-width: 1024px) 360px, (min-width: 640px) 45vw, 92vw';
-
 // T4.6.04: the first dish's photo is in the first viewport on a phone (the page's largest paint): fetched first, not lazy.
 function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
   return (
@@ -19,7 +17,6 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
       <PhotoSlot
         slot={d.slot}
         kind="dish"
-        sizes={DISH_SIZES}
         priority={first ? 'hero' : undefined}
         controls={slideCount(d.slot) > 1 ? 'outside' : 'inside'}
       />

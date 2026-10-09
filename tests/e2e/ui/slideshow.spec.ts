@@ -41,14 +41,19 @@ const card = (page: Page) => page.locator('li.dish');
 async function onTop(fig: Locator): Promise<number> {
   return 1 + (await fig.locator('.ph-slide.is-on').count());
 }
-async function slidesLoaded(fig: Locator) {
-  await expect(fig.locator('img')).toHaveCount(3);
+/** photo 1 + the photos in the page so far (one ahead of the rotation) are there and loaded */
+async function slidesLoaded(fig: Locator, n = 2) {
+  await expect(fig.locator('img')).toHaveCount(n);
   await expect
     .poll(() => fig.locator('img').evaluateAll((imgs) => imgs.every((i) => (i as HTMLImageElement).complete)))
     .toBe(true);
 }
 
-test('photo 1 renders as a still photo; photos 2..n join after load in the same box', async ({ page }) => {
+test('photo 1 renders as a still photo; after load only photo 2 joins, in the same box; photo 3 is not fetched yet', async ({
+  page,
+}) => {
+  const fetched: string[] = [];
+  page.on('request', (r) => fetched.push(r.url()));
   await page.goto(BENCH, { waitUntil: 'domcontentloaded' });
   const fig = show(page);
   const first = fig.locator('img').first();
@@ -68,6 +73,9 @@ test('photo 1 renders as a still photo; photos 2..n join after load in the same 
     expect(b.width).toBeLessThanOrEqual(f.width + 0.5);
     expect(b.height).toBeLessThanOrEqual(f.height + 0.5);
   }
+  // photo 3 waits until photo 2 is on top (UX-06: a visitor downloads only the photos the rotation reaches)
+  await page.waitForTimeout(1500);
+  expect(fetched.filter((u) => /\/img\/hero-3-/.test(u))).toEqual([]);
 });
 
 test('crossfades every 5 s; Pause holds the photo, Play resumes', async ({ page }) => {
@@ -78,6 +86,7 @@ test('crossfades every 5 s; Pause holds the photo, Play resumes', async ({ page 
   expect(await onTop(fig)).toBe(1);
   await page.clock.runFor(SLIDE_MS);
   await expect.poll(() => onTop(fig)).toBe(2);
+  await slidesLoaded(fig, 3); // photo 2 on top: photo 3 joins
   const second = fig.locator('.ph-slide').first();
   await expect.poll(() => second.evaluate((i) => Number(getComputedStyle(i).opacity))).toBe(1);
 
@@ -220,10 +229,13 @@ test("framing: a framed photo's box is its frame ratio, centred, at 375/768/1024
 test('framing: a framed slide on top shows paper in its margins, never the photos under it', async ({
   page,
 }) => {
+  await page.clock.install();
   await page.goto(BENCH);
   const fig = show(page);
   await slidesLoaded(fig);
-  await fig.getByRole('button', { name: 'Pause' }).click();
+  await page.clock.runFor(SLIDE_MS); // photo 2 on top: photo 3 (the narrow frame) joins
+  await slidesLoaded(fig, 3);
+  await fig.getByRole('button', { name: 'Pause', exact: true }).click();
   await fig.scrollIntoViewIfNeeded();
   const f = (await fig.boundingBox())!;
   // a strip at the figure's left edge: outside slide 3's narrow frame (0.6), inside photo 1 and slide 2
@@ -244,3 +256,26 @@ test('framing: a framed slide on top shows paper in its margins, never the photo
   const paperOnly = await page.screenshot({ clip });
   expect(withSlide.equals(paperOnly), 'margin pixels = the bare paper').toBe(true);
 });
+
+// every photo on the guest pages is drawn: framing's size containment must never leave an image at 0 x 0
+for (const path of ['/', '/menu'] as const)
+  test(`framing: every photo on ${path} is drawn at its figure's size (no frame in a public build)`, async ({
+    page,
+  }) => {
+    await page.goto(path);
+    const rows = await page.locator('figure.ph > img').evaluateAll((imgs) =>
+      imgs
+        .filter((i) => i.closest('dialog') === null) // a closed sheet's photo has no box
+        .map((i) => {
+          const f = i.closest('figure')!.getBoundingClientRect();
+          const r = i.getBoundingClientRect();
+          const slot = (i.closest('figure') as HTMLElement).dataset.slot;
+          return { slot, fw: f.width, fh: f.height, rw: r.width, rh: r.height };
+        }),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const { slot, fw, fh, rw, rh } of rows) {
+      expect(rw, `${slot} width`).toBeCloseTo(fw, 0);
+      expect(rh, `${slot} height`).toBeCloseTo(fh, 0);
+    }
+  });

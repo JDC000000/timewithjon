@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { dishBySlug } from '@/content/menu-helpers';
 import { landingModel } from '@/features/invites/landing-model';
 import type { Invite } from '@/features/invites/repo';
+import { PHOTO_SIZES } from '@/ui/photo-sizes';
 import { Hero } from '../Hero';
 import { PersonalHero, type PersonalModel } from '../PersonalHero';
 
@@ -65,7 +66,7 @@ describe('S1 open hero', () => {
     expect(fig).toContain(
       'srcSet="/img/hero-480.webp 480w, /img/hero-800.webp 800w, /img/hero-1200.webp 1200w, /img/hero-1600.webp 1600w"',
     );
-    expect(fig).toContain('sizes="(min-width: 1024px) 50vw, 100vw"');
+    expect(fig).toContain(`sizes="${PHOTO_SIZES.hero}"`);
     expect(fig).toContain('loading="eager"');
     expect(fig).toContain('fetchPriority="high"');
     expect(text(html)).not.toMatch(/For Jon|opens with/i);
