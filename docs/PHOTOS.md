@@ -81,12 +81,36 @@ is inside the card's link, so the button sits next to the link, laid over the ph
 hero (and the /sent hero, same slot), `why`, `close`, and any dish slot (its menu card and its sheet). The
 prototype-only page `/dev/slides` shows one on a test fixture (`tests/e2e/ui/slideshow.spec.ts`).
 
+### Framing (per source, per breakpoint)
+
+A source may also carry:
+
+- `"aspect": "source"`: keep the source's own aspect. The build does not crop it to the slot's aspect (`pos` is not
+  used for it); the source is expected to be pre-cut to what any breakpoint shows. Same widths, quality and size cap.
+- `"view"`: how the page frames that source in each box. Keys are the ratio tokens, one per kind and breakpoint:
+  `hero-s` (<640), `hero-m` (640–1023), `hero` (≥1024); `band`, `band-l` (≥1024); `close-s` (<640),
+  `close-m` (640–1023), `close-l` (≥1024); `dish`; `sheet`, `sheet-l` (≥1024); `thumb`, `thumb-l` (≥1024);
+  `sent`, `sent-m` (≥768). A value is a position `"x% y%"` (0–100, at most one decimal), or
+  `{ "pos": "x% y%", "frame": <w/h> }` (0.2–5): the photo is drawn in the largest centred box of that ratio, the
+  rest of the box shows the page paper.
+
+```json
+"hero": [
+  { "file": "sources/hero-1.jpg", "aspect": "source",
+    "view": { "hero-s": { "pos": "50% 13.9%", "frame": 1.141 }, "hero": "50% 18%" } }
+]
+```
+
+The build writes the views to `src/ui/photo-views.json` (committed as `{}`; numbers only), and `<PhotoSlot>` puts
+each source's own `--p-<key>` / `--f-<key>` on its `<img>`, slides included. A key a source doesn't name falls back
+to the slot's `pos`, then `50% 50%`. A manifest without `aspect`/`view` builds and renders exactly as before.
+
 ## After a private build
 
 The swap rewrites files in `public/img` (and, for a slideshow, adds `<slot>-<n>-<w>.webp` files) and, with `text`,
-`pos` or slideshow overrides, `src/content/menu.ts` and `src/ui/photo-slots.ts`. The unit tests pin the committed stand-ins byte for byte
+`pos` or slideshow overrides, `src/content/menu.ts` and `src/ui/photo-slots.ts` (and, with views, `src/ui/photo-views.json`). The unit tests pin the committed stand-ins byte for byte
 (`tests/unit/ui/public-img-allowlist.test.ts`) and the public copy, so if you run the swap locally, restore with
-`git checkout -- public/img src/content/menu.ts src/ui/photo-slots.ts && git clean -f public/img` before running the
+`git checkout -- public/img src/content/menu.ts src/ui/photo-slots.ts src/ui/photo-views.json && git clean -f public/img` before running the
 tests, and never commit the swapped files.
 
 ## Stand-in sources (Unsplash License)

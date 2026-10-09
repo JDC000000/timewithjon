@@ -10,6 +10,7 @@ import * as ui from '@/ui';
 import { Button, Field, FieldGroup, KeepWhole, List, Menu, PhotoSlot, SiteFooter, Toast } from '@/ui';
 import { AdminNav } from '@/ui/AdminNav';
 import { PHOTO_SLOTS, type Photo } from '@/ui/photo-slots';
+import { PHOTO_SIZES } from '@/ui/photo-sizes';
 
 const nav = vi.hoisted(() => ({ path: '/admin' }));
 vi.mock('next/navigation', () => ({
@@ -207,7 +208,7 @@ describe('List, KeepWhole, PhotoSlot', () => {
     expect(img.getAttribute('srcset')).toBe(
       '/img/close-480.webp 480w, /img/close-800.webp 800w, /img/close-1200.webp 1200w, /img/close-1600.webp 1600w',
     );
-    expect(img.getAttribute('sizes')).toBe('100vw');
+    expect(img.getAttribute('sizes')).toBe(PHOTO_SIZES.close); // the kind's measured widths
     expect(img.getAttribute('loading')).toBe('lazy');
     expect(img.hasAttribute('fetchpriority')).toBe(false);
     expect(img.style.objectPosition).toBe(''); // dec 48: Jon's photo is cropped around its focal point at build time

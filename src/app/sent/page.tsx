@@ -21,7 +21,6 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Sent · Time with Jon' };
 
 const NO_TARGET = {};
-const SENT_PHOTO_SIZES = '(min-width: 768px) 736px, 100vw';
 
 export default async function SentPage() {
   const model = await loadSentModel(await readRequestCapability());
@@ -51,7 +50,7 @@ function Sent({ model }: { model: Extract<SentModel, { kind: 'sent' }> }) {
                 : AFTER_SEND.promiseNoEmail}
           </p>
         </div>
-        <PhotoSlot slot="hero" kind="sent" sizes={SENT_PHOTO_SIZES} priority="hero" />
+        <PhotoSlot slot="hero" kind="sent" priority="hero" />
         <div className="receipt">
           <p className="dish-name">{model.dishName}</p>
           <ul>

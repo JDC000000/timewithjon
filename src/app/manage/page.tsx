@@ -29,8 +29,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const PHOTO_SIZES = '(min-width: 768px) 736px, 100vw';
-
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function ManagePage({ searchParams }: { searchParams: Search }) {
@@ -96,7 +94,7 @@ function Manage({ model, token, sent }: { model: Open; token: string; sent: stri
           </h1>
         </div>
         {dish?.flow !== 'surprise' && (
-          <PhotoSlot slot={dishPhotoSlot(model.dish.slug)} kind="sent" sizes={PHOTO_SIZES} priority="hero" />
+          <PhotoSlot slot={dishPhotoSlot(model.dish.slug)} kind="sent" priority="hero" />
         )}
         {model.when && (
           <div className="receipt">

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AFTER_SEND, GUEST_LABEL, NO_GIFTS_PS } from '@/content';
 import { ROUTES } from '@/ui/routes';
+import { PHOTO_SIZES } from '@/ui/photo-sizes';
 import { AFTER_SEND_STANDBY, SENT_UI, STALE } from '@/content/ui/guest-after';
 import type { SentModel } from '../model';
 
@@ -101,7 +102,7 @@ describe('S11 /sent', () => {
     expect(at).toBeLessThan(h.indexOf('class="receipt"'));
     const img = h.slice(at).match(/<img [^>]*>/)![0];
     expect(img).toContain('src="/img/hero-480.webp"');
-    expect(img).toContain('sizes="(min-width: 768px) 736px, 100vw"');
+    expect(img).toContain(`sizes="${PHOTO_SIZES.sent}"`);
     expect(img).toContain('alt=""');
     expect(img).toContain('loading="eager"');
     expect(img).toMatch(/fetchPriority="high"/i);

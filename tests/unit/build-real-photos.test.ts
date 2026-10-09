@@ -5,7 +5,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildRealPhotos, MAX_SLIDES, outName, parseSlots, SLOTS } from '../../scripts/build-real-photos.mjs';
+import {
+  buildRealPhotos,
+  MAX_SLIDES,
+  outName,
+  parseSlots,
+  parseView,
+  SLOTS,
+  VIEW_KEYS,
+  viewsFor,
+} from '../../scripts/build-real-photos.mjs';
 import { MAX_SLIDES as UI_MAX_SLIDES, PHOTO_SLOTS } from '../../src/ui/photo-slots';
 
 let dir: string;
@@ -18,6 +27,10 @@ beforeAll(async () => {
   src = join(dir, 'sources');
   out = join(dir, 'out');
   for (const d of [src, out]) mkdirSync(d);
+  // a tall source (3:5) for the aspect "source" render
+  await sharp({ create: { width: 300, height: 500, channels: 3, background: '#468' } })
+    .jpeg()
+    .toFile(join(dir, 'sources', 'tall.jpg'));
   const colours = ['#c33', '#3c3', '#33c', '#cc3', '#3cc', '#c3c', '#999'];
   await Promise.all(
     colours.map((c, i) =>
@@ -118,4 +131,85 @@ describe('buildRealPhotos', () => {
     expect(readdirSync(out)).toEqual([]);
     expect(existsSync(join(out, 'grind-480.webp'))).toBe(false);
   });
+});
+
+describe('framing: aspect "source" and view (docs/PHOTOS.md)', () => {
+  const VIEW = { 'hero-s': { pos: '50% 13.9%', frame: 1.141 }, hero: '50% 18%' };
+
+  it('passes aspect and a validated view through; entries without them are unchanged', () => {
+    expect(
+      parseSlots({ hero: [{ file: 'a.jpg', aspect: 'source', view: VIEW }, { file: 'b.jpg' }] }),
+    ).toEqual({
+      hero: [{ file: 'a.jpg', aspect: 'source', view: VIEW }, { file: 'b.jpg' }],
+    });
+    expect(parseSlots({ grind: { file: 'a.jpg', pos: '50% 40%' } })).toEqual({
+      grind: [{ file: 'a.jpg', pos: '50% 40%' }],
+    });
+  });
+
+  it('knows the ratio keys of every photo kind and breakpoint', () => {
+    expect([...VIEW_KEYS].sort()).toEqual(
+      [
+        'band',
+        'band-l',
+        'close-l',
+        'close-m',
+        'close-s',
+        'dish',
+        'hero',
+        'hero-m',
+        'hero-s',
+        'sent',
+        'sent-m',
+      ]
+        .concat(['sheet', 'sheet-l', 'thumb', 'thumb-l'])
+        .sort(),
+    );
+  });
+
+  it('fails the build on a bad aspect, key, pos or frame', () => {
+    const bad = (e: object) => () => parseSlots({ hero: [{ file: 'a.jpg', ...e }] });
+    expect(bad({ aspect: 'slot' })).toThrow(/aspect must be "source"/);
+    expect(bad({ view: [] })).toThrow(/view must be an object/);
+    expect(bad({ view: { wide: '50% 50%' } })).toThrow(/unknown view key "wide"/);
+    expect(bad({ view: { hero: '50% 50' } })).toThrow(/must be "x% y%"/);
+    expect(bad({ view: { hero: '50% 101%' } })).toThrow(/must be "x% y%"/);
+    expect(bad({ view: { hero: '50% 13.95%' } })).toThrow(/must be "x% y%"/);
+    expect(bad({ view: { hero: { pos: '50% 50%', frame: 0.1 } } })).toThrow(/frame must be a number 0.2-5/);
+    expect(bad({ view: { hero: { pos: '50% 50%', frame: 6 } } })).toThrow(/frame must be a number 0.2-5/);
+    expect(bad({ view: { hero: { pos: '50% 50%', frame: '1.2' } } })).toThrow(/frame must be a number/);
+    expect(bad({ view: { hero: { pos: '50% 50%', fit: 'contain' } } })).toThrow(/unknown field/);
+    expect(bad({ view: { hero: 3 } })).toThrow(/must be "x% y%" or \{ pos, frame \}/);
+    expect(parseView('x', { dish: { pos: '0% 100%' } })).toEqual({ dish: { pos: '0% 100%' } });
+  });
+
+  it('views: per slot, one entry per source ({} without a view); none at all = {}', () => {
+    expect(viewsFor(parseSlots({ grind: [{ file: 'a.jpg' }], hero: { file: 'b.jpg' } }))).toEqual({});
+    expect(
+      viewsFor(
+        parseSlots({ hero: [{ file: 'a.jpg', view: VIEW }, { file: 'b.jpg' }], grind: { file: 'c.jpg' } }),
+      ),
+    ).toEqual({
+      hero: [VIEW, {}],
+    });
+  });
+
+  it('aspect "source" keeps the source\'s own aspect at the slot\'s widths; the build returns the views', async () => {
+    clean();
+    const r = await buildRealPhotos(
+      { slots: { 'pitch-me': [{ file: 'sources/tall.jpg', aspect: 'source', view: { dish: '50% 20%' } }] } },
+      dir,
+      out,
+      quiet,
+    );
+    for (const w of SLOTS['pitch-me']![0]) {
+      const m = await sharp(join(out, `pitch-me-${w}.webp`)).metadata();
+      expect({ w, width: m.width, height: m.height }).toEqual({
+        w,
+        width: w,
+        height: Math.round((w * 5) / 3),
+      });
+    }
+    expect(r.views).toEqual({ 'pitch-me': [{ dish: '50% 20%' }] });
+  }, 30_000);
 });
