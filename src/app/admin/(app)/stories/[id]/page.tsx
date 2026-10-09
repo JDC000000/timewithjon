@@ -26,7 +26,7 @@ export const metadata: Metadata = { title: STORIES.titlePage }; // wireframe 09 
 export default async function StoryPage({ params, searchParams }: Props) {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin); // 404 when the flag is off, else to sign-in
+  if (admin instanceof Response) return notAllowed(admin); // 404 when the flag is off, else to sign-in
   const id = (await params).id.toLowerCase();
   if (!UUID.test(id)) notFound();
   const [data, sp] = await Promise.all([storyPage(id), searchParams]);

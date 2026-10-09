@@ -19,3 +19,6 @@ export const ROUTES = {
     signIn: '/admin/sign-in',
   },
 } as const;
+
+/** EML-05: the manage page's fragment that opens "Ask for another time" on load (E8's link ends in it). */
+export const MANAGE_ANOTHER_ANCHOR = 'another';

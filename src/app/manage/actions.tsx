@@ -14,6 +14,7 @@ import {
   useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
   type FormEvent,
   type ReactNode,
   type Ref,
@@ -24,7 +25,8 @@ import { DATES, PICKER } from '@/content/ui/booking';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import type { EngineOutput } from '@/features/availability/types';
 import { keyFor, type KeyedBody } from '@/lib/client-key';
-import { Button } from '@/ui';
+import { Button, Field } from '@/ui';
+import { MANAGE_ANOTHER_ANCHOR } from '@/ui/routes';
 import { announce, moveFocus } from '@/ui/focus';
 import { StoryForm } from '../_guest/story-form';
 import { seasonOf } from './_lib/season';
@@ -45,8 +47,10 @@ export interface ManageActionsProps {
   /** MANAGE_HEADER ('x-twj-manage'), passed from the server so this bundle never imports the token module. */
   header: string;
   dish: DishView;
-  /** Which form "Ask for another time" opens: the S6 picker, the S7 date form or the pitch's rough window. */
+  /** Which form "Ask for another time" opens: the S6 picker, the S7 date form or the pitch's idea and rough window. */
   form: 'slots' | 'dates' | 'pitch';
+  /** EML-05: a Pitch Me guest's own pitch and "when", the starting text of the pitch form (E8: the shorter version). */
+  pitch?: { idea: string; when: string } | null;
   /** Carried 1: "Sending new times frees up {when}." while a time is locked, else null. */
   frees: string | null;
   canCancel: boolean;
@@ -56,10 +60,22 @@ export interface ManageActionsProps {
 }
 
 type Open = null | 'another' | 'story';
+function onHash(fn: () => void): () => void {
+  window.addEventListener('hashchange', fn);
+  return () => window.removeEventListener('hashchange', fn);
+}
 
 export function ManageActions(p: ManageActionsProps) {
   const router = useRouter();
-  const [open, setOpen] = useState<Open>(null);
+  // EML-05: E8's link ends in #another, so its button lands with the pitch form already open.
+  // undefined = untouched: the hash decides (read after hydration, never on the server); a tap decides after that.
+  const fromHash = useSyncExternalStore(
+    onHash,
+    () => window.location.hash === `#${MANAGE_ANOTHER_ANCHOR}`,
+    () => false,
+  );
+  const [touched, setOpen] = useState<Open | undefined>(undefined);
+  const open: Open = touched === undefined ? (fromHash && p.canAskAnother ? 'another' : null) : touched;
   const [cancelling, setCancelling] = useState(false);
   /** QA B: the Cancel row is showing its question */
   const [asking, setAsking] = useState(false);
@@ -155,6 +171,7 @@ export function ManageActions(p: ManageActionsProps) {
           auth={auth}
           dish={p.dish}
           form={p.form}
+          pitch={p.pitch ?? null}
           onDone={() => {
             setOpen(null);
             router.refresh();
@@ -235,6 +252,7 @@ function AnotherTime(p: {
   auth: Record<string, string>;
   dish: DishView;
   form: 'slots' | 'dates' | 'pitch';
+  pitch: { idea: string; when: string } | null;
   onDone: () => void;
 }) {
   const [engine, setEngine] = useState<EngineOutput | 'error' | null>(
@@ -268,6 +286,7 @@ function AnotherForm(p: {
   auth: Record<string, string>;
   dish: DishView;
   form: 'slots' | 'dates' | 'pitch';
+  pitch: { idea: string; when: string } | null;
   engine: EngineOutput;
   onDone: () => void;
 }) {
@@ -281,7 +300,8 @@ function AnotherForm(p: {
   const [shownMonth, setShownMonth] = useState(() => initialMonth(months, [], null) ?? '');
   const [order, setOrder] = useState<string[]>([]);
   const [shownCal, setShownCal] = useState(() => (cal.length ? initialCalMonth(cal, []) : ''));
-  const [rough, setRough] = useState('');
+  const [rough, setRough] = useState(p.form === 'pitch' ? (p.pitch?.when ?? '') : '');
+  const [idea, setIdea] = useState(p.form === 'pitch' ? (p.pitch?.idea ?? '') : '');
   const [overnight, setOvernight] = useState(false);
   const [need, setNeed] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -318,7 +338,13 @@ function AnotherForm(p: {
     const choices =
       p.form === 'slots'
         ? { slotIds: [...selection.picks] }
-        : { dates: order, ...(rough.trim() ? { windowText: rough.trim() } : {}), overnight };
+        : {
+            dates: order,
+            ...(rough.trim() ? { windowText: rough.trim() } : {}),
+            overnight,
+            // EML-05: the (shorter) pitch; left blank, the stored one stays.
+            ...(p.form === 'pitch' && idea.trim() ? { pitchIdea: idea.trim() } : {}),
+          };
     keyed.current = keyFor(keyed.current, choices);
     const json = await post('/api/manage/another-time', p.auth, {
       ...choices,
@@ -394,7 +420,21 @@ function AnotherForm(p: {
           )}
         </DateGrid>
       )}
-      {p.form === 'pitch' && roughField}
+      {p.form === 'pitch' && (
+        <>
+          <Field
+            multiline
+            id="m-idea"
+            name="pitchIdea"
+            label={FLOW.pitchIdeaLabel}
+            hint={FLOW.pitchIdeaHint}
+            maxLength={2000}
+            value={idea}
+            onChange={(e) => setIdea(e.currentTarget.value)}
+          />
+          {roughField}
+        </>
+      )}
       {failed && (
         <p className="ui" role="alert" style={{ color: 'var(--c-ink)' }}>
           {failed}

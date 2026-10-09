@@ -23,6 +23,7 @@ const sent = (over: Partial<Extract<SentModel, { kind: 'sent' }>> = {}): SentMod
   standby: null,
   sentTo: 'priya@example.com',
   fromAddress: 'jon@timewithjon.com',
+  emailComing: true,
   before60: false,
   ...over,
 });
@@ -49,6 +50,13 @@ describe('S11 /sent', () => {
     expect(h).toContain(AFTER_SEND.sentTo('priya@example.com'));
     expect(h).toContain(esc(AFTER_SEND.question));
     expect(h).toContain(AFTER_SEND.skip);
+  });
+
+  it('EML-24: when no "Got it" email is coming (the daily cap), the page does not say to watch for one', async () => {
+    const h = await html(sent({ emailComing: false }));
+    expect(h).toContain(esc(AFTER_SEND.promiseNoEmail));
+    expect(plain(h)).not.toContain('Watch for an email');
+    expect(h).toContain(AFTER_SEND.sentTo('priya@example.com'));
   });
 
   it('AC4: with before-60 off its field is not in the DOM; on, it is', async () => {

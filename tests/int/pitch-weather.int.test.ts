@@ -12,10 +12,11 @@ import { POST as weatherRoute } from '@/app/api/admin/requests/[id]/weather/rout
 import { queueIcsEmail } from '@/features/calendar/ics-email';
 import { menuLink, resolveLinkVars, UnknownLinkKindError } from '@/features/email/link-vars';
 import { findToken, issueManageToken, manageExpiry } from '@/features/invites/action-tokens';
-import { loadNewDateModel } from '@/features/invites/manage-model';
+import { loadManageModel, loadNewDateModel } from '@/features/invites/manage-model';
 import { createRequestTx } from '@/features/requests/create';
 import { lockRequest } from '@/features/requests/lock';
 import { replyToPitch, weatherCall } from '@/features/requests/pitch-weather';
+import { RerequestBody, rerequest } from '@/features/requests/rerequest';
 import { RequestBody } from '@/features/requests/schema';
 import { suggestTimes } from '@/features/requests/suggest';
 import { takeOffer } from '@/features/requests/take-offer';
@@ -127,7 +128,7 @@ describe('T2.4.05 About your pitch → E8 or E9', () => {
     expect(mail.text_body).toMatch(
       /^I love this\. It’s also three days long, and I promised one night away, max\./,
     );
-    const raw = /\/manage\?t=([A-Za-z0-9_-]{43})/.exec(mail.text_body)![1]!;
+    const raw = /\/manage\?t=([A-Za-z0-9_-]{43})#another\n/.exec(mail.text_body)![1]!; // EML-05: opens the form
     expect((await findToken(raw))!.purpose).toBe('manage');
     const [log] = await q<{ event_key: string; vars: Record<string, unknown> }>(
       `select event_key, vars from email_log where request_id = $1 and template = 'E8'`,
@@ -138,7 +139,54 @@ describe('T2.4.05 About your pitch → E8 or E9', () => {
       [id],
     );
     expect(log!.event_key).toBe(audit!.id);
-    expect(log!.vars.manageLink).toEqual({ link: 'manage', requestId: id });
+    expect(log!.vars.manageLink).toEqual({ link: 'manage', requestId: id, anchor: 'another' });
+  });
+
+  it('EML-05: after E8 the guest sends the shorter pitch from the manage page (a new pitch and a new when)', async () => {
+    const { id } = await newRequest('pitch-me');
+    expect(await replyToPitch(id, { reply: 'smaller', length: 'three days long' })).toEqual({ ok: true });
+    // The manage page starts the pitch form from the guest's own pitch (only the token holder sees it).
+    expect(await loadManageModel(await issueManageToken(pool(), id, NOW))).toMatchObject({
+      kind: 'manage',
+      canAskAnother: true,
+      ownPitch: { idea: 'Three days on the Sunshine Coast', when: '' },
+    });
+    const { clientKey, hp, ...rest } = RerequestBody.parse({
+      clientKey: randomUUID(),
+      hp: '',
+      windowText: 'A Saturday in May',
+      pitchIdea: '  One night on the Sunshine Coast  ',
+    });
+    expect(hp).toBe(''); // the manage route's body shape, strict (a pitch is one of its choices now)
+    expect(await rerequest(id, rest, NOW, { clientKey })).toEqual({ ok: true });
+    const [r] = await q<{ status: string; pitch_idea: string; date_prefs: { window_text: string } }>(
+      `select status, pitch_idea, date_prefs from request where id = $1`,
+      [id],
+    );
+    expect(r).toMatchObject({
+      status: 'requested',
+      pitch_idea: 'One night on the Sunshine Coast',
+      date_prefs: { window_text: 'A Saturday in May' },
+    });
+    // No pitch in the body keeps the stored one; a pitch on another dish is ignored.
+    expect(await rerequest(id, { ...rest, pitchIdea: undefined }, NOW, { clientKey: randomUUID() })).toEqual({
+      ok: true,
+    });
+    expect((await q<{ p: string }>(`select pitch_idea as p from request where id = $1`, [id]))[0]!.p).toBe(
+      'One night on the Sunshine Coast',
+    );
+    const lunch = await newRequest('the-long-lunch', [await slotId('2027-06-17')]);
+    expect(
+      await rerequest(
+        lunch.id,
+        { slotIds: [await slotId('2027-06-18')], dates: [], overnight: false, pitchIdea: 'nope' },
+        NOW,
+        { clientKey: randomUUID() },
+      ),
+    ).toEqual({ ok: true });
+    expect(
+      (await q<{ p: string | null }>(`select pitch_idea as p from request where id = $1`, [lunch.id]))[0]!.p,
+    ).toBeNull();
   });
 
   it('E9: the honest no, with the guest’s own menu link (a link spec, built at send time)', async () => {

@@ -226,6 +226,7 @@ describe('the .ics fallback (T3.4.04-.06, AD-6)', () => {
           datePrefs: null,
           overnight: false,
           overnightNight: null,
+          pitchIdea: null,
         },
         now: at(60),
         clientKey: randomUUID(),

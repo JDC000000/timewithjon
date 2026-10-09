@@ -26,7 +26,7 @@ export default async function SettingsIndex({
 }) {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin); // 404 when the flag is off, else to sign-in
+  if (admin instanceof Response) return notAllowed(admin); // 404 when the flag is off, else to sign-in
   const [status, sp, mailer] = await Promise.all([calendarStatus(), searchParams, currentMailerMode()]);
   const say = googleResultLine(sp.google);
   return (

@@ -31,6 +31,8 @@ export type ManageModel =
   | (RequestView & {
       kind: 'manage';
       ownPlan: string | null; // Surprise Me only: the guest's own sealed plan, back to its owner
+      /** Pitch Me only (EML-05): the guest's own pitch and rough "when", to start the shorter version from. */
+      ownPitch: { idea: string; when: string } | null;
       canCancel: boolean;
       canAskAnother: boolean;
       canAddStory: boolean;
@@ -61,6 +63,8 @@ interface Row {
   ends_at: Date | null;
   where_text: string | null;
   own_plan: string | null;
+  own_pitch: string | null;
+  own_when: string | null;
 }
 
 async function loadView(
@@ -70,6 +74,7 @@ async function loadView(
 ): Promise<{
   view: RequestView;
   ownPlan: string | null;
+  ownPitch: { idea: string; when: string } | null;
   tz: string | null;
   jonCancelled: boolean;
   started: boolean;
@@ -79,7 +84,9 @@ async function loadView(
             case when r.joined_to_request_id is null then r.locked_starts_at else h.locked_starts_at end as starts_at,
             case when r.joined_to_request_id is null then r.locked_ends_at else h.locked_ends_at end as ends_at,
             case when r.joined_to_request_id is null then r.locked_where else h.locked_where end as where_text,
-            case when $2 then r.surprise_plan_sealed end as own_plan
+            case when $2 then r.surprise_plan_sealed end as own_plan,
+            case when $2 then r.pitch_idea end as own_pitch,
+            case when $2 then r.date_prefs->>'window_text' end as own_when
        from request r left join request h on h.id = r.joined_to_request_id
       where r.id = $1`,
     [requestId, withPlan],
@@ -99,6 +106,7 @@ async function loadView(
   return {
     view,
     ownPlan: dish?.flow === 'surprise' ? r.own_plan : null,
+    ownPitch: dish?.flow === 'pitch' && r.own_pitch ? { idea: r.own_pitch, when: r.own_when ?? '' } : null,
     tz: r.guest_time_zone,
     jonCancelled: isJonCancelled(r),
     started: hasStarted(r, now),
@@ -138,6 +146,7 @@ export async function loadManageModel(
     kind: 'manage',
     ...v,
     ownPlan: loaded.ownPlan,
+    ownPitch: loaded.ownPitch,
     canCancel: open,
     // 2026-10-05: after Jon cancelled for them, the guest can send new times (rerequest takes it back to Jon).
     canAskAnother: open || loaded.jonCancelled,

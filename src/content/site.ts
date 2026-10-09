@@ -56,6 +56,8 @@ export const AFTER_SEND = {
   stamp: 'Sent.',
   promise: (fromAddress: string) =>
     `I’ll lock in a time within two days. Watch for an email from ${fromAddress}.`,
+  /** EML-24: no "Got it" email is coming (the E1 cap of 3 a day per address was reached): the promise alone. */
+  promiseNoEmail: 'I’ll lock in a time within two days.',
   sentTo: (email: string) => `Sent to ${email}. Wrong address? Text me.`, // §14.4
   askTitle: 'One question, if you’ve got a minute.',
   question: 'What’s a moment of ours you still talk about?',

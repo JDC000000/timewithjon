@@ -11,7 +11,7 @@ import 'server-only';
 import type { PoolClient } from 'pg';
 import { dishBySlug } from '@/content/menu-helpers';
 import { queueIcsEmail } from '@/features/calendar/ics-email';
-import { manageLink, menuLink, pickLink } from '@/features/email/link-vars';
+import { MANAGE_ANCHOR, manageLink, menuLink, pickLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { reopenManageTokens } from '@/features/invites/action-tokens';
 import { withTx } from '@/lib/db';
@@ -67,7 +67,7 @@ async function pitchTx(c: PoolClient, requestId: string, p: PitchReply): Promise
         eventKey: auditId,
         vars:
           p.reply === 'smaller'
-            ? { length: p.length, manageLink: manageLink(requestId) }
+            ? { length: p.length, manageLink: manageLink(requestId, MANAGE_ANCHOR) } // EML-05: opens the pitch form
             : { menuLink: menuLink(requestId) },
       }),
     ),

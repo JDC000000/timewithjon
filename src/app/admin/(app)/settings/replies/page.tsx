@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: SETTINGS.titleReplies };
 export default async function RepliesSettings() {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin); // 404 when the flag is off, else to sign-in
+  if (admin instanceof Response) return notAllowed(admin); // 404 when the flag is off, else to sign-in
   const { settings, peopleReached } = await repliesPage();
   return (
     <Panes

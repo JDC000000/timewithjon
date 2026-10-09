@@ -1,0 +1,14 @@
+{
+  "id": "admin-signin-loses-deep-link",
+  "date": "2026-10-08",
+  "task": "QA EML-11",
+  "area": "admin",
+  "summary": "Signed out, an email's 'Open the request' landed on the inbox after sign-in, not on the request.",
+  "fix": "Admin pages redirect to /admin/sign-in?next=<their path> (from a header the proxy sets); sign-in follows next only when it is a same-origin admin page, never an outside or '//' one.",
+  "tests": [
+    "src/features/admin/__tests__/next-path.test.ts",
+    "src/app/admin/_requests/guard.test.ts",
+    "src/app/admin/sign-in/SignInNext.dom.test.tsx",
+    "tests/e2e/admin/sign-in-next.spec.ts"
+  ]
+}
