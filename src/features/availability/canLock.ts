@@ -10,6 +10,7 @@ import {
   isWeekFull,
   overlaps,
   rangedBookings,
+  weekCapCount,
   windowFitsDish,
 } from './rules';
 import type {
@@ -58,7 +59,9 @@ export interface CanLockInput {
   windowRule?: boolean;
 }
 
-export type CanLockResult = { ok: true; warnings: LockWarning[] } | { ok: false; reason: LockRefusal };
+/** week_full says which limit refused: the week's cap ('cap') or the dish's own per-week limit ('dish'). */
+export type CanLockResult =
+  { ok: true; warnings: LockWarning[] } | { ok: false; reason: LockRefusal; limit?: 'cap' | 'dish' };
 
 const LOCKABLE: RequestStatus[] = ['requested', 'needs_new_time', 'standby'];
 
@@ -114,18 +117,35 @@ export function canLock(i: CanLockInput): CanLockResult {
   if (!i.overrideWeek) {
     const week = weekStartOf(vancouverDate(range.startsAt));
     if (i.request.countsToward === 'weekly_cap' && isWeekFull(week, i.bookings, i.weeks, i.settings, self))
-      return { ok: false, reason: 'week_full' };
+      return { ok: false, reason: 'week_full', limit: 'cap' };
     // Decision 43(4): a per-week dish limit (Something New: 1 a week). It reads as a full week, so Jon's
     // "Override this week" also lifts it.
     const maxPerWeek = dishBySlug(i.request.dish)?.maxPerWeek;
     if (maxPerWeek !== undefined && dishWeekCount(week, i.request.dish, i.bookings, self) >= maxPerWeek)
-      return { ok: false, reason: 'week_full' };
+      return { ok: false, reason: 'week_full', limit: 'dish' };
   }
 
   const warnings: LockWarning[] = heldByOffer(slotId, range, i.offers, i.now, self)
     ? ['standby_offer_live']
     : [];
   return { ok: true, warnings };
+}
+
+/**
+ * "Override this week: it would be the 3rd": which booking of the week a lock past a full week would be, counted by
+ * the limit that refused (the week's cap, or the dish's own one-a-week), never the other one.
+ */
+export function weekFullNth(
+  limit: 'cap' | 'dish',
+  range: Range,
+  dish: string,
+  bookings: Booking[],
+  self: string,
+): number {
+  const week = weekStartOf(vancouverDate(range.startsAt));
+  return (
+    (limit === 'dish' ? dishWeekCount(week, dish, bookings, self) : weekCapCount(week, bookings, self)) + 1
+  );
 }
 
 /** HTTP mapping used by the admin routes (§6 "Lock race outcomes"). */

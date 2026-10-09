@@ -20,7 +20,14 @@ import { DateLockSheet, type DatesTarget } from './DateLockSheet';
 import type { DetailView, Fact } from './detail-view';
 import { whenLabel } from './format';
 import { send } from './api';
-import { checkLock, type LockCheckOutcome, type LockOutcome, type LockTicks, sendLock } from './lock-logic';
+import {
+  checkLock,
+  type LockCheckOutcome,
+  type LockOutcome,
+  type LockTicks,
+  sendLock,
+  tickFor,
+} from './lock-logic';
 import { clearRefusal, onRefusal, readRefusal, saveRefusal } from './refusal-store';
 import { commitOnLeave, createPendingCommit } from './pending-lock';
 import { NoteField } from './NoteField';
@@ -206,15 +213,32 @@ export function DetailPane(p: DetailPaneProps) {
     requestAnimationFrame(() => keepVisible(copiedRef.current));
   };
 
-  const promote = () =>
-    void act.run(
-      'POST',
-      `/api/admin/requests/${requestId}/promote`,
-      {},
-      {
-        status: SHEETS.join.promoted(view.who),
+  // Make {name} the host re-checks the lock rules for the old host's time (promoteTx → canLock). A refusal that
+  // a tick lifts (a full week, a blocked day, a Big Day that day) shows here with that tick, as the lock sheets
+  // do, and goes again with it; any other refusal is the usual line.
+  const [promoteRefused, setPromoteRefused] = useState<{
+    code: string;
+    message: string;
+    nth: number | null;
+  } | null>(null);
+  const [promoteTicks, setPromoteTicks] = useState<LockTicks>({ overrideWeek: false, bookAnyway: false });
+  const promoteTick = promoteRefused ? tickFor(promoteRefused.code) : null;
+  const promote = (ticks: LockTicks = { overrideWeek: false, bookAnyway: false }) => {
+    setSheet(null);
+    void act.run('POST', `/api/admin/requests/${requestId}/promote`, ticks, {
+      status: SHEETS.join.promoted(view.who),
+      after: () => setPromoteRefused(null),
+      refused: (res) => {
+        if (res.status !== 409 || !tickFor(res.code ?? null)) {
+          setPromoteRefused(null);
+          return false;
+        }
+        setPromoteRefused({ code: res.code!, message: res.message ?? '', nth: res.nth ?? null });
+        setPromoteTicks({ overrideWeek: false, bookAnyway: false });
+        return true;
       },
-    );
+    });
+  };
   // The desktop ⋯ menu (APG); the phone sheet lists the same actions, with Suggest first (wireframe 09 A3c2).
   // A request already on stand-by can't be moved there again (the server refuses it): no such row.
   const canMoveToStandby = view.open && view.filter !== 'standby';
@@ -288,6 +312,37 @@ export function DetailPane(p: DetailPaneProps) {
           <p className="notice" role="alert">
             {act.problem}
           </p>
+        ) : null}
+        {promoteRefused && promoteTick ? (
+          <div data-promote-refused="">
+            <p className="notice" role="alert">
+              {promoteRefused.message}
+            </p>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={promoteTicks[promoteTick]}
+                onChange={(e) => setPromoteTicks({ ...promoteTicks, [promoteTick]: e.currentTarget.checked })}
+              />
+              <span>
+                {promoteTick === 'overrideWeek'
+                  ? LOCK.overrideWeek(ordinal(promoteRefused.nth ?? 3))
+                  : promoteRefused.code === 'big_day_clash'
+                    ? LOCK.bookAnywayClash
+                    : LOCK.bookAnyway}
+              </span>
+            </label>
+            <p className="send">
+              <Button
+                variant="commit"
+                disabled={!promoteTicks[promoteTick]}
+                busy={act.busy ? SHEETS.join.promote(view.who) : undefined}
+                onClick={() => promote(promoteTicks)}
+              >
+                {SHEETS.join.promote(view.who)}
+              </Button>
+            </p>
+          </div>
         ) : null}
         {locking ? (
           <p className="cap" data-status ref={capRef}>

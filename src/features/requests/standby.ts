@@ -23,7 +23,14 @@ import { lockWeeksOf } from './lock';
 import { guestAt } from '@/lib/when';
 import { createOffer, STANDBY_OFFER_HOURS, type OfferRange } from './offers';
 import { noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
-import { audit, requestForOffer, timeLabel, type OfferActionResult } from './suggest';
+import {
+  audit,
+  DETACH_GONE_HOST,
+  requestForOffer,
+  ridesLiveHost,
+  timeLabel,
+  type OfferActionResult,
+} from './suggest';
 
 const HOUR_MS = 3600 * 1000;
 
@@ -36,7 +43,10 @@ async function moveTx(
   const none = noSideEffects();
   const r = await requestForOffer(c, a.requestId);
   if (!r) return { result: { ok: false, status: 404, reason: 'request_not_found' }, after: none };
-  if (!['requested', 'needs_new_time'].includes(r.status) || r.joined_to_request_id) {
+  if (
+    !['requested', 'needs_new_time'].includes(r.status) ||
+    (await ridesLiveHost(c, r.joined_to_request_id))
+  ) {
     return { result: { ok: false, status: 409, reason: 'not_allowed' }, after: none };
   }
   const week = await c.query(`select 1 from week where week_start = $1`, [a.weekStart]);
@@ -46,7 +56,8 @@ async function moveTx(
     return { result: { ok: false, status: 409, reason: 'in_the_past' }, after: none };
   }
   await c.query(
-    `update request set status = 'standby', standby_week = $2, awaiting_jon_since = null where id = $1`,
+    `update request set status = 'standby', standby_week = $2, awaiting_jon_since = null, ${DETACH_GONE_HOST}
+      where id = $1`,
     [a.requestId, a.weekStart],
   );
   const auditId = await audit(c, a.requestId, 'moved_to_standby', {

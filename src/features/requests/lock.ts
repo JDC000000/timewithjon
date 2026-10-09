@@ -8,6 +8,7 @@ import 'server-only';
 import type { PoolClient } from 'pg';
 import {
   canLock,
+  weekFullNth,
   REFUSAL_MESSAGE,
   type LockRefusal,
   type LockWarning,
@@ -54,7 +55,8 @@ export interface LockInput {
 export type LockResult =
   | { ok: true; warnings: LockWarning[] }
   | { ok: false; status: 404; reason: 'request_not_found' | 'slot_not_found' }
-  | { ok: false; status: 409; reason: LockRefusal; message: string };
+  /** week_full: `nth` is which booking of the week it would be ("Override this week: it would be the 3rd"). */
+  | { ok: false; status: 409; reason: LockRefusal; message: string; nth?: number };
 
 export interface RequestRow {
   status: RequestStatus;
@@ -73,8 +75,8 @@ export interface RequestRow {
 /** The database's own double-booking guards (the exclusion constraint and the locked-slot unique index). */
 const RANGE_GUARDS = new Set(['request_no_overlap', 'request_locked_slot_uq']);
 
-export function refused(reason: LockRefusal): LockResult {
-  return { ok: false, status: 409, reason, message: REFUSAL_MESSAGE[reason] };
+export function refused(reason: LockRefusal, nth?: number): LockResult {
+  return { ok: false, status: 409, reason, message: REFUSAL_MESSAGE[reason], ...(nth ? { nth } : {}) };
 }
 
 export type TxOutcome =
@@ -228,7 +230,13 @@ export async function applyLock(
     bookAnyway: i.bookAnyway,
     windowRule: i.windowRule,
   });
-  if (!verdict.ok) return refused(verdict.reason);
+  if (!verdict.ok)
+    return refused(
+      verdict.reason,
+      verdict.reason === 'week_full'
+        ? weekFullNth(verdict.limit ?? 'cap', range, r.dish, loaded.bookings, i.requestId)
+        : undefined,
+    );
   if (i.takenOffer && verdict.warnings.includes('standby_offer_live')) return refused('time_taken');
   const heldOffers = offersHolding(slot?.id ?? null, range, loaded.offers, now, i.requestId).map((o) => o.id);
 

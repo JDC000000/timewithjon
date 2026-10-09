@@ -8,15 +8,15 @@ import { dishBySlug } from '@/content/menu-helpers';
 import {
   canLock,
   REFUSAL_MESSAGE,
+  weekFullNth,
   type LockRefusal,
   type LockWarning,
 } from '@/features/availability/canLock';
 import { loadEngineData } from '@/features/availability/load';
-import { dishWeekCount, slotCountsToward, weekCapCount } from '@/features/availability/rules';
+import { slotCountsToward } from '@/features/availability/rules';
 import type { CountsToward, RequestStatus, Slot } from '@/features/availability/types';
 import type { LockTarget } from '@/features/requests/lock';
 import { q } from '@/lib/db';
-import { vancouverDate, weekStartOf } from '@/lib/time';
 
 export type LockCheck =
   | { ok: true; warnings: LockWarning[] }
@@ -79,12 +79,9 @@ export async function checkLock(
     bookAnyway: ticks.bookAnyway,
   });
   if (verdict.ok) return verdict;
-  const week = weekStartOf(vancouverDate(range.startsAt));
   const nth =
     verdict.reason === 'week_full'
-      ? (countsToward === 'weekly_cap'
-          ? weekCapCount(week, loaded.bookings, requestId)
-          : dishWeekCount(week, r.dish, loaded.bookings, requestId)) + 1
+      ? weekFullNth(verdict.limit ?? 'cap', range, r.dish, loaded.bookings, requestId)
       : null;
   return { ok: false, reason: verdict.reason, message: REFUSAL_MESSAGE[verdict.reason], nth };
 }

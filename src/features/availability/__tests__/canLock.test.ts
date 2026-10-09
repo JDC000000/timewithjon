@@ -1,6 +1,7 @@
 // src/lib/engine/__tests__/canLock.test.ts — T0.5 AC 4, 17, 21, 22, 23
 import { describe, expect, it } from 'vitest';
 import { canLock, type CanLockInput } from '@/features/availability';
+import { weekFullNth } from '@/features/availability/canLock';
 import { baseInput, booking, slot } from '@/features/availability/fixtures';
 import { vancouverInstant } from '@/lib/time';
 
@@ -32,7 +33,7 @@ describe('C3 canLock', () => {
     const r = canLock(
       input({ target: { slot: slot(base, '2027-06-25', 'lunch') }, bookings: [encoreSun, thu] }),
     );
-    expect(r).toEqual({ ok: false, reason: 'week_full' });
+    expect(r).toMatchObject({ ok: false, reason: 'week_full' });
     const tue = {
       range: {
         startsAt: vancouverInstant('2027-06-29', '19:30'),
@@ -96,7 +97,10 @@ describe('C3 canLock', () => {
       booking('2027-05-20', '12:00', '14:00', 'weekly_cap'),
       booking('2027-05-21', '12:00', '14:00', 'weekly_cap'),
     ];
-    expect(canLock(input({ target: range, bookings: two }))).toEqual({ ok: false, reason: 'week_full' });
+    expect(canLock(input({ target: range, bookings: two }))).toMatchObject({
+      ok: false,
+      reason: 'week_full',
+    });
     expect(canLock(input({ target: range, bookings: two, overrideWeek: true })).ok).toBe(true);
   });
   it('refuses a cancelled request and a taken range (409 mapping)', () => {
@@ -131,7 +135,7 @@ describe('decision 43(4): Something New, at most 1 a week', () => {
     expect(canLock(input({ request: sn, target: at('2027-05-16', '10:00', '14:00') })).ok).toBe(true);
     expect(
       canLock(input({ request: sn, target: at('2027-05-16', '10:00', '14:00'), bookings: [lockedSn] })),
-    ).toEqual({ ok: false, reason: 'week_full' });
+    ).toMatchObject({ ok: false, reason: 'week_full' });
   });
   it('Override this week lifts it; the next week (Mon May 17) and the week before are free', () => {
     const bookings = [lockedSn];
@@ -168,7 +172,7 @@ describe('decision 43(4): Something New, at most 1 a week', () => {
     ).toBe(true);
     expect(
       canLock(input({ request: sn, target: at('2027-05-10', '19:00', '22:00'), bookings: [sunLate] })),
-    ).toEqual({
+    ).toMatchObject({
       ok: false,
       reason: 'week_full',
     });
@@ -223,5 +227,38 @@ describe('ENG-11 rule 2(e) on any day: a Big Day is the whole day', () => {
     expect(
       canLock(input({ ...encore, target: at('2027-05-29', '19:30', '23:00'), bookings: [grindSat] })).ok,
     ).toBe(true);
+  });
+});
+
+describe('week_full says which limit refused, and "the nth" counts by that limit', () => {
+  const sn = {
+    id: 'me',
+    status: 'requested' as const,
+    countsToward: 'weekly_cap' as const,
+    dish: 'something-new',
+  };
+  const tue = {
+    range: {
+      startsAt: vancouverInstant('2027-05-11', '19:00'),
+      endsAt: vancouverInstant('2027-05-11', '22:00'),
+    },
+  };
+  it('the dish’s one-a-week: limit "dish", nth from the dish’s own count (a Neither booking counts there, not in the cap)', () => {
+    const neither = booking('2027-05-12', '19:00', '22:00', 'none', { dish: 'something-new' });
+    const v = canLock(input({ request: sn, target: tue, bookings: [neither] }));
+    expect(v).toEqual({ ok: false, reason: 'week_full', limit: 'dish' });
+    expect(weekFullNth('dish', tue.range, 'something-new', [neither], 'me')).toBe(2); // not "the 1st"
+  });
+  it('the week’s cap: limit "cap", nth from the cap count', () => {
+    const two = [
+      booking('2027-05-13', '12:00', '14:00', 'weekly_cap'),
+      booking('2027-05-14', '12:00', '14:00', 'weekly_cap'),
+    ];
+    expect(canLock(input({ target: { slot: slot(base, '2027-05-13', 'evening') }, bookings: two }))).toEqual({
+      ok: false,
+      reason: 'week_full',
+      limit: 'cap',
+    });
+    expect(weekFullNth('cap', tue.range, 'the-long-lunch', two, 'me')).toBe(3);
   });
 });

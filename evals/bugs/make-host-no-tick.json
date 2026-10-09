@@ -1,0 +1,9 @@
+{
+  "id": "make-host-no-tick",
+  "date": "2026-10-09",
+  "task": "make host",
+  "area": "admin/requests",
+  "summary": "Make host was refused (a full week, a blocked day, a Big Day that day) with a message asking for a tick the page didn't show, so it was a dead end.",
+  "fix": "A Make host refusal a tick lifts shows with that tick (Override this week, naming the booking it would be, or Book anyway) and goes again with it.",
+  "tests": ["src/app/admin/_requests/make-host-ticks.dom.test.tsx", "tests/int/joined.int.test.ts"]
+}

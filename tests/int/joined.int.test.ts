@@ -21,6 +21,8 @@ import { joinToBooking, promoteToHost } from '@/features/requests/joined';
 import { cascadeToJoined, HostRangeClearedError } from '@/features/requests/joined-cascade';
 import { lockRequest, type LockTarget } from '@/features/requests/lock';
 import { rerequest } from '@/features/requests/rerequest';
+import { moveToStandby } from '@/features/requests/standby';
+import { suggestTimes } from '@/features/requests/suggest';
 import { RequestBody } from '@/features/requests/schema';
 import { mockCalendar, mockCalendarAttendees } from '@/lib/adapters/mock/calendar';
 import { pool, q, withTx } from '@/lib/db';
@@ -37,6 +39,8 @@ const SITE = 'http://localhost:3000';
 const OPEN = new Date('2027-03-15T18:00:00Z');
 // Thu/Fri pairs, one week per test that locks (the weekly cap is per week).
 const DAYS = [
+  '2027-04-22',
+  '2027-04-23',
   '2027-04-29',
   '2027-05-01',
   '2027-05-27',
@@ -884,5 +888,72 @@ describe('the admin routes (T2.10.01, .02, .04)', () => {
       );
       expect(res.status, path).toBe(403);
     }
+  });
+});
+
+describe('after the host has gone (QA5 N-M2, Make host with its ticks)', () => {
+  const post = (id: string, body: unknown) =>
+    promoteRoute(
+      new NextRequest(`${SITE}/api/admin/requests/${id}/promote`, {
+        method: 'POST',
+        headers: { origin: SITE, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+  /** A guest joined to a host who then cancelled: back in Needs a reply, still naming that host. */
+  async function orphanOf(target: LockTarget) {
+    const host = await locked(target);
+    const guest = await newRequest();
+    expect(await joinToBooking(guest, host, OPEN)).toMatchObject({ ok: true });
+    expect(await cancelByGuest(host, OPEN)).toMatchObject({ ok: true });
+    return { host, guest };
+  }
+
+  it('Make host over a week that has filled since: 409 with which booking it would be; Override this week goes', async () => {
+    const { guest } = await orphanOf(range('2027-04-22', '10:00', '12:00', 'weekly_cap'));
+    await locked(range('2027-04-22', '18:00', '20:00', 'weekly_cap'));
+    await locked(range('2027-04-23', '18:00', '20:00', 'weekly_cap'));
+    const refused = await post(guest, {});
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({
+      ok: false,
+      code: 'week_full',
+      message: 'That week is full. Tick Override this week to go ahead.',
+      nth: 3,
+    });
+    const ok = await post(guest, { overrideWeek: true });
+    expect(ok.status).toBe(200);
+    expect((await row(guest)).status).toBe('locked');
+  });
+
+  it('Suggest another time and Move to stand-by work for that guest (they answered not_allowed), and detach them', async () => {
+    const { guest } = await orphanOf(range('2027-04-23', '10:00', '12:00'));
+    expect((await row(guest)).locked_starts_at).not.toBeNull(); // the old host's time, kept for Make host
+    expect((await suggestTimes(guest, { slotIds: [await slotId('2027-04-22', 'lunch')] }, '', OPEN)).ok).toBe(
+      true,
+    );
+    expect(await row(guest)).toMatchObject({
+      status: 'needs_new_time',
+      joined_to_request_id: null,
+      locked_starts_at: null,
+      locked_slot_id: null,
+    });
+    const other = await orphanOf(range('2027-04-23', '13:00', '14:00'));
+    expect(await moveToStandby(other.guest, '2027-04-19', OPEN)).toEqual({ ok: true });
+    expect(await row(other.guest)).toMatchObject({ status: 'standby', joined_to_request_id: null });
+  });
+
+  it('a guest still riding a live host is not offered times of its own', async () => {
+    const host = await locked(range('2027-04-23', '15:00', '16:00'));
+    const guest = await newRequest();
+    expect(await joinToBooking(guest, host, OPEN)).toMatchObject({ ok: true });
+    expect(
+      await suggestTimes(guest, { slotIds: [await slotId('2027-04-22', 'lunch')] }, '', OPEN),
+    ).toMatchObject({
+      ok: false,
+      status: 409,
+      reason: 'not_allowed',
+    });
   });
 });
