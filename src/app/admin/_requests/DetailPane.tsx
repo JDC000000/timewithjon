@@ -217,7 +217,7 @@ export function DetailPane(p: DetailPaneProps) {
     );
   // The desktop ⋯ menu (APG); the phone sheet lists the same actions, with Suggest first (wireframe 09 A3c2).
   // A request already on stand-by can't be moved there again (the server refuses it): no such row.
-  const canMoveToStandby = view.filter !== 'standby';
+  const canMoveToStandby = view.open && view.filter !== 'standby';
   const menuItems: MenuItem[] = [
     ...(canMoveToStandby
       ? [{ key: 'standby', label: ACTIONS.standby, onSelect: () => setSheet('standby') }]
@@ -537,6 +537,27 @@ export function DetailPane(p: DetailPaneProps) {
                 </li>
               </ul>
             ) : null}
+            {view.joinedTo ? (
+              // QA4b M3 leftover: a joined booking's page has a ⋯ too (Copy their email; Make host waits for the host
+              // to leave, when the request is open again)
+              <div className="actbar">
+                <span className="more-wrap">
+                  <Button
+                    className="more more--m"
+                    aria-label={ACTIONS.more(view.who)}
+                    aria-haspopup="dialog"
+                    onClick={() => setSheet('more')}
+                  >
+                    ⋯
+                  </Button>
+                  <Menu
+                    id={`menu-${requestId}`}
+                    buttonLabel={ACTIONS.more(view.who)}
+                    items={[{ key: 'copy', label: ACTIONS.copyEmail, onSelect: () => copyEmail() }]}
+                  />
+                </span>
+              </div>
+            ) : null}
             <p style={{ marginTop: 'var(--s6)' }}>
               <TextButton onClick={() => setConfirmCancel(true)}>{SHEETS.cancel.link}</TextButton>
             </p>
@@ -623,7 +644,7 @@ export function DetailPane(p: DetailPaneProps) {
         }
       >
         <ul className="actions">
-          {datesMode ? null : (
+          {datesMode || !view.open ? null : (
             <li>
               <button className="row" type="button" onClick={() => setSheet('suggest')}>
                 <span>{ACTIONS.suggest}</span>

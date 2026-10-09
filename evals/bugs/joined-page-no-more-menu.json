@@ -1,0 +1,9 @@
+{
+  "id": "joined-page-no-more-menu",
+  "date": "2026-10-09",
+  "task": "QA4",
+  "area": "admin",
+  "summary": "A joined booking's admin page had no ⋯ (QA4b M3 c), so Copy their email (and later Make host) was out of reach there.",
+  "fix": "With #81's shared-booking rows, a joined booking's page has a ⋯ with Copy their email; the phone sheet hides Suggest and Move to stand-by when the request isn't open; Make host stays #81's (once the host has left).",
+  "tests": ["src/app/admin/_requests/joined-more.dom.test.tsx"]
+}
