@@ -1,0 +1,9 @@
+{
+  "id": "stories-address-200-overflow",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "guest",
+  "summary": "At 200% text on a 320 or 375 phone, the landing’s stories@ address (one long word) did not wrap, so the page scrolled sideways.",
+  "fix": "The story block’s mailto link may break anywhere (overflow-wrap: anywhere).",
+  "tests": ["tests/e2e/ui/qa4-bigtext.spec.ts"]
+}
