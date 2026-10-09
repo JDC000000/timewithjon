@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (res === 'invalid') return tokenNoStore(jsonError(400, 'invalid', ERRORS.generic));
   const model = await loadOfferModel(parsed.data.token);
   if (res === 'refused' && model.kind === 'offer') {
-    const windows = await stillOpen(model.requestId, model.windows);
+    const windows = await stillOpen(model.requestId, model.windows, model.offerKind);
     return tokenNoStore(
       NextResponse.json(
         { ok: false, code: 'offer_gone', message: ERRORS.offerGone, windows },

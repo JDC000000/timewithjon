@@ -277,7 +277,8 @@ describe('T2.5.02: confirm a block over locked bookings (T2.5 AC3)', () => {
   it("AC3: each booking moves to needs_new_time, its event is deleted, and E5b goes with Jon's times or none", async () => {
     const withTimes = await booked('Block Offered', '2027-06-10', 'evening');
     const noTimes = await booked('Block Waiting', '2027-06-11', 'lunch');
-    const offered = [await slotId('2027-06-17', 'lunch'), await slotId('2027-06-18', 'evening')];
+    // Lunches: the booking is a Long Lunch, never offered an evening (CR-05).
+    const offered = [await slotId('2027-06-17', 'lunch'), await slotId('2027-06-18', 'lunch')];
     // A stale live offer on the booking (defence in depth): released, only Jon's new one stays live.
     await q(`insert into offer (request_id, kind, slot_ids) values ($1, 'suggested_times', $2)`, [
       withTimes,

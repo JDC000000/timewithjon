@@ -21,6 +21,7 @@ import { suggestTimes } from '@/features/requests/suggest';
 import { takeOffer } from '@/features/requests/take-offer';
 import { mockCalendar } from '@/lib/adapters/mock/calendar';
 import { pool, q, withTx } from '@/lib/db';
+import { vancouverInstant } from '@/lib/time';
 import { saveEmailBudget } from '../fixtures/email-budget';
 import { removeRequests } from '../fixtures/requests-db';
 
@@ -179,8 +180,13 @@ describe('T2.4.05 About your pitch → E8 or E9', () => {
     const { id, email } = await newRequest('pitch-me');
     const e9 = async () =>
       (await q(`select 1 from email_log where request_id = $1 and template = 'E9'`, [id])).length;
-    const slot = await slotId('2027-06-10');
-    expect((await suggestTimes(id, { slotIds: [slot] }, '', NOW)).ok).toBe(true);
+    // A pitch is a dates dish: Jon offers it a time, never a lunch or evening slot (CR-05).
+    const time = {
+      startsAt: vancouverInstant('2027-06-12', '10:00'),
+      endsAt: vancouverInstant('2027-06-12', '13:00'),
+      where: null,
+    };
+    expect((await suggestTimes(id, { ranges: [time] }, '', NOW)).ok).toBe(true);
     const token = /\/offer\?t=([A-Za-z0-9_-]{43})/.exec((await lastMail(email))!.text_body)![1]!;
     expect((await replyToPitch(id, { reply: 'no' })).ok).toBe(true);
     expect(await replyToPitch(id, { reply: 'no' })).toMatchObject({ status: 409, reason: 'already_replied' });
@@ -189,7 +195,7 @@ describe('T2.4.05 About your pitch → E8 or E9', () => {
     expect(await q(`select 1 from offer where request_id = $1 and released_at is null`, [id])).toHaveLength(
       0,
     );
-    expect(await takeOffer({ token, slotId: slot }, false, NOW)).toBe('done');
+    expect(await takeOffer({ token, rangeIndex: 0 }, false, NOW)).toBe('done');
     expect((await row(id)).status).toBe('needs_new_time');
     // A different reply is a new answer: E8 goes out.
     expect((await replyToPitch(id, { reply: 'smaller', length: 'three days long' })).ok).toBe(true);

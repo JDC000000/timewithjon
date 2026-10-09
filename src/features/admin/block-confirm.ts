@@ -7,7 +7,7 @@
 //     (a guest cancel or a lock that committed while we waited: pr59 H1), nothing happens and the new list
 //     comes back (409 locked_bookings), so Jon confirms what is really there;
 //   - an offered time inside the block being added, or any other block, is refused (409 in_block, pr59 M1): the
-//     guest's tap would fail at canLock;
+//     guest's tap would fail at canLock; so is a slot the booking's dish can't use (409 not_for_this_dish, CR-05);
 //   - an identical block (same dates and kind) already there is reused, not added twice (pr59 L2);
 //   - the block row is added;
 //   - each booking goes to needs_new_time with its range cleared (the window frees at once), its live offers
@@ -88,7 +88,7 @@ export type ConfirmBlockInput = Omit<z.infer<typeof ConfirmBlockBody>, 'block'> 
 export type ConfirmBlockResult =
   | SeasonResult<{ id: string; moved: string[]; underWay: AffectedBooking[] }>
   | { ok: false; status: 404; reason: 'slot_not_found' }
-  | { ok: false; status: 409; reason: 'in_the_past' | 'in_block' };
+  | { ok: false; status: 409; reason: 'in_the_past' | 'in_block' | 'not_for_this_dish' };
 
 /** A booking's choice as offer options, or null for none; undefined when a range isn't a real Vancouver time. */
 function optionsOf(b: ConfirmBlockInput['bookings'][number]): SuggestOptions | null | undefined {
@@ -259,9 +259,9 @@ async function confirmTx(
   for (const a of affected) {
     const options = optionsOf(chosen.get(a.id)!);
     if (options === undefined) return { result: { ok: false, status: 400, reason: 'invalid' }, after: none };
-    const times = options ? await offeredTimes(c, options, now) : [];
+    const times = options ? await offeredTimes(c, options, a.dish, now) : [];
     if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
-    if (times === 'in_the_past') return { result: { ok: false, status: 409, reason: times }, after: none };
+    if (typeof times === 'string') return { result: { ok: false, status: 409, reason: times }, after: none };
     if (options && (await inABlock(c, input.block, options, now)))
       return { result: { ok: false, status: 409, reason: 'in_block' }, after: none };
     plans.push({ id: a.id, options, times });

@@ -7,10 +7,10 @@
 // (canLock, T2.4.07).
 import 'server-only';
 import type { PoolClient } from 'pg';
-import { dishInSentence } from '@/content/menu-helpers';
+import { dishBySlug, dishInSentence } from '@/content/menu-helpers';
 import { loadEngineData } from '@/features/availability/load';
-import { blockedBy, inSeason } from '@/features/availability/rules';
-import type { CountsToward, RequestStatus } from '@/features/availability/types';
+import { blockedBy, inSeason, windowFitsDish } from '@/features/availability/rules';
+import type { CountsToward, RequestStatus, WindowKind } from '@/features/availability/types';
 import { takeLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
@@ -53,19 +53,25 @@ export interface OfferedTime {
   endsAt: Date;
 }
 
-/** The offered times, earliest first, or a refusal (an unknown slot, or a time that has already started). */
+/**
+ * The offered times, earliest first, or a refusal: an unknown slot, a time that has already started, or (CR-05) a
+ * slot whose window the request's dish can't use (no lunch for The First Round, no slot for a dates-only dish). The
+ * guest's take would refuse that one anyway (canLock rule 2(i)); refusing it here means it is never emailed.
+ */
 export async function offeredTimes(
   c: PoolClient,
   o: SuggestOptions,
+  dish: string,
   now: Date,
-): Promise<OfferedTime[] | 'slot_not_found' | 'in_the_past'> {
+): Promise<OfferedTime[] | 'slot_not_found' | 'in_the_past' | 'not_for_this_dish'> {
   let times: OfferedTime[];
   if ('slotIds' in o) {
-    const { rows } = await c.query<{ starts_at: Date; ends_at: Date }>(
-      `select starts_at, ends_at from slot where id = any($1::uuid[]) order by starts_at`,
+    const { rows } = await c.query<{ starts_at: Date; ends_at: Date; window_kind: WindowKind }>(
+      `select starts_at, ends_at, window_kind from slot where id = any($1::uuid[]) order by starts_at`,
       [o.slotIds],
     );
     if (rows.length !== new Set(o.slotIds).size) return 'slot_not_found';
+    if (rows.some((r) => !windowFitsDish(dishBySlug(dish), r.window_kind))) return 'not_for_this_dish';
     times = rows.map((r) => ({ startsAt: r.starts_at, endsAt: r.ends_at }));
   } else {
     times = o.ranges
@@ -104,9 +110,9 @@ async function suggestTx(
   if (!SUGGESTABLE.has(r.status) || r.joined_to_request_id) {
     return { result: { ok: false, status: 409, reason: 'not_allowed' }, after: none };
   }
-  const times = await offeredTimes(c, a.options, a.now);
+  const times = await offeredTimes(c, a.options, r.dish, a.now);
   if (times === 'slot_not_found') return { result: { ok: false, status: 404, reason: times }, after: none };
-  if (times === 'in_the_past') return { result: { ok: false, status: 409, reason: times }, after: none };
+  if (typeof times === 'string') return { result: { ok: false, status: 409, reason: times }, after: none };
   // The season and the one block rule (blockedBy, as a lock checks them): a time Jon has shut, or one outside
   // the season, is never offered (the guest's take would only say "Looks like that one went"). Still free or not
   // is the take's to decide.

@@ -132,7 +132,12 @@ describe('T2.4.10 E5-E10 and E16: the copy, sent by the real senders', () => {
     const r = await newRequest();
     await q(`update request set status = 'standby', standby_week = '2027-03-29' where id = $1`, [r.id]);
     expect(
-      await stillOpen(r.id, [{ slotId: slot!.id, startsAt: slot!.starts_at, endsAt: slot!.starts_at }], NOW),
+      await stillOpen(
+        r.id,
+        [{ slotId: slot!.id, startsAt: slot!.starts_at, endsAt: slot!.starts_at }],
+        'standby_open',
+        NOW,
+      ),
     ).toHaveLength(1); // the fixed window must be free (a clear failure if another file's data ever takes it)
     expect((await offerStandbyWindow(r.id, { slotId: slot!.id }, false, NOW)).ok).toBe(true);
     // Approved copy (decision 31): "{when} is free now" (creative v1.4 has "Thursday the 13th at noon") and the link line.

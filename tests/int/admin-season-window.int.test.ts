@@ -253,7 +253,8 @@ describe('T2.5.06 the lock path and the preview per window', () => {
   });
 
   it('the preview and POST /blocks name only the bookings in that window; validation (400)', async () => {
-    const id = await newRequest({ name: 'Window Preview' });
+    // Lunch and evening: Jon offers it the evening below (a Long Lunch is never offered one, CR-05).
+    const id = await newRequest({ name: 'Window Preview', dish: 'the-old-haunt' });
     await lockDirect(id, { slotId: await slotId(THU, 'lunch') });
     const affected = async (qs: Record<string, string>) => {
       const res = await preview(qs);
