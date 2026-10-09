@@ -1,5 +1,6 @@
 // decode-gate.ts: at most `max` decodes at once per instance; the rest wait first come, first served, for up to
 // `waitMs`, then fail with DecodeBusyError. A decode that finds a free slot starts at once (no timer).
+// Regression register: evals/bugs/photo-decodes-uncapped.json
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDecodeGate, decodeGate, DecodeBusyError } from '../decode-gate';
 import { DECODE_WAIT_MS, MAX_CONCURRENT_DECODES } from '../limits';

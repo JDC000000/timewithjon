@@ -2,6 +2,7 @@
 // so no email is sent and no real session is made; what's tested is our routing, checks and bookkeeping.
 // Regression register: evals/bugs/signin-emails-per-address.json
 // Regression register: evals/bugs/signin-wrong-code-count-race.json
+// Regression register: evals/bugs/signin-link-drops-next.json
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -69,13 +70,17 @@ const openPage = async (query: string): Promise<Record<string, string> | 'not_fo
   }
 };
 /** "Sign me in": the form post, as the browser sends it. */
-const tap = (fields: Record<string, string | string[]>, origin = SITE, query = '') => {
+const tap = (fields: Record<string, string | string[]>, origin = SITE, query = '', cookie = '') => {
   const body = new URLSearchParams();
   for (const [k, v] of Object.entries(fields)) for (const x of [v].flat()) body.append(k, x);
   return confirm(
     new NextRequest(`${SITE}/api/admin/auth/confirm${query}`, {
       method: 'POST',
-      headers: { origin, 'content-type': 'application/x-www-form-urlencoded' },
+      headers: {
+        origin,
+        'content-type': 'application/x-www-form-urlencoded',
+        ...(cookie ? { cookie } : {}),
+      },
       body: body.toString(),
     }),
   );
@@ -319,6 +324,31 @@ describe('POST /api/admin/auth/confirm ("Sign me in" on A1c), AC3/AC4', () => {
     const value = cookie.split(';')[0]!.split('=').slice(1).join('=');
     expect(cookie).toContain(`${KNOWN_DEVICE_COOKIE}=`);
     expect(isKnownDevice(value, ADMIN)).toBe(true);
+  it('EML-11: returns to the admin page this browser kept when it asked for the email, and uses it once', async () => {
+    auth.verifyOtp.mockResolvedValue(session(ADMIN));
+    const page = '/admin/requests/11111111-1111-4111-8111-111111111111?tab=x';
+    const res = await tap(link(), SITE, '', `twj_admin_next=${encodeURIComponent(page)}`);
+    expect(res.status).toBe(303);
+    expect(
+      new URL(res.headers.get('location')!).pathname + new URL(res.headers.get('location')!).search,
+    ).toBe(page);
+    expect(res.headers.get('set-cookie') ?? '').toMatch(/twj_admin_next=;.*Max-Age=0/i);
+  });
+
+  it.each(['//evil.example', 'https://evil.example/admin', '/admin//sign-in', '/menu'])(
+    'EML-11: a kept page of %j is never followed: the inbox',
+    async (planted) => {
+      auth.verifyOtp.mockResolvedValue(session(ADMIN));
+      const res = await tap(link(), SITE, '', `twj_admin_next=${encodeURIComponent(planted)}`);
+      expect(location(res)).toBe('/admin');
+      expect(new URL(res.headers.get('location')!).origin).toBe(SITE);
+    },
+  );
+
+  it('EML-11: a failed link keeps nothing and goes to the sign-in failure, never the kept page', async () => {
+    auth.verifyOtp.mockResolvedValue(refused());
+    const res = await tap(link(), SITE, '', `twj_admin_next=${encodeURIComponent('/admin/stories')}`);
+    expect(location(res)).not.toBe('/admin/stories');
   });
 
   it('always lands on a fixed /admin: next, redirect_to and redirect are ignored (no open redirect)', async () => {

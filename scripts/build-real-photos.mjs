@@ -30,7 +30,6 @@ export const SLOTS = {
   'long-distance': [[480, 800, 1200], 4, 3],
   'old-haunt': [[480, 800, 1200], 4, 3],
   'catch-release': [[480, 800, 1200], 4, 3],
-  bluebird: [[480, 800, 1200], 4, 3],
   'surprise-me': [[480, 800, 1200], 4, 3],
   'pitch-me': [[480, 800, 1200], 4, 3],
   'something-new': [[480, 800, 1200], 4, 3],

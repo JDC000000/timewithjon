@@ -1,5 +1,6 @@
 // EML-11: "Open the request" while signed out comes back to that request after sign-in, and only ever to a
 // same-origin admin page: an outside site, a protocol-relative "//host" or a backslash trick is refused.
+// Regression register: evals/bugs/admin-next-empty-segment.json
 import { describe, expect, it } from 'vitest';
 import { safeAdminNext, signInHref } from '@/features/admin/next-path';
 
@@ -27,6 +28,13 @@ describe('safeAdminNext (EML-11)', () => {
     '/admin/sign-in',
     '/admin/sign-in?next=/admin',
     '/admin/auth/callback?token_hash=x',
+    '/admin//sign-in',
+    '/admin//sign-in?next=/admin',
+    '/admin///auth/callback',
+    '/admin//requests',
+    '/admin/%2Fsign-in',
+    '/admin/%2fauth/callback',
+    '/admin/requests%5C..%5Csign-in',
     '/admin\n/requests',
     ' /admin',
     '',

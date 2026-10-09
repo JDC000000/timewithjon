@@ -72,8 +72,9 @@ describe('parseSlots', () => {
     expect(() => parseSlots([{ file: 'a.jpg' }])).toThrow(/must be an object/);
   });
 
-  it('knows every slot of photo-slots.ts', () => {
+  it('knows every slot of photo-slots.ts, and no slot it lacks (a removed dish leaves no stale slot behind)', () => {
     for (const slot of Object.keys(PHOTO_SLOTS)) expect(Object.hasOwn(SLOTS, slot), slot).toBe(true);
+    expect(Object.keys(SLOTS).filter((slot) => !Object.hasOwn(PHOTO_SLOTS, slot))).toEqual([]);
   });
 });
 

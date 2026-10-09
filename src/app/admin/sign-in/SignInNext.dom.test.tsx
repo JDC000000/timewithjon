@@ -1,5 +1,6 @@
 // EML-11: signed out, "Open the request" lands on sign-in with ?next=<that page>; after the code, sign-in goes
 // there. Only a same-origin admin page is followed: an outside or protocol-relative next ends on the inbox.
+// Regression register: evals/bugs/signin-link-drops-next.json
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -71,6 +72,25 @@ describe('sign-in returns to the page it came from (EML-11)', () => {
       await user.click(screen.getByRole('button', { name: SIGN_IN.send }));
       await vi.waitFor(() => expect(nav.push).toHaveBeenCalledTimes(1));
       expect(nav.push.mock.calls[0]![0]).toBe(want);
+    },
+  );
+
+  it.each([
+    [`/admin/requests/${ID}`, `/admin/requests/${ID}`],
+    ['//evil.example', undefined],
+    ['/admin//sign-in', undefined],
+  ])(
+    'asking for the email sends next=%s along for the emailed link (an unsafe one is dropped)',
+    async (next, want) => {
+      nav.search = `next=${encodeURIComponent(next)}`;
+      const user = userEvent.setup();
+      render(<SignInFlow notice={null} />);
+      await user.type(await screen.findByLabelText(new RegExp(SIGN_IN.emailLabel)), 'jon@example.com');
+      await user.click(screen.getByRole('button', { name: SIGN_IN.send }));
+      await vi.waitFor(() => expect(nav.push).toHaveBeenCalledTimes(1));
+      const [url, init] = vi.mocked(fetch).mock.calls[0]! as [string, RequestInit];
+      expect(url).toBe('/api/admin/auth/start');
+      expect((JSON.parse(String(init.body)) as { next?: string }).next).toBe(want);
     },
   );
 });

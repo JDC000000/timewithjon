@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { isKnownDevice, KNOWN_DEVICE_COOKIE } from '@/features/admin/known-device';
+import { keepNext } from '@/features/admin/next-cookie';
 import { sendAdminSignIn } from '@/features/admin/signin';
 import { BODY_TOO_LARGE, clientIp, jsonError, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { check } from '@/lib/ratelimit';
@@ -22,6 +23,8 @@ export const dynamic = 'force-dynamic';
 const StartBody = z.object({
   email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
   turnstileToken: z.string().max(2048).optional(),
+  /** EML-11: the admin page to return to after the emailed link (kept only when safe, next-path.ts). */
+  next: z.string().max(512).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -52,5 +55,8 @@ export async function POST(req: NextRequest) {
       }
     });
   }
-  return NextResponse.json({ ok: true });
+  // The same answer for every address, with the page to return to kept for this browser's emailed link.
+  const res = NextResponse.json({ ok: true });
+  keepNext(res, parsed.data.next);
+  return res;
 }
