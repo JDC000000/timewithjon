@@ -7,7 +7,6 @@ import {
   dishWeekCount,
   heldByOffer,
   inSeason,
-  isThuFri,
   isWeekFull,
   overlaps,
   rangedBookings,
@@ -101,13 +100,14 @@ export function canLock(i: CanLockInput): CanLockResult {
     // The one block rule (rules.ts blockedBy): a whole-day block on any date touched, a single-window block
     // (T2.5.06) on this window or its times, or the household hold (QA r2 L6), a date dish's range included.
     if (blockedBy(i.target, i.blocks, i.settings)) return { ok: false, reason: 'blocked' };
-    // Rule 2(e), both directions (rule 8).
+    // Rule 2(e), both directions (rule 8). ENG-11 (operator pick): on ANY day, not only Thu/Fri. A Big Day is the
+    // whole day, so a second Big Day that Saturday, or an Encore on its evening, needs Book anyway too.
     if (i.request.countsToward === 'big_day') {
-      const busyThuFri = new Set(others.flatMap((b) => datesTouched(b.startsAt, b.endsAt)).filter(isThuFri));
-      if (dates.some((d) => busyThuFri.has(d))) return { ok: false, reason: 'big_day_clash' };
+      const busy = new Set(others.flatMap((b) => datesTouched(b.startsAt, b.endsAt)));
+      if (dates.some((d) => busy.has(d))) return { ok: false, reason: 'big_day_clash' };
     } else {
       const bigDays = bigDayDates(i.bookings, self);
-      if (dates.some((d) => isThuFri(d) && bigDays.has(d))) return { ok: false, reason: 'big_day_clash' };
+      if (dates.some((d) => bigDays.has(d))) return { ok: false, reason: 'big_day_clash' };
     }
   }
 
