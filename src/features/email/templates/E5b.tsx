@@ -5,16 +5,22 @@ import { EMAIL_COPY, E5B_PARTS, GUEST_BUTTON } from '@/content/emails';
 import { Mail } from './Mail';
 
 const CUT = '\u0000';
-const [PRE, POST] = E5B_PARTS.withTimes(CUT).split(CUT) as [string, string];
+/** The frame around the times: plural for several, singular for one (Q6). */
+const FRAMES = [`${CUT}\n${CUT}`, CUT].map((t) => {
+  const s = E5B_PARTS.withTimes(t);
+  return [s.slice(0, s.indexOf(CUT)), s.slice(s.lastIndexOf(CUT) + 1)] as const;
+});
 
 export function E5b({ vars }: { vars: Record<string, string | number> }) {
   const open = String(vars.openTimes ?? '');
-  if (open.length > PRE.length + POST.length && open.startsWith(PRE) && open.endsWith(POST)) {
-    const times = open.slice(PRE.length, open.length - POST.length);
-    const copy = EMAIL_COPY.E5b.body.replace('{openTimes}', `${PRE}{times}${POST}`);
-    return (
-      <Mail id="E5b" vars={{ ...vars, times }} copy={copy} lists={['times']} button={GUEST_BUTTON.E5b} />
-    );
+  for (const [pre, post] of FRAMES) {
+    if (open.length > pre.length + post.length && open.startsWith(pre) && open.endsWith(post)) {
+      const times = open.slice(pre.length, open.length - post.length);
+      const copy = EMAIL_COPY.E5b.body.replace('{openTimes}', `${pre}{times}${post}`);
+      return (
+        <Mail id="E5b" vars={{ ...vars, times }} copy={copy} lists={['times']} button={GUEST_BUTTON.E5b} />
+      );
+    }
   }
   return <Mail id="E5b" vars={vars} button={GUEST_BUTTON.E5b} />;
 }

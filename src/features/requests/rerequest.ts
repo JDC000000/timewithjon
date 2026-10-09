@@ -90,6 +90,12 @@ export interface Checked {
   pitchIdea: string | null;
 }
 
+/** How many times or dates the new choices hold (E16's singular, Q6). */
+function choiceCount(c: Checked): number {
+  const dates = c.datePrefs ? ((JSON.parse(c.datePrefs) as { dates?: string[] }).dates ?? []) : [];
+  return c.slotIds.length + dates.length;
+}
+
 const ROW = `select r.status, r.dish, r.invite_id, r.contact_name, r.crew_size, r.guest_time_zone, r.pitch_idea,
             r.surprise_need_to_know, r.joined_to_request_id, coalesce(h.locked_ends_at, r.locked_ends_at) as ends_at,
             coalesce(h.locked_starts_at, r.locked_starts_at) as starts_at,
@@ -241,6 +247,7 @@ export async function rerequestTx(
             name: r.contact_name,
             dish: dishInSentence(r.dish),
             adminLink: adminLink(requestId),
+            count: choiceCount(checked), // Q6: one time or date reads "picked a new time"
           },
         }),
       ),

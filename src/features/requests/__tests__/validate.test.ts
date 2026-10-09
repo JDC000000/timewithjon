@@ -143,15 +143,49 @@ describe('validateRequest', () => {
       ),
     ).toEqual({ ok: false, code: 'not_bookable' });
   });
-  it('AC9 crew 20 is accepted and flagged big_crew', () => {
-    const v = validateRequest(
-      bodyWithFixtureSlots('the-long-lunch', [slotId('2027-05-13', 'lunch')], { crew: 20 }),
-      dishBySlug('the-long-lunch')!,
-      engineFor('the-long-lunch'),
+  // Q9 (approved: Jon 2026-10-09): the crew is 1 (or the dish's servesMin) to the servesMax the menu shows. This
+  // replaces AC9's "crew 20 is accepted and flagged big_crew": no dish serves more than 15, so a guest's crew can't
+  // reach 16 any more and big_crew stays false.
+  it('Q9 a crew inside the dish range is accepted; above servesMax or below servesMin is refused', () => {
+    const lunch = (crew: number) =>
+      validateRequest(
+        bodyWithFixtureSlots('the-long-lunch', [slotId('2027-05-13', 'lunch')], { crew }),
+        dishBySlug('the-long-lunch')!,
+        engineFor('the-long-lunch'),
+        season,
+        now,
+      );
+    expect(lunch(1)).toMatchObject({ ok: true, bigCrew: false });
+    expect(lunch(15)).toMatchObject({ ok: true, bigCrew: false });
+    expect(lunch(16)).toEqual({ ok: false, code: 'crew_out_of_range' });
+    expect(lunch(20)).toEqual({ ok: false, code: 'crew_out_of_range' });
+    const flatWhite = validateRequest(
+      bodyWithFixtureSlots('the-flat-white', [slotId('2027-05-13', 'lunch')], { crew: 4 }),
+      dishBySlug('the-flat-white')!,
+      engineFor('the-flat-white'),
       season,
       now,
     );
-    expect(v).toMatchObject({ ok: true, bigCrew: true });
+    expect(flatWhite).toEqual({ ok: false, code: 'crew_out_of_range' }); // serves 1–3
+  });
+  it('Q9 a fixed-size dish takes exactly its size; a single-person dish takes 1', () => {
+    const dd = dishBySlug('the-double-date')!;
+    const ld = dishBySlug('the-long-distance')!;
+    const dated = (slug: string, crew: number) =>
+      validateRequest(
+        body({ dish: slug, dates: ['2027-05-14'], crew }),
+        dishBySlug(slug)!,
+        engineFor(slug),
+        season,
+        now,
+      );
+    expect([dd.servesMin, dd.servesMax]).toEqual([4, 4]);
+    expect(dated('the-double-date', 4)).toMatchObject({ ok: true });
+    expect(dated('the-double-date', 3)).toEqual({ ok: false, code: 'crew_out_of_range' });
+    expect(dated('the-double-date', 5)).toEqual({ ok: false, code: 'crew_out_of_range' });
+    expect(ld.servesMax).toBe(1);
+    expect(dated('the-long-distance', 1)).toMatchObject({ ok: true });
+    expect(dated('the-long-distance', 2)).toEqual({ ok: false, code: 'crew_out_of_range' });
   });
   it('T1.6 AC2 out-of-season dates are rejected; AC3 Surprise Me needs need-to-know', () => {
     expect(

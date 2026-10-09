@@ -261,6 +261,17 @@ jobs:
       - name: E2E smoke
         run: pnpm test:e2e
 
+      # Screenshots specs save for review (test-results/screens/, e.g. the crew stepper on every booking flow): kept
+      # for a week on every run, so UI PRs show their screens without a local build.
+      - name: UI screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ui-screens
+          path: test-results/screens/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Playwright report (on failure)
         if: ${{ failure() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

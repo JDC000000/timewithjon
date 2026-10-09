@@ -1,0 +1,9 @@
+{
+  "id": "e1-no-manage-link",
+  "date": "2026-10-09",
+  "task": "QA UX-09",
+  "area": "email",
+  "summary": "E1 \"Got it\" carried no manage link, though F20 puts one in every guest email; the first one came with E4.",
+  "fix": "E1 queues a manage link and draws it as a \"Change or cancel\" button; a row queued before it renders without.",
+  "tests": ["src/features/email/__tests__/templates-html.test.ts", "tests/int/requests.int.test.ts"]
+}

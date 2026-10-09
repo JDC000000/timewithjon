@@ -1438,6 +1438,12 @@ html[data-bigtext] .tabs [role='tab']:focus-visible {
 .stepper button:hover {
   background: var(--c-wash);
 }
+/* Q9 crew stepper: the button at an end of the range keeps focus but reads as unavailable. */
+.stepper button[aria-disabled='true'] {
+  color: var(--c-ink-3);
+  background: none;
+  cursor: default;
+}
 .stepper output {
   display: grid;
   place-items: center;

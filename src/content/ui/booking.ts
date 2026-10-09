@@ -56,6 +56,9 @@ export const FLOW_UI = {
 /** S10 details on every flow's Send (T1.7.U4): the lines FLOW and ERRORS don't carry. */
 export const DETAILS = {
   nameError: 'Tell me your name.', // approved: Jon (2026-10-03)
+  /** The crew stepper's buttons (Q9; the label is FLOW.crewLabel). */
+  crewFewer: 'One fewer', // PACK v1.12 s10-details-send (crew stepper)
+  crewMore: 'One more', // PACK v1.12 s10-details-send (crew stepper)
 };
 
 /** S7 date request (T1.6.U1-U3) and the Old Haunt weekend mode (T1.6.U6). */

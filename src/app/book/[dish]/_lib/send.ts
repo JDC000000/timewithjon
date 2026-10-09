@@ -18,6 +18,8 @@ export interface Details {
   email: string;
   /** the honeypot (AD-9): a filled one is stored as spam, never refused */
   hp: string;
+  /** how many of you (Q9), the guest included; absent = 1 ("Just me.") */
+  crew?: number;
 }
 
 export type RequestPayload = Picks & {
@@ -48,7 +50,7 @@ export function requestPayload(
     dish,
     name: details.name.trim(),
     email: details.email.trim(),
-    crew: 1, // FLOW.crewDefault: "Just me." (no crew field on these screens yet)
+    crew: details.crew ?? 1, // FLOW.crewDefault: "Just me." when the dish has no choice (Q9)
     hp: text(details.hp),
     turnstileToken,
   };

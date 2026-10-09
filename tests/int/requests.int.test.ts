@@ -237,9 +237,10 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
     expect(await deliverRequestEmails(requestId)).toEqual([]);
     const out = await outboxFor(email);
     expect(out.map((o) => o.template)).toEqual(['E1']);
+    // option A, QA C; Q6 one time = "Got your time:"; UX-09 / F20: the manage link line
     expect(out[0]!.text_body).toMatch(
-      /^Got your times:\nThu May 13 · noon–2 pm Vancouver time\nI’ll lock one in/,
-    ); // option A, QA C
+      /^Got your time:\nThu May 13 · noon–2 pm Vancouver time\nI’ll lock one in within two days\.\nhttp\S+\/manage\?t=[A-Za-z0-9_-]{43}\n/,
+    );
   });
   it('the general invite: the 21st request in a day queues E2 but not E1, and is still stored (B006)', async () => {
     await q(`delete from rate_limit where scope = 'requestSendInvite'`);

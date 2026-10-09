@@ -19,6 +19,7 @@ const ZodDraft = z.object({
   idea: text(2000),
   when: text(200),
   night: text(200),
+  crew: text(2), // Q9: the crew stepper's number, as text
   name: text(80),
   email: text(254),
 });
@@ -90,6 +91,10 @@ describe('parseDraft matches the Zod schema it replaced (perf: no Zod in the bro
     { picks: [], dates: [] },
     { picks: ['a', 'b'], email: 'sam@example.com', extra: 1, hp: 'x' },
     { picks: Array(50).fill('x'.repeat(100)) },
+    { crew: '3' },
+    { crew: '15', name: 'Sam' },
+    { crew: '100' },
+    { crew: 3 },
     { picks: Array(51).fill('x') },
     { picks: ['x'.repeat(101)] },
     { picks: 'a' },

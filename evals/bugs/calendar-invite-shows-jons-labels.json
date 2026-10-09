@@ -1,0 +1,9 @@
+{
+  "id": "calendar-invite-shows-jons-labels",
+  "date": "2026-10-09",
+  "task": "QA EML-06",
+  "area": "calendar",
+  "summary": "The guest's calendar invite was titled \"{Dish}: {their own name}\" with \"Crew: N\" in it.",
+  "fix": "What a guest gets (the .ics, or the Google event once a guest is on it) is \"{Dish} with Jon\" and only \"Where: …\"; an event with no guest on it keeps Jon's title and crew.",
+  "tests": ["src/features/calendar/__tests__/outbox.test.ts", "tests/int/lock.int.test.ts"]
+}

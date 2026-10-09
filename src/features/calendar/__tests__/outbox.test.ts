@@ -16,11 +16,11 @@ const row = {
 };
 
 describe('calendarEvent', () => {
-  it('summary, description, times and the guest as attendee', () => {
+  it('Q2: with the guest on it, their title and only the place; the guest as attendee', () => {
     expect(calendarEvent('req-1', row)).toEqual({
       requestId: 'req-1',
-      summary: 'The Long Lunch: Dave',
-      description: 'Crew: 4\nWhere: The pier',
+      summary: 'The Long Lunch with Jon',
+      description: 'Where: The pier',
       startsAt: row.locked_starts_at,
       endsAt: row.locked_ends_at,
       attendees: ['dave@example.com'],
@@ -38,7 +38,20 @@ describe('calendarEvent', () => {
       'sue@example.com',
     ]);
   });
-  it('no place yet: crew only', () => {
-    expect(calendarEvent('req-1', { ...row, locked_where: null }).description).toBe('Crew: 4');
+  it('Q2: no place yet: a guest sees no description (never "Crew")', () => {
+    expect(calendarEvent('req-1', { ...row, locked_where: null }).description).toBe('');
+  });
+  it('Q2: an event with no guest on it is Jon’s: "{Dish}: {first name}", the crew and the place', () => {
+    const ics = { ...row, calendar_state: 'ics_sent' };
+    expect(calendarEvent('req-1', ics)).toMatchObject({
+      summary: 'The Long Lunch: Dave',
+      description: 'Crew: 4\nWhere: The pier',
+      attendees: [],
+    });
+    // The guest's own .ics is always theirs.
+    expect(calendarEvent('req-1', ics, [], true)).toMatchObject({
+      summary: 'The Long Lunch with Jon',
+      description: 'Where: The pier',
+    });
   });
 });

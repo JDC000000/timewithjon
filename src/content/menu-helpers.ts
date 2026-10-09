@@ -32,6 +32,18 @@ export function visibleDishes(now = new Date()): Dish[] {
 export function isBookable(d: Dish, now = new Date()): boolean {
   return d.bookable && (!d.availableUntil || civilDateIn(now, TZ) <= d.availableUntil);
 }
+/**
+ * How many may come, the guest included (Q9, approved: Jon 2026-10-09): 1 (or the dish's servesMin) up to the
+ * servesMax the menu shows. min = max is a fixed size: the booking screens don't ask and send that number.
+ */
+export interface CrewRange {
+  min: number;
+  max: number;
+}
+export function crewRange(d: Pick<Dish, 'servesMin' | 'servesMax'>): CrewRange {
+  const max = Math.max(1, d.servesMax);
+  return { min: Math.min(Math.max(1, d.servesMin ?? 1), max), max };
+}
 /** Route contract for the UI: every Book button goes to /book/{slug}; the page picks the flow from dish.flow. */
 export function bookHref(d: Dish): string {
   return `/book/${d.slug}`;

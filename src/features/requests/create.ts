@@ -8,7 +8,7 @@ import { payloadHash } from '@/lib/payload-hash';
 import { hit } from '@/lib/ratelimit';
 import type { CountsToward } from '@/features/availability/types';
 import { jonEmail, queueEmail } from '@/features/email/send';
-import { intakeEmails, requestedTimeLines } from './intake-emails';
+import { intakeEmails, jonDetails, requestedTimeLines } from './intake-emails';
 import type { RequestBody } from './schema';
 
 /**
@@ -180,6 +180,7 @@ export async function createRequestTx(
       choiceCount: a.mode === 'slots' ? b.slotIds.length : b.dates.length,
       choiceKind: a.mode === 'slots' ? 'times' : 'dates',
       overnight: b.overnight,
+      jon: jonDetails(b, slots, a.mode === 'dates' ? b.dates : []), // E2's details (Q5, DEV6 follow-up)
       standbyWeek: b.standbyWeek ?? null,
       requestedTimes: requestedTimeLines(slots, a.mode === 'dates' ? b.dates : [], b.guestTimeZone ?? null),
       jonEmail: jonEmail(),

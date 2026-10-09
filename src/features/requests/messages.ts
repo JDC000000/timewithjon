@@ -16,4 +16,5 @@ export const VALIDATION_MESSAGE: Record<ValidationCode, string> = {
   overnight_not_allowed: ERRORS.generic,
   night_without_overnight: ERRORS.generic,
   bad_time_zone: ERRORS.generic,
+  crew_out_of_range: ERRORS.generic, // the screens never offer it (crewRange): no wording of its own
 };
