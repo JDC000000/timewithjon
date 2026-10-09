@@ -46,6 +46,7 @@ export async function proposeTimes(b: ProposeBody, spam = false, now = new Date(
     windowText: b.windowText,
     overnight: b.overnight,
     overnightNight: b.overnightNight,
+    pitchIdea: b.pitchIdea, // taken, as Ask for another time takes it (a pitch's shorter version); never dropped
   };
   const found = await findToken(token); // read only: which request, which page
   if (!found) return 'spent';

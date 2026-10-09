@@ -123,8 +123,9 @@ export async function POST(req: NextRequest) {
 /**
  * Committed. Send the queued emails now, awaited (AD-1, L-3). This also covers an idempotent replay whose first
  * attempt died before sending. A send problem never turns a saved request into an error: the row stays
- * 'pending'/'failed' and the tick's email-retry job re-sends it. `sentTo` is the stored address: a replay's body is
- * the saved one (ENG-01).
+ * 'pending'/'failed' and the tick's email-retry job re-sends it. `sentTo` is the address this body carries: a replay
+ * or a duplicate matched the saved body (ENG-01), so it is the saved address too (a row from before the hash was
+ * stored is matched by its key alone).
  */
 async function answer(requestId: string, sentTo: string): Promise<Response> {
   try {

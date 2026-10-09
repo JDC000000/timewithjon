@@ -111,6 +111,15 @@ describe('request intake', () => {
     const first = await create(args(b));
     const again = { ...b, clientKey: randomUUID() }; // Back after Send, then Send
     expect(await findRecentDuplicate(again, inviteId)).toBe(first.requestId);
+    // The picks are a set: the same times tapped in another order are the same request.
+    const two = mk({ slotIds: [slotIds[0]!, slotIds[1]!] });
+    const firstTwo = await create(args(two));
+    expect(
+      await findRecentDuplicate(
+        { ...two, clientKey: randomUUID(), slotIds: [slotIds[1]!, slotIds[0]!] },
+        inviteId,
+      ),
+    ).toBe(firstTwo.requestId);
     // Both halves: a deliberate second, DIFFERENT request still goes through.
     expect(await findRecentDuplicate({ ...again, slotIds: [slotIds[1]!] }, inviteId)).toBeNull();
     expect(await findRecentDuplicate({ ...again, note: 'And my partner' }, inviteId)).toBeNull();
