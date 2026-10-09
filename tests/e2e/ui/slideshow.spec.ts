@@ -383,3 +383,136 @@ test('round 3: a dish sheet’s photo mat is the sheet’s paper, not the page�
   expect(await sheetFig.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(colours.paper);
   expect(onPage).toBe(colours.canvas);
 });
+
+// photo round 4 (PH-07): every frame of the rotation is a crossfade of two photos. Each opacity transition is frozen
+// the moment it starts (Web Animations API) and sampled every 50 ms of its 1.2 s; at each sample, the photos that
+// show are the topmost opaque layer (photo 1 at the bottom is always opaque) and every layer above it with any
+// opacity. Never three: on the loop back the outgoing photo fades over photo 1 with nothing between them.
+test('round 4: every rotation frame is a two-photo crossfade, the loop back to photo 1 included', async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto(BENCH);
+  const fig = show(page);
+  await slidesLoaded(fig);
+  // freeze each opacity transition as it starts: the class change fires the observer, getAnimations() creates them
+  await fig.evaluate((el) => {
+    const w = window as unknown as { frozen: Animation[] };
+    w.frozen = [];
+    new MutationObserver(() => {
+      for (const a of el.getAnimations({ subtree: true }))
+        if (!w.frozen.includes(a)) {
+          a.pause();
+          a.currentTime = 0;
+          w.frozen.push(a);
+        }
+    }).observe(el, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  /** the photos that show at each 50 ms of the frozen transitions, then the transitions let go */
+  const sample = () =>
+    fig.evaluate((el) => {
+      const w = window as unknown as { frozen: Animation[] };
+      const slides = [...el.querySelectorAll<HTMLElement>('.ph-slide')];
+      const frames: number[][] = [];
+      for (let t = 0; t <= 1200; t += 50) {
+        for (const a of w.frozen) a.currentTime = t;
+        const o = [1, ...slides.map((s) => Number(getComputedStyle(s).opacity))]; // photo 1, then 2..n
+        let base = 0;
+        o.forEach((v, i) => {
+          if (v >= 0.999) base = i;
+        });
+        frames.push(o.flatMap((v, i) => (i >= base && v > 0.001 ? [i + 1] : [])));
+      }
+      const n = w.frozen.length;
+      for (const a of w.frozen) a.finish();
+      w.frozen = [];
+      return { frames, transitions: n };
+    });
+
+  await page.clock.runFor(SLIDE_MS); // 1 -> 2
+  await expect.poll(() => onTop(fig)).toBe(2);
+  const in2 = await sample();
+  await slidesLoaded(fig, 3);
+  await page.clock.runFor(SLIDE_MS); // 2 -> 3
+  await expect.poll(() => onTop(fig)).toBe(3);
+  const in3 = await sample();
+  await page.clock.runFor(SLIDE_MS); // 3 -> 1, the loop back
+  await expect.poll(() => onTop(fig)).toBe(1);
+  const wrap = await sample();
+
+  for (const [name, s, pair] of [
+    ['1 -> 2', in2, [1, 2]],
+    ['2 -> 3', in3, [2, 3]],
+    ['3 -> 1', wrap, [1, 3]],
+  ] as const) {
+    expect(s.transitions, `${name}: one fade`).toBe(1);
+    for (const [i, f] of s.frames.entries())
+      expect(
+        f.every((p) => (pair as readonly number[]).includes(p)) && f.length <= 2,
+        `${name} at ${i * 50} ms: ${f}`,
+      ).toBe(true);
+    expect(s.frames[12], `${name}: mid-fade shows both`).toEqual(pair);
+  }
+});
+
+// photo round 4 (PH-22): the why band stays at most 1920 px wide, centred, so its 1600 w file is drawn at most 1.2x
+test('round 4: the why band stays at most 1920 px wide, centred, on 1920 and 2560 screens', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+  });
+  for (const [width, height] of [
+    [1920, 1080],
+    [2560, 1440],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    const fig = page.locator('figure[data-slot="why"]');
+    await fig.scrollIntoViewIfNeeded();
+    const b = (await fig.boundingBox())!;
+    expect(b.width, `${width}`).toBeLessThanOrEqual(1920.5);
+    expect(b.x + b.width / 2, `${width}: centred`).toBeCloseTo(width / 2, 0);
+  }
+});
+
+// photo round 4 (PH-23): on a landscape phone the band is taller than the screen; wherever it is scrolled, its
+// Pause/Play toggle stays on the part of the photo that is on screen
+test('round 4: on a landscape phone the toggle stays on the visible part of the photo, wherever it is scrolled', async ({
+  page,
+}) => {
+  for (const [width, height] of [
+    [844, 390],
+    [932, 430],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(BENCH);
+    await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
+    const fig = show(page);
+    const btn = fig.getByRole('button', { name: 'Pause', exact: true });
+    await expect(btn).toBeVisible();
+    const top = await fig.evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+    const h = (await fig.boundingBox())!.height;
+    expect(h, `${width}: the band is taller than the screen`).toBeGreaterThan(height);
+    // from the band's top edge 80 px above the screen's bottom, to its bottom edge 80 px below the screen's top;
+    // centred included
+    const centred = top + h / 2 - height / 2;
+    for (const y of [top - height + 80, top - height / 2, top, centred, top + h - height, top + h - 80]) {
+      await page.evaluate((s) => window.scrollTo(0, s), Math.max(0, y));
+      const [f, b] = await btn.evaluate(async (e) => {
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const box = (n: Element) => {
+          const r = n.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+        };
+        return [box(e.closest('figure')!), box(e)];
+      });
+      const at = `${width}x${height}, scrolled to ${Math.round(y)}`;
+      expect(b.top, `${at}: inside the photo`).toBeGreaterThanOrEqual(f.top - 0.5);
+      expect(b.bottom, `${at}: inside the photo`).toBeLessThanOrEqual(f.bottom + 0.5);
+      expect(b.right, `${at}: inside the photo`).toBeLessThanOrEqual(f.right + 0.5);
+      expect(b.top, `${at}: on screen`).toBeGreaterThanOrEqual(-0.5);
+      expect(b.bottom, `${at}: on screen`).toBeLessThanOrEqual(height + 0.5);
+    }
+  }
+});
