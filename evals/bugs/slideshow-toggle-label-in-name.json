@@ -1,0 +1,9 @@
+{
+  "id": "slideshow-toggle-label-in-name",
+  "date": "2026-10-09",
+  "task": "QA4",
+  "area": "a11y",
+  "summary": "After the QA4 L8 fix the slideshow toggle kept the name “Pause” with aria-pressed while its visible word flipped to “Play”, so while paused the visible label was not in its name (WCAG 2.5.3).",
+  "fix": "No aria-pressed; the name is the word shown, Pause or Play, plus the dish on /menu cards (“Play The Grind”).",
+  "tests": ["tests/unit/ui/slideshow.dom.test.tsx", "tests/e2e/ui/slideshow.spec.ts"]
+}

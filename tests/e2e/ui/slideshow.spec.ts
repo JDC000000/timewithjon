@@ -90,16 +90,15 @@ test('crossfades every 5 s; Pause holds the photo, Play resumes', async ({ page 
   const second = fig.locator('.ph-slide').first();
   await expect.poll(() => second.evaluate((i) => Number(getComputedStyle(i).opacity))).toBe(1);
 
-  // QA4 L8: one name ("Pause"); aria-pressed says it's paused; the word shown flips to Play
-  const btn = fig.getByRole('button', { name: 'Pause', exact: true });
-  await expect(btn).toHaveAttribute('aria-pressed', 'false');
-  await btn.click();
-  await expect(btn).toHaveAttribute('aria-pressed', 'true');
-  await expect(btn).toHaveText('Play');
+  // QA4 L8: the name is the word shown (Pause / Play), no aria-pressed (label in name, WCAG 2.5.3)
+  await fig.getByRole('button', { name: 'Pause', exact: true }).click();
+  const play = fig.getByRole('button', { name: 'Play', exact: true });
+  await expect(play).toHaveText('Play');
+  await expect(play).not.toHaveAttribute('aria-pressed');
   await page.clock.runFor(SLIDE_MS * 3);
   expect(await onTop(fig)).toBe(2);
-  await btn.click();
-  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+  await play.click();
+  await expect(fig.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await page.clock.runFor(SLIDE_MS);
   await expect.poll(() => onTop(fig)).toBe(3);
   await page.clock.runFor(SLIDE_MS);
@@ -163,8 +162,7 @@ test('a card’s toggle is outside its link (no nested control) and the bench is
   const btn = card(page).getByRole('button', { name: 'Pause Sample card' }); // QA4 L8: names its card
   expect(await btn.evaluate((e) => e.closest('a'))).toBeNull();
   await btn.click();
-  await expect(btn).toHaveAttribute('aria-pressed', 'true');
-  await expect(btn).toHaveText('Play');
+  await expect(card(page).getByRole('button', { name: 'Play Sample card' })).toHaveText('Play');
   expect(page.url()).toMatch(/\/dev\/slides$/); // the press did not follow the card's link
   const { violations } = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
