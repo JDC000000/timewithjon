@@ -20,6 +20,8 @@ export type SentModel =
       standby: { week: string; days: string } | null;
       sentTo: string;
       fromAddress: string;
+      /** EML-24: an E1 (or E6) was queued for this request; false when a daily cap or suppression skipped it. */
+      emailComing: boolean;
       before60: boolean;
     };
 
@@ -29,6 +31,9 @@ interface Row {
   status: string;
   date_prefs: { dates?: string[]; window_text?: string | null } | null;
   standby_week: string | null;
+}
+interface SentRow extends Row {
+  email_coming: boolean;
 }
 
 /** The address guest mail comes from, as the guest sees it ("jon@timewithjon.com"). */
@@ -74,8 +79,10 @@ export async function loadRequestLines(requestId: string): Promise<string[]> {
 
 export async function loadSentModel(requestId: string | null): Promise<SentModel> {
   if (!requestId) return { kind: 'stale' };
-  const [r] = await q<Row>(
-    `select dish, contact_email, status, date_prefs, standby_week::text from request where id = $1`,
+  const [r] = await q<SentRow>(
+    `select r.dish, r.contact_email, r.status, r.date_prefs, r.standby_week::text,
+            exists (select 1 from email_log l where l.request_id = r.id and l.template in ('E1', 'E6')) as email_coming
+       from request r where r.id = $1`,
     [requestId],
   );
   if (!r) return { kind: 'stale' };
@@ -92,6 +99,7 @@ export async function loadSentModel(requestId: string | null): Promise<SentModel
     standby,
     sentTo: r.contact_email,
     fromAddress: guestFromAddress(getEnv().EMAIL_FROM_GUEST),
+    emailComing: r.email_coming,
     before60: settings.before60_enabled,
   };
 }

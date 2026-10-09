@@ -6,6 +6,7 @@ import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { getEnv } from '@/config/env';
 import { requireAdmin } from '@/features/admin/auth';
+import { safeAdminNext } from '@/features/admin/next-path';
 import { AdminSolo } from '@/ui';
 import { SIGN_IN } from '@/content/ui/admin-requests';
 import { SignInFlow } from './SignInFlow';
@@ -20,10 +21,11 @@ export default async function SignInPage({
 }) {
   const env = getEnv();
   if (env.FEATURE_ADMIN_AUTH !== '1') notFound();
+  const { error, next } = await searchParams;
   const admin = await requireAdmin();
-  if (!(admin instanceof Response)) redirect('/admin');
+  // EML-11: a signed-in admin goes where the link was going (a safe admin page only), else the inbox.
+  if (!(admin instanceof Response)) redirect(safeAdminNext(next) ?? '/admin');
 
-  const { error } = await searchParams;
   return (
     <AdminSolo>
       <Suspense>

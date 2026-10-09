@@ -8,6 +8,7 @@ import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } fro
 import { Button, Field, TextButton } from '@/ui';
 import { announce, useLandingFocus } from '@/ui/focus';
 import { SIGN_IN } from '@/content/ui/admin-requests';
+import { safeAdminNext, signInHref } from '@/features/admin/next-path';
 import { ErrorSummary, type Problem } from '../_requests/ErrorSummary';
 import { codeError, EMAIL_KEY, emailError, requestCode, verifyCode } from './sign-in-logic';
 import { useTurnstile } from './useTurnstile';
@@ -48,6 +49,9 @@ export function SignInFlow({ siteKey, notice }: { siteKey?: string; notice: stri
 
   // The code step needs an address: a code-step URL without one (another tab, a cleared store) shows the email step.
   const step: Step = hydrated && params.get('step') === 'code' && email ? 'code' : 'email';
+  // EML-11: the admin page the sign-in started from ("Open the request" while signed out). Only a same-origin admin
+  // page is followed; anything else ("https://…", "//host") is dropped and sign-in lands on the inbox.
+  const next = safeAdminNext(params.get('next'));
 
   useEffect(() => {
     document.title = step === 'code' ? SIGN_IN.codePageTitle : SIGN_IN.pageTitle;
@@ -55,7 +59,7 @@ export function SignInFlow({ siteKey, notice }: { siteKey?: string; notice: stri
 
   const toCodeStep = (address: string) => {
     saveEmail(address);
-    router.push('/admin/sign-in?step=code', { scroll: false });
+    router.push(signInHref(next, { step: 'code' }), { scroll: false });
   };
 
   return (
@@ -69,7 +73,7 @@ export function SignInFlow({ siteKey, notice }: { siteKey?: string; notice: stri
           notice={notice}
           onSignedIn={() => {
             saveEmail(null);
-            router.replace('/admin');
+            router.replace(next ?? '/admin');
             router.refresh();
           }}
         />

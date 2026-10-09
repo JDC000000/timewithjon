@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function WeekPage({ params }: Props) {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin); // 404 when the flag is off, else to sign-in
+  if (admin instanceof Response) return notAllowed(admin); // 404 when the flag is off, else to sign-in
   const { weekStart } = await params;
   if (!ISO_DATE.test(weekStart)) notFound();
   const data = await weekPage(weekStart);

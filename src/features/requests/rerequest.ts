@@ -44,6 +44,7 @@ export const RerequestChoices = RequestBody.pick({
   windowText: true,
   overnight: true,
   overnightNight: true, // pr80-review F2: a re-request replaces "Which night?" with the rest of the choices
+  pitchIdea: true, // EML-05: after E8 ("Pitch me the shorter version?") a Pitch Me guest sends the shorter pitch
 });
 export type RerequestChoices = z.infer<typeof RerequestChoices>;
 /**
@@ -85,6 +86,8 @@ export interface Checked {
   datePrefs: string | null;
   overnight: boolean;
   overnightNight: string | null;
+  /** A new pitch (a Pitch Me request only); null keeps the stored one. */
+  pitchIdea: string | null;
 }
 
 const ROW = `select r.status, r.dish, r.invite_id, r.contact_name, r.crew_size, r.guest_time_zone, r.pitch_idea,
@@ -203,7 +206,7 @@ export async function rerequestTx(
             joined_to_request_id = null, locked_slot_id = null, locked_starts_at = null, locked_ends_at = null,
             locked_where = null, awaiting_jon_since = case when $7 then null else $6::timestamptz end,
             cancelled_by = null, cancelled_at = null,
-            spam_suspect = spam_suspect or $7
+            spam_suspect = spam_suspect or $7, pitch_idea = coalesce($9, pitch_idea)
       where id = $1`,
     [
       requestId,
@@ -214,6 +217,7 @@ export async function rerequestTx(
       now,
       a.spam ?? false,
       checked.overnightNight,
+      checked.pitchIdea,
     ],
   );
   await c.query(`delete from request_slot_choice where request_id = $1`, [requestId]);
@@ -252,6 +256,8 @@ async function check(
 ): Promise<Checked | { code: ValidationCode }> {
   const dish = dishBySlug(r.dish);
   const invite = await findInviteById(r.invite_id);
+  // EML-05: a new pitch counts on a Pitch Me request only (any other dish keeps none); blank keeps the stored one.
+  const newPitch = dish?.flow === 'pitch' && choices.pitchIdea ? choices.pitchIdea : null;
   if (!dish || !invite) return { code: 'not_bookable' };
   const loaded = withoutOwnBooking(await loadEngineData(now), requestId);
   const season = { start: loaded.settings.seasonStart, end: loaded.settings.seasonEnd };
@@ -268,7 +274,7 @@ async function check(
     }),
     ...choices,
     guestTimeZone: r.guest_time_zone ?? undefined,
-    pitchIdea: r.pitch_idea ?? undefined,
+    pitchIdea: newPitch ?? r.pitch_idea ?? undefined,
     surpriseNeedToKnow: r.surprise_need_to_know ?? undefined,
   };
   const v = validateRequest(body, dish, engine, season, now);
@@ -283,6 +289,7 @@ async function check(
         : null,
     overnight: choices.overnight,
     overnightNight: (choices.overnight && choices.overnightNight) || null,
+    pitchIdea: newPitch,
   };
 }
 

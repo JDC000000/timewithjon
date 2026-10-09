@@ -12,6 +12,7 @@ import { googleBanner } from '@/features/calendar/alerts';
 import { googleConfigured } from '@/lib/adapters/google/oauth';
 import { GoogleBanner } from '@/app/admin/_season/GoogleBanner';
 import { AdminNav } from '@/ui/AdminNav';
+import { signInHere } from '../_requests/guard';
 import { ROUTES } from '@/ui/routes';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ async function googleNeedsJon(): Promise<boolean> {
 export default async function AdminShell({ children }: { children: ReactNode }) {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) redirect(ROUTES.admin.signIn);
+  if (admin instanceof Response) redirect(await signInHere()); // EML-11: back to this page after sign-in
   const [needs, google] = await Promise.all([needsReplyCount(), googleNeedsJon()]);
   return (
     <div className="adm">

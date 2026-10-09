@@ -25,14 +25,14 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin);
+  if (admin instanceof Response) return notAllowed(admin);
   const d = await load((await params).id);
   return { title: d ? detailView(d, new Date()).pageTitle : INBOX.pageTitle };
 }
 
 export default async function RequestPage({ params }: Props) {
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin);
+  if (admin instanceof Response) return notAllowed(admin);
   const { id } = await params;
   const d = await load(id);
   if (!d) notFound();

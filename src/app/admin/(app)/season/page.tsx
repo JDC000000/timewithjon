@@ -19,7 +19,7 @@ export default async function SeasonIndex({
 }) {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin); // 404 when the flag is off, else to sign-in
+  if (admin instanceof Response) return notAllowed(admin); // 404 when the flag is off, else to sign-in
   const [page, sp] = await Promise.all([seasonPage(), searchParams]);
   return (
     <Panes

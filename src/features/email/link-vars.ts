@@ -17,12 +17,17 @@ import {
 } from '@/features/invites/action-tokens';
 import { inviteLink } from '@/features/admin/invites';
 import { pool } from '@/lib/db';
+import { MANAGE_ANOTHER_ANCHOR } from '@/ui/routes';
 
 export interface LinkSpec {
   link: string;
   requestId?: string;
   offerId?: string;
+  /** manage only: open a part of the page on load (E8 → the pitch form, EML-05). */
+  anchor?: typeof MANAGE_ANCHOR;
 }
+/** The manage page's "Ask for another time" fragment (EML-05). */
+export const MANAGE_ANCHOR = MANAGE_ANOTHER_ANCHOR;
 export type EmailVar = string | number | LinkSpec;
 
 /** A queued email names a link kind nobody registered: it fails closed (marked failed, reported, never sent). */
@@ -67,7 +72,8 @@ const MINTERS: Record<string, Mint> = {
   manage: async (db, spec, { emailLogId, now }) => {
     if (!spec.requestId) throw new UnknownLinkKindError('manage');
     const raw = emailLinkToken(emailLogId, 'manage');
-    return tokenUrl('manage', await issueManageToken(db, spec.requestId, now, emailLogId, raw));
+    const url = tokenUrl('manage', await issueManageToken(db, spec.requestId, now, emailLogId, raw));
+    return spec.anchor === MANAGE_ANCHOR ? `${url}#${MANAGE_ANCHOR}` : url;
   },
   take: offerMinter('take_offer', 'offer'),
   pick: offerMinter('pick_new_date', 'new-date'),
@@ -86,7 +92,8 @@ const MINTERS: Record<string, Mint> = {
   },
 };
 
-export const manageLink = (requestId: string): LinkSpec => ({ link: 'manage', requestId });
+export const manageLink = (requestId: string, anchor?: typeof MANAGE_ANCHOR): LinkSpec =>
+  anchor ? { link: 'manage', requestId, anchor } : { link: 'manage', requestId };
 export const takeLink = (offerId: string): LinkSpec => ({ link: 'take', offerId });
 export const pickLink = (offerId: string): LinkSpec => ({ link: 'pick', offerId });
 export const menuLink = (requestId: string): LinkSpec => ({ link: 'menu', requestId });

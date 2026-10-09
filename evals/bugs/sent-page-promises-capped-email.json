@@ -1,0 +1,9 @@
+{
+  "id": "sent-page-promises-capped-email",
+  "date": "2026-10-08",
+  "task": "QA EML-24",
+  "area": "guest",
+  "summary": "After the E1 daily cap (3 per address) skipped the email, the Sent page still said 'Watch for an email'.",
+  "fix": "The Sent page says it only when an E1 (or E6) was queued for the request.",
+  "tests": ["src/app/sent/__tests__/sent-page.test.ts", "tests/int/requests.int.test.ts"]
+}

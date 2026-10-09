@@ -1,8 +1,9 @@
-// src/proxy.ts — Next 16 proxy (formerly middleware). Two jobs: a per-request CSP nonce (T4.1.05) on every
-// matched path, and routing ?for= to the resolver.
+// src/proxy.ts — Next 16 proxy (formerly middleware). Three jobs: a per-request CSP nonce (T4.1.05) on every
+// matched path, routing ?for= to the resolver, and an admin page's own path for its sign-in ?next= (EML-11).
 import { NextResponse, type NextRequest } from 'next/server';
 import { buildCsp, newNonce } from '@/config/csp';
 import { isDevServer } from '@/config/env';
+import { ADMIN_PATH_HEADER } from '@/features/admin/next-path';
 
 export function proxy(req: NextRequest) {
   const nonce = newNonce();
@@ -11,6 +12,11 @@ export function proxy(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set('x-nonce', nonce);
   headers.set('Content-Security-Policy', csp);
+  // EML-11: an admin page knows its own path for the sign-in redirect's ?next= (never trusted from the client).
+  headers.delete(ADMIN_PATH_HEADER);
+  const path = req.nextUrl.pathname;
+  if (path === '/admin' || path.startsWith('/admin/'))
+    headers.set(ADMIN_PATH_HEADER, `${path}${req.nextUrl.search}`);
 
   const forParam = req.nextUrl.searchParams.get('for');
   let res: NextResponse;

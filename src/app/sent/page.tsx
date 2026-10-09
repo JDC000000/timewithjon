@@ -44,7 +44,11 @@ function Sent({ model }: { model: Extract<SentModel, { kind: 'sent' }> }) {
             <span className="swipe">{standby ? GUEST_LABEL.standby : AFTER_SEND.stamp}</span>
           </h1>
           <p className="lead intro" style={{ marginTop: 'var(--s5)' }}>
-            {standby ? AFTER_SEND_STANDBY.promise(standby.week) : AFTER_SEND.promise(model.fromAddress)}
+            {standby
+              ? AFTER_SEND_STANDBY.promise(standby.week)
+              : model.emailComing
+                ? AFTER_SEND.promise(model.fromAddress)
+                : AFTER_SEND.promiseNoEmail}
           </p>
         </div>
         <PhotoSlot slot="hero" kind="sent" sizes={SENT_PHOTO_SIZES} priority="hero" />

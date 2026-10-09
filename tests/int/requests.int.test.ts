@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { pool, q, withTx } from '@/lib/db';
+import { loadSentModel } from '@/app/sent/model';
 import {
   createRequest,
   createRequestTx,
@@ -310,6 +311,9 @@ describe('intake emails (H4) and the L-3 send path (M4)', () => {
     expect(await e1(ids[3]!)).toBe('capped');
     const [o] = await q<{ n: number }>(`select count(*)::int n from dev_outbox where to_email = $1`, [to]);
     expect(o!.n).toBe(3);
+    // EML-24: /sent says "Watch for an email" only when one is coming.
+    expect(await loadSentModel(ids[2]!)).toMatchObject({ kind: 'sent', emailComing: true });
+    expect(await loadSentModel(ids[3]!)).toMatchObject({ kind: 'sent', emailComing: false });
   });
 });
 

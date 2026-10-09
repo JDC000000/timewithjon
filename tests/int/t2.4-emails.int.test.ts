@@ -155,7 +155,7 @@ describe('T2.4.10 E5-E10 and E16: the copy, sent by the real senders', () => {
       subject: 'About your pitch',
       text:
         'I love this. It’s also three days long, and I promised one night away, max. Pitch me the shorter version?\n' +
-        `${SITE}/manage?t=TOKEN\n\nJon\n`,
+        `${SITE}/manage?t=TOKEN#another\n\nJon\n`, // EML-05: the link opens the pitch form
     });
     const no = await newRequest({ dish: 'pitch-me' });
     expect((await replyToPitch(no.id, { reply: 'no' })).ok).toBe(true);

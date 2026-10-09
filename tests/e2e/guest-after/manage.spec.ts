@@ -279,3 +279,40 @@ test('Add a story or photo opens the S11 story form, sent with the manage header
   await expect(page.getByRole('button', { name: STORY_FORM.send })).toBeVisible();
   await shot(page, 'story-form');
 });
+
+test('EML-05: E8’s link (#another) opens the pitch form with the guest’s own pitch; the shorter one is sent', async ({
+  page,
+}) => {
+  const s = await seed({ dish: 'pitch-me', mode: 'dates' });
+  await db((c) =>
+    c.query(
+      `update request set status = 'needs_new_time', pitch_idea = 'Three days on the Sunshine Coast',
+              date_prefs = '{"dates": [], "window_text": "late May"}'::jsonb
+        where id = $1`,
+      [s.requestId],
+    ),
+  );
+  await page.goto(`${url(s.token)}#another`);
+  const form = page.locator('form[data-manage-another="pitch"]');
+  await expect(form).toBeVisible(); // no tap: the link opened it
+  const idea = form.getByLabel(FLOW.pitchIdeaLabel);
+  await expect(idea).toHaveValue('Three days on the Sunshine Coast');
+  await expect(form.getByLabel(FLOW.pitchWhenLabel)).toHaveValue('late May');
+  await shot(page, 'pitch-shorter');
+  await idea.fill('One night on the Sunshine Coast');
+  await form.getByRole('button', { name: FLOW.send }).click();
+  await expect
+    .poll(() =>
+      db(
+        async (c) =>
+          (
+            await c.query<{ p: string; status: string }>(
+              `select pitch_idea as p, status from request where id = $1`,
+              [s.requestId],
+            )
+          ).rows[0]!,
+      ),
+    )
+    .toEqual({ p: 'One night on the Sunshine Coast', status: 'requested' });
+  await expect(page.locator('.status-pill')).toHaveText(GUEST_LABEL.requested);
+});

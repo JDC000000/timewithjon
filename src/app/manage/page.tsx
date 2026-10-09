@@ -135,6 +135,7 @@ function Manage({ model, token, sent }: { model: Open; token: string; sent: stri
           header={MANAGE_HEADER}
           dish={dishView(dish!)}
           form={dish?.flow === 'dates' ? 'dates' : dish?.flow === 'pitch' ? 'pitch' : 'slots'}
+          pitch={model.ownPitch}
           maxPhotos={MAX_PHOTOS.after_send}
           frees={locked && model.when ? MANAGE_UI.frees(model.when) : null}
           canCancel={model.canCancel}

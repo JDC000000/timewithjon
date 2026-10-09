@@ -16,7 +16,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
 export default async function RequestsPage({ searchParams }: Props) {
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin);
+  if (admin instanceof Response) return notAllowed(admin);
   const check = (await searchParams).check === '1'; // pr77-review F6: only ?check=1 opens Check these
   return (
     <>

@@ -1,0 +1,9 @@
+{
+  "id": "email-e8-pitch-not-editable",
+  "date": "2026-10-08",
+  "task": "QA EML-05",
+  "area": "requests",
+  "summary": "E8 asks 'Pitch me the shorter version?' but its manage link only let the guest change the date.",
+  "fix": "Ask for another time on a Pitch Me request carries the pitch (prefilled with the guest's own, sent as pitchIdea); E8's link ends in #another so the form opens on arrival.",
+  "tests": ["tests/int/pitch-weather.int.test.ts", "tests/e2e/guest-after/manage.spec.ts"]
+}

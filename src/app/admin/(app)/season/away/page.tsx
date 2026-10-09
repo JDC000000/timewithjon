@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: PANES.titleAway };
 export default async function AwayPage() {
   if (adminFeatureOff()) notFound();
   const admin = await requireAdmin();
-  if (admin instanceof Response) notAllowed(admin); // 404 when the flag is off, else to sign-in
+  if (admin instanceof Response) return notAllowed(admin); // 404 when the flag is off, else to sign-in
   const page = await seasonPage();
   const current = page.rows.find((r) => r.away)?.weekStart;
   const lockedNow = page.away
