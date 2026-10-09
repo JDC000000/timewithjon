@@ -18,7 +18,6 @@ const base = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   spamSuspect: false,
   contact: { name: 'Priya', email: 'priya@example.com', phone: null },
   crewSize: 3,
-  bigCrew: false,
   datePrefs: null,
   overnight: false,
   overnightNight: null,
@@ -256,10 +255,11 @@ describe('detailView: flags, links, captions and each time’s reason (Q2 fields
     expect(v.caption).toEqual({ text: 'Needs a reply · ', unit: '3 h', after: ' · personal link' });
     expect(v.facts.map((f) => f.label)).not.toContain('Link');
   });
-  it('flags come from the bounce, the RSVP, no times left and a big crew', () => {
-    expect(
-      detailView(base({ contactProblem: 'bounced', guestRsvp: 'no', bigCrew: true }), now).flags,
-    ).toEqual([JON_FLAGS.bounced, JON_FLAGS.rsvpNo, JON_FLAGS.bigCrew]);
+  it('flags come from the bounce, the RSVP and no times left (no big-crew flag: crew stays within the dish)', () => {
+    expect(detailView(base({ contactProblem: 'bounced', guestRsvp: 'no' }), now).flags).toEqual([
+      JON_FLAGS.bounced,
+      JON_FLAGS.rsvpNo,
+    ]);
   });
   it('a locked Big Day says so; a cancel names who and when; closed in person too', () => {
     expect(detailView(base({ status: 'locked', countsToward: 'big_day' }), now).caption).toEqual({

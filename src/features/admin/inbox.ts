@@ -66,7 +66,6 @@ export interface InboxCard {
   isTest: boolean;
   contactName: string;
   crewSize: number;
-  bigCrew: boolean;
   awaitingJonSince: string | null;
   createdAt: string;
   lockedStartsAt: string | null;
@@ -100,7 +99,6 @@ interface CardRow {
   is_test: boolean;
   contact_name: string;
   crew_size: number;
-  big_crew: boolean;
   awaiting_jon_since: Date | null;
   created_at: Date;
   locked_starts_at: Date | null;
@@ -127,7 +125,7 @@ export async function listRequests(
   now = new Date(),
 ): Promise<{ cards: InboxCard[]; truncated: boolean }> {
   const fetched = await q<CardRow>(
-    `select r.id, r.dish, r.mode, r.status, r.is_test, r.contact_name, r.crew_size, r.big_crew,
+    `select r.id, r.dish, r.mode, r.status, r.is_test, r.contact_name, r.crew_size,
             r.awaiting_jon_since, r.created_at, ${sharedTime('locked_starts_at')} as locked_starts_at,
             ${sharedTime('locked_ends_at')} as locked_ends_at, r.standby_week::text,
             i.kind as invite_kind,
@@ -160,7 +158,6 @@ export async function listRequests(
     isTest: r.is_test,
     contactName: r.contact_name,
     crewSize: r.crew_size,
-    bigCrew: r.big_crew,
     awaitingJonSince: iso(r.awaiting_jon_since),
     createdAt: r.created_at.toISOString(),
     lockedStartsAt: iso(r.locked_starts_at),

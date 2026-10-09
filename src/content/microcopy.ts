@@ -65,7 +65,6 @@ export const ALREADY = {
 };
 /** Jon-facing (admin only). */
 export const JON_FLAGS = {
-  bigCrew: 'Big crew: treat it like a pitch',
   bounced: 'Email bounced: text them',
   rsvpNo: 'Can’t make it (per Google): check with them', // TSD v1.9 wording (guest_rsvp = 'no')
 };

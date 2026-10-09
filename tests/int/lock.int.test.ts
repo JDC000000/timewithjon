@@ -63,7 +63,6 @@ async function newRequest(over: { slotIds?: string[]; standbyWeek?: string; note
       mode: 'slots',
       status: over.standbyWeek ? 'standby' : 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );
@@ -376,7 +375,6 @@ describe('lockRequest (T2.3)', () => {
           mode: 'dates',
           status: 'requested',
           countsToward: 'weekly_cap',
-          bigCrew: false,
           dishName: 'Something New',
         }),
       );

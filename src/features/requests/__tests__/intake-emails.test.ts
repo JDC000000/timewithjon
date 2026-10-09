@@ -10,7 +10,6 @@ const base = {
   guestEmail: 'dave@example.com',
   guestName: 'Dave',
   crew: 2,
-  bigCrew: false,
   choiceCount: 2,
   choiceKind: 'times' as const,
   overnight: false,
@@ -43,6 +42,9 @@ describe('E2 summary counts (QA r2 L3)', () => {
     expect(summary(2, 'times')).toBe('Crew 2. 2 times.');
     expect(summary(1, 'dates')).toBe('Crew 2. 1 date.');
     expect(summary(2, 'dates')).toBe('Crew 2. 2 dates.');
+    // No big-crew flag any more (approved: Jon 2026-10-09): the crew is just its number, however large.
+    const big = intakeEmails({ ...base, crew: 16, status: 'requested' })[1]!.vars.summary;
+    expect(String(big)).toBe('Crew 16. 2 times.');
   });
   it('QA4 M1: an overnight request tells Jon, in the guest’s own words', () => {
     const e2 = intakeEmails({ ...base, status: 'requested', choiceKind: 'dates', overnight: true })[1]!;

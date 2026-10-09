@@ -72,7 +72,6 @@ async function newRequest(dish = 'the-long-lunch', slotIds: string[] = []) {
       mode: pitch ? 'dates' : 'slots',
       status: 'requested',
       countsToward: pitch ? 'none' : 'weekly_cap',
-      bigCrew: false,
       dishName: dish,
     }),
   );

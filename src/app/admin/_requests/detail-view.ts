@@ -45,7 +45,7 @@ export interface DetailView {
   dates: string[];
   /** Waiting on Jon or on them: the lock bar applies. */
   open: boolean;
-  /** Jon-only flags (bounce, RSVP no, no times left, big crew), as rows over the facts. */
+  /** Jon-only flags (bounce, RSVP no, no times left), as rows over the facts. */
   flags: string[];
   /** A possible spam request (Check these, A2b): Not spam / Delete instead of the lock bar. */
   spam: boolean;

@@ -79,7 +79,6 @@ async function newRequest(o: { dish?: string; slotIds?: string[] } = {}) {
       mode: pitch ? 'dates' : 'slots',
       status: 'requested',
       countsToward: pitch ? 'none' : 'weekly_cap',
-      bigCrew: false,
       dishName: dish,
     }),
   );

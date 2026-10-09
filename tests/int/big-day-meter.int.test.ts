@@ -41,7 +41,6 @@ describe('the Big Days meter (QA M2)', () => {
         mode: 'dates',
         status: 'requested',
         countsToward: 'big_day',
-        bigCrew: false,
         dishName: 'A hike or nature moment',
       }),
     );

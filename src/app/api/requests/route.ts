@@ -109,7 +109,6 @@ export async function POST(req: NextRequest) {
       mode: v.mode,
       status: v.status,
       countsToward: v.countsToward,
-      bigCrew: v.bigCrew,
       dishName: inSentence(dish), // E1/E2's {dish}, inside a sentence
       capGuestEmails: invite.kind, // every invite kind has a daily guest-email cap (personal: 5, general: 20)
     }));

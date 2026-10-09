@@ -134,7 +134,6 @@ describe('photo sign in the prototype (T1.8.02, T3.6.02)', () => {
         mode: 'slots',
         status: 'requested',
         countsToward: 'weekly_cap',
-        bigCrew: false,
         dishName: 'The Long Lunch',
       }),
     );

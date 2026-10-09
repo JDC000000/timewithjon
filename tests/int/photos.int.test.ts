@@ -112,7 +112,6 @@ async function newRequest(): Promise<string> {
     mode: 'slots' as const,
     status: 'requested' as const,
     countsToward: 'weekly_cap' as const,
-    bigCrew: false,
     dishName: 'The Long Lunch',
   };
   const { requestId } = await withTx((c) => createRequestTx(c, a));

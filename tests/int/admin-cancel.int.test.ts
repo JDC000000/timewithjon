@@ -65,7 +65,6 @@ async function newRequest(slotIds: string[]) {
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );
