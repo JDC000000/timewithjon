@@ -13,8 +13,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
-  if (admin instanceof Response) return admin;
+  if (admin instanceof Response) return noStore(admin); // every answer of this route is uncached, refusals too
   const storyId = z.uuid().safeParse(req.nextUrl.searchParams.get('storyId'));
-  if (!storyId.success) return jsonError(400, 'invalid', ERRORS.generic);
+  if (!storyId.success) return noStore(jsonError(400, 'invalid', ERRORS.generic));
   return noStore(NextResponse.json({ photos: await storyPhotosForAdmin(storyId.data, photoStore()) }));
 }

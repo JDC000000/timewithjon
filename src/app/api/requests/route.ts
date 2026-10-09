@@ -7,7 +7,7 @@ import { deliverRequestEmails } from '@/features/email/send';
 import { getBusy } from '@/features/availability/busy';
 import { engineInput, loadEngineData } from '@/features/availability/load';
 import { openWindows } from '@/features/availability/openWindows';
-import { clientIp, jsonError, sameOrigin } from '@/lib/http';
+import { BODY_TOO_LARGE, clientIp, jsonError, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { isReleased, opensAt } from '@/features/invites/release';
 import { requireInvite } from '@/features/invites/require';
 import { hit, limitByIp } from '@/lib/ratelimit';
@@ -24,6 +24,7 @@ import { storableBody, validateRequest } from '@/features/requests/validate';
 import { isHoneypotFilled } from '@/lib/honeypot';
 import { loadSettings } from '@/lib/settings';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { TURNSTILE_ACTION } from '@/lib/turnstile-actions';
 import { formatInTimeZone } from 'date-fns-tz';
 import { TZ } from '@/lib/time';
 
@@ -38,7 +39,9 @@ export async function POST(req: NextRequest) {
   if ('response' in gate) return gate.response;
   const ip = clientIp(req);
 
-  const parsed = RequestBody.safeParse(await req.json().catch(() => null));
+  const raw = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (raw === BODY_TOO_LARGE) return tooLarge(ERRORS.generic);
+  const parsed = RequestBody.safeParse(raw);
   if (!parsed.success) {
     const emailBad = parsed.error.issues.some((i) => i.path[0] === 'email');
     return jsonError(
@@ -59,7 +62,10 @@ export async function POST(req: NextRequest) {
   }
   const dish = dishBySlug(body.dish);
   if (!dish) return jsonError(400, 'unknown_dish', ERRORS.generic);
-  if (invite.kind === 'general' && !(await verifyTurnstile(body.turnstileToken, ip)))
+  if (
+    invite.kind === 'general' &&
+    !(await verifyTurnstile(body.turnstileToken, ip, TURNSTILE_ACTION.request))
+  )
     return jsonError(400, 'bot_check', ERRORS.botCheck);
 
   // ENG-03: a retry of a saved request (same key, same body) gets that request back BEFORE the engine is asked:

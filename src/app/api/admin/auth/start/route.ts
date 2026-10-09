@@ -7,11 +7,12 @@ import { z } from 'zod';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { sendAdminSignIn } from '@/features/admin/signin';
-import { clientIp, jsonError, sameOrigin } from '@/lib/http';
+import { BODY_TOO_LARGE, clientIp, jsonError, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { check } from '@/lib/ratelimit';
 import { SIGN_IN } from '@/content/ui/admin-requests';
 import { report } from '@/lib/report';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { TURNSTILE_ACTION } from '@/lib/turnstile-actions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,11 +26,13 @@ export async function POST(req: NextRequest) {
   const off = adminFeatureOff();
   if (off) return off;
   if (!sameOrigin(req)) return jsonError(403, 'bad_origin', ERRORS.generic);
-  const parsed = StartBody.safeParse(await req.json().catch(() => null));
+  const body = await readJson(req); // bounded: a body over MAX_JSON_BYTES is never read whole
+  if (body === BODY_TOO_LARGE) return tooLarge(ERRORS.generic);
+  const parsed = StartBody.safeParse(body);
   if (!parsed.success) return jsonError(400, 'invalid', ERRORS.generic);
 
   const ip = clientIp(req);
-  if (!(await verifyTurnstile(parsed.data.turnstileToken, ip))) {
+  if (!(await verifyTurnstile(parsed.data.turnstileToken, ip, TURNSTILE_ACTION.signIn))) {
     return jsonError(400, 'bot_check', ERRORS.botCheck);
   }
   const verdict = await check('adminSignInStart', ip);

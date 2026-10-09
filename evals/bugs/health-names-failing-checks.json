@@ -1,0 +1,9 @@
+{
+  "id": "health-names-failing-checks",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "jobs",
+  "summary": "The public health answer named each check and which ones failed.",
+  "fix": "The public answer is only {ok} (with 200/503); the checks, their reasons and warnings need the cron header, as the monitoring jobs send it.",
+  "tests": ["tests/int/health.int.test.ts"]
+}

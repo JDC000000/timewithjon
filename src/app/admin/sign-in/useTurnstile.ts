@@ -4,6 +4,7 @@
 // the current one and resets the widget for the next ("Send a new code"). With no site key (local dev) there is
 // no widget and no token: the server fails open only when its own secret is missing too.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { TURNSTILE_ACTION } from '@/lib/turnstile-actions';
 
 interface TurnstileApi {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string;
@@ -54,6 +55,7 @@ export function useTurnstile(siteKey: string | undefined) {
         widget.current = api.render(el, {
           sitekey: siteKey,
           appearance: 'interaction-only',
+          action: TURNSTILE_ACTION.signIn, // the route checks it
           callback: (t: string) => settle(t),
           'expired-callback': () => settle(undefined),
           'error-callback': () => settle(undefined),

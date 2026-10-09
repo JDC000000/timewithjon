@@ -1,0 +1,9 @@
+{
+  "id": "csp-any-storage-project",
+  "date": "2026-10-09",
+  "task": "T4.2",
+  "area": "site",
+  "summary": "The page policy let images and uploads reach any project on the storage provider's domain.",
+  "fix": "It names the configured project's origin only.",
+  "tests": ["tests/unit/csp.test.ts"]
+}
