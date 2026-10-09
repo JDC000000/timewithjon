@@ -56,7 +56,14 @@ export interface HeicWorkerOptions {
   modulePath?: string;
 }
 
+/**
+ * heic-decode's entry file, for the worker. The worker loads it by path at run time, which the build can't see, so
+ * the first line is for the build alone: the bundler reads this resolve, ships heic-decode and libheif-js with every
+ * route that uses this file (as it did when heic-decode was imported directly), and compiles it to a module id. The
+ * second finds the shipped file at run time, from the app's root.
+ */
 function heicDecodePath(): string {
+  void createRequire(import.meta.url).resolve('heic-decode');
   return createRequire(path.join(process.cwd(), 'package.json')).resolve('heic-decode');
 }
 
