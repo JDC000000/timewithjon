@@ -8,8 +8,8 @@ import type { PhotoKind } from './PhotoSlot';
 const DENSE_PHONE = '(max-width: 639px) and (min-resolution: 2.5dppx)';
 
 export const PHOTO_SIZES: Readonly<Record<PhotoKind, string>> = {
-  /** the landing hero: full-bleed on phones and tablets, the right column (<= 600 px) from 1024 */
-  hero: `(min-width: 1024px) min(50vw, 600px), ${DENSE_PHONE} 67vw, 100vw`,
+  /** the landing hero: full-bleed on phones and tablets, the right column (<= 640 px) from 1024 */
+  hero: `(min-width: 1024px) min(50vw, 640px), ${DENSE_PHONE} 67vw, 100vw`,
   /** the why band: full-bleed */
   band: `${DENSE_PHONE} 67vw, 100vw`,
   /** the closing photo: full-bleed */

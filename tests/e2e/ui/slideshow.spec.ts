@@ -304,3 +304,82 @@ test("framing: the closing photo is decoded and drawn at its figure's size at 37
     expect(got.h, `${width}: height`).toBeCloseTo(got.fh, 0);
   }
 });
+
+// photo round 3: shapes the framing data never covered must not cut faces or leave slivers
+test('round 3: the why band keeps 16:9 on a landscape phone (no 70vh cap below 1024)', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto(BENCH);
+  const b = (await show(page).boundingBox())!;
+  expect(b.width / b.height).toBeCloseTo(16 / 9, 1);
+});
+
+test('round 3: a frame within 12 px a side of the box snaps to cover (no paper sliver)', async ({ page }) => {
+  await page.clock.install();
+  await page.goto(BENCH);
+  const fig = card(page).locator('figure');
+  await slidesLoaded(fig);
+  // slide 2 of the card: a 1.3 frame in a 4:3 box. Under 24 px of total gap it is drawn full-box (cover); over it,
+  // the frame stays (a real mat). Both at 375 (a 335 px card: 9 px gap) and at 1440 (a 1200 px card: 30 px gap).
+  for (const width of [375, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const [f, sl] = await fig.evaluate((el) => {
+      const r = (n: Element) => n.getBoundingClientRect();
+      return [r(el), r(el.querySelector('.ph-slide')!)].map((x) => ({ w: x.width, h: x.height }));
+    });
+    const gap = f!.w - f!.h * 1.3;
+    if (gap < 24) {
+      expect(sl!.w, `${width}: snapped`).toBeCloseTo(f!.w, 0);
+      expect(sl!.h, `${width}: snapped`).toBeCloseTo(f!.h, 0);
+    } else expect(sl!.w, `${width}: framed`).toBeCloseTo(f!.h * 1.3, 0);
+  }
+});
+
+test('round 3: the closing strip stays at most 1920 px wide (<= 4.6:1) on a 2560 screen', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  await page.goto('/');
+  const fig = page.locator('figure[data-slot="close"]');
+  await fig.scrollIntoViewIfNeeded();
+  const b = (await fig.boundingBox())!;
+  expect(b.width).toBeLessThanOrEqual(1920.5);
+  expect(b.width / b.height).toBeLessThanOrEqual(4.62);
+  expect(b.x + b.width / 2).toBeCloseTo(1280, 0); // centred
+});
+
+test('round 3: a short desktop caps the hero, which then keeps its 4:5 photo on paper instead of cutting it', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 560 });
+  await page.goto('/');
+  const fig = page.locator('figure[data-slot="hero"]');
+  const [f, i] = await fig.evaluate((el) =>
+    [el, el.querySelector(':scope > img')!].map((n) => {
+      const r = n.getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    }),
+  );
+  if (Math.abs(f!.w / f!.h - 0.8) > 0.03)
+    expect(i!.w / i!.h).toBeCloseTo(0.8, 2); // capped: the photo keeps 4:5
+  else expect(i!.w).toBeCloseTo(f!.w, 0);
+});
+
+test('round 3: a dish sheet’s photo mat is the sheet’s paper, not the page’s', async ({ page }) => {
+  await page.goto('/menu');
+  const sheetFig = page.locator('dialog.sheet figure.ph').first();
+  const pageFig = page.locator('main figure.ph--dish').first();
+  const onPage = await pageFig.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const colours = await page.evaluate(() => {
+    const probe = (v: string) => {
+      const d = document.createElement('div');
+      d.style.background = v;
+      document.body.append(d);
+      const c = getComputedStyle(d).backgroundColor;
+      d.remove();
+      return c;
+    };
+    return { paper: probe('var(--c-paper)'), canvas: probe('var(--c-canvas)') };
+  });
+  expect(await sheetFig.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(colours.paper);
+  expect(onPage).toBe(colours.canvas);
+});

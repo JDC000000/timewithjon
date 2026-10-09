@@ -3229,8 +3229,12 @@ html[data-bigtext] .lead {
   padding-block: 0;
   margin-top: var(--s4);
 }
-.photo-led .ph--band {
-  max-height: 70vh;
+/* the 70vh cap only from 1024: below it, on a short (landscape) screen, it made the band 2.3-3.1:1 while its photos
+   are framed for 16:9, cutting faces (photo round 3). The band keeps its 16:9 shape there. */
+@media (min-width: 1024px) {
+  .photo-led .ph--band {
+    max-height: 70vh;
+  }
 }
 .photo-led .why .wrap {
   margin-top: 0;
@@ -3396,27 +3400,47 @@ html:has(.menu-head + nav) {
    whole box and object-fit: cover, exactly as before; with no --p-*, --p (the slot's pos), then 50% 50%. The per-kind
    rules set --ph-f with NO fallback: a missing --f-<key> leaves --ph-f invalid, so width and height each take their
    own fallback (1000 and 0.001: the whole box). One shared sentinel would collapse one of them. A frame's
-   fill is the page paper; the grain (.ph::after) keeps covering the whole figure, fill included. */
+   fill is the paper of the surface the photo sits on (--ph-mat); the grain (.ph::after) keeps covering the whole
+   figure, fill included.
+   Round 3: a box that leaves the shape its key was framed for (a max-height cap, a short screen) falls back to a frame
+   of the key's own ratio, so the photo is never cut beyond what its framing covers; and a frame within 12 px a side of
+   the box snaps to cover, so a near-miss never shows as a thin paper sliver. */
 .ph {
   container-type: size;
+  --ph-mat: var(--c-canvas);
+}
+/* a dish sheet's surface is the raised paper, so its mats are too */
+dialog.sheet .ph {
+  --ph-mat: var(--c-paper);
 }
 /* a size container needs a definite height for cqh: the closing photo's min-height alone resolves cqh to 0 (its only
    children are absolute, so the min-height was already its height) */
 .ph--close {
   height: var(--ph-close-min, 26rem);
+  /* at a fixed height the strip's shape follows the width: past 1920 px (4.6:1, where its framing data ends, and where
+     the 1600 w file would stretch past 1.2x) it stays 1920 px wide, centred, instead of cutting chins */
+  max-width: 1920px;
+  margin-inline: auto;
 }
 .ph img {
   inset: auto;
   top: 50%;
   left: 50%;
   translate: -50% -50%;
-  width: min(100cqw, 100cqh * var(--ph-f, 1000));
-  height: min(100cqh, 100cqw / var(--ph-f, 0.001));
+  /* the frame's box; a gap under 24 px across (12 px a side) is added back: cover instead of a sliver */
+  width: min(
+    100cqw,
+    100cqh * var(--ph-f, 1000) + clamp(0px, (24px - (100cqw - 100cqh * var(--ph-f, 1000))) * 1000, 100cqw)
+  );
+  height: min(
+    100cqh,
+    100cqw / var(--ph-f, 0.001) + clamp(0px, (24px - (100cqh - 100cqw / var(--ph-f, 0.001))) * 1000, 100cqh)
+  );
   object-position: var(--ph-p, var(--p, 50% 50%));
   background: var(--ph-bg);
 }
 .ph:has(img) {
-  background: var(--c-canvas);
+  background: var(--ph-mat);
 }
 /* Slides (src/ui/Slideshow.tsx) stack over photo 1, each in its own frame box: the box paints the paper around the
    frame (a spread shadow the figure clips). The photo grade is a filter on the <img> inside, so this paper stays the
@@ -3426,10 +3450,17 @@ html:has(.menu-head + nav) {
   top: 50%;
   left: 50%;
   translate: -50% -50%;
-  width: min(100cqw, 100cqh * var(--ph-f, 1000));
-  height: min(100cqh, 100cqw / var(--ph-f, 0.001));
+  /* the frame's box; a gap under 24 px across (12 px a side) is added back: cover instead of a sliver */
+  width: min(
+    100cqw,
+    100cqh * var(--ph-f, 1000) + clamp(0px, (24px - (100cqw - 100cqh * var(--ph-f, 1000))) * 1000, 100cqw)
+  );
+  height: min(
+    100cqh,
+    100cqw / var(--ph-f, 0.001) + clamp(0px, (24px - (100cqh - 100cqw / var(--ph-f, 0.001))) * 1000, 100cqh)
+  );
   overflow: hidden;
-  box-shadow: 0 0 0 100vmax var(--c-canvas);
+  box-shadow: 0 0 0 100vmax var(--ph-mat);
 }
 /* the slideshow's on-screen sentinel (Slideshow.tsx): the figure's box, invisible, never in the way */
 .ph .ph-seen {
@@ -3446,11 +3477,11 @@ html:has(.menu-head + nav) {
 }
 .ph--hero :is(img, .ph-slide) {
   --ph-p: var(--p-hero-s, var(--p, 50% 50%));
-  --ph-f: var(--f-hero-s);
+  --ph-f: var(--f-hero-s, 1.3333);
 }
 .ph--band :is(img, .ph-slide) {
   --ph-p: var(--p-band, var(--p, 50% 50%));
-  --ph-f: var(--f-band);
+  --ph-f: var(--f-band, 1.7778);
 }
 .ph--close :is(img, .ph-slide) {
   --ph-p: var(--p-close-s, var(--p, 50% 50%));
@@ -3458,24 +3489,24 @@ html:has(.menu-head + nav) {
 }
 .ph--dish :is(img, .ph-slide) {
   --ph-p: var(--p-dish, var(--p, 50% 50%));
-  --ph-f: var(--f-dish);
+  --ph-f: var(--f-dish, 1.3333);
 }
 .ph--sheet :is(img, .ph-slide) {
   --ph-p: var(--p-sheet, var(--p, 50% 50%));
-  --ph-f: var(--f-sheet);
+  --ph-f: var(--f-sheet, 1.7778);
 }
 .ph--thumb :is(img, .ph-slide) {
   --ph-p: var(--p-thumb, var(--p, 50% 50%));
-  --ph-f: var(--f-thumb);
+  --ph-f: var(--f-thumb, 3);
 }
 .ph--sent :is(img, .ph-slide) {
   --ph-p: var(--p-sent, var(--p, 50% 50%));
-  --ph-f: var(--f-sent);
+  --ph-f: var(--f-sent, 1.3333);
 }
 @media (min-width: 640px) {
   .ph--hero :is(img, .ph-slide) {
     --ph-p: var(--p-hero-m, var(--p, 50% 50%));
-    --ph-f: var(--f-hero-m);
+    --ph-f: var(--f-hero-m, 1.7778);
   }
   .ph--close :is(img, .ph-slide) {
     --ph-p: var(--p-close-m, var(--p, 50% 50%));
@@ -3485,17 +3516,17 @@ html:has(.menu-head + nav) {
 @media (min-width: 768px) {
   .ph--sent :is(img, .ph-slide) {
     --ph-p: var(--p-sent-m, var(--p, 50% 50%));
-    --ph-f: var(--f-sent-m);
+    --ph-f: var(--f-sent-m, 1.7778);
   }
 }
 @media (min-width: 1024px) {
   .ph--hero :is(img, .ph-slide) {
     --ph-p: var(--p-hero, var(--p, 50% 50%));
-    --ph-f: var(--f-hero);
+    --ph-f: var(--f-hero, 0.8);
   }
   .ph--band :is(img, .ph-slide) {
     --ph-p: var(--p-band-l, var(--p, 50% 50%));
-    --ph-f: var(--f-band-l);
+    --ph-f: var(--f-band-l, 2.625);
   }
   .ph--close :is(img, .ph-slide) {
     --ph-p: var(--p-close-l, var(--p, 50% 50%));
@@ -3503,11 +3534,11 @@ html:has(.menu-head + nav) {
   }
   .ph--sheet :is(img, .ph-slide) {
     --ph-p: var(--p-sheet-l, var(--p, 50% 50%));
-    --ph-f: var(--f-sheet-l);
+    --ph-f: var(--f-sheet-l, 1.5);
   }
   .ph--thumb :is(img, .ph-slide) {
     --ph-p: var(--p-thumb-l, var(--p, 50% 50%));
-    --ph-f: var(--f-thumb-l);
+    --ph-f: var(--f-thumb-l, 1.3333);
   }
 }
 

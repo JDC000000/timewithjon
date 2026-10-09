@@ -163,6 +163,16 @@ function SlideshowSentinel({ seen }: { seen: (visible: boolean) => void }) {
   return <span ref={ref} className="ph-seen" aria-hidden="true" />;
 }
 
+/**
+ * Photo `p` (1-based slide = photo index; photo 0 is the base image, always there) is shown when it is on top, or
+ * directly under the top one: the incoming photo fades in over a photo that stays opaque, and nothing older stays
+ * stacked. On the loop back to photo 1 only the last photo fades out, so slides 2..n never cross-fade at once as a
+ * multi-exposure (photo round 3, PH-07). An older photo turns off while fully covered by the two above it.
+ */
+export function onAt(p: number, active: number): boolean {
+  return p === active || p === active - 1;
+}
+
 function renderSlides(
   slides: readonly { src: string; srcSet: string; style?: Record<string, string | number> }[],
   sizes: string,
@@ -172,7 +182,7 @@ function renderSlides(
   return slides.map((s, i) => (
     <span
       key={s.src}
-      className={cx('ph-slide', show.active > i && 'is-on')}
+      className={cx('ph-slide', onAt(i + 1, show.active) && 'is-on')}
       style={s.style as CSSProperties | undefined}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
