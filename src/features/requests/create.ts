@@ -29,12 +29,15 @@ export interface CreateArgs {
   capGuestEmails?: boolean;
 }
 
+/** What the transaction is told: whether the guest's intake email may go (the cap was taken before it, CR-02). */
+type TxArgs = Omit<CreateArgs, 'capGuestEmails'> & { sendGuestEmails?: boolean };
+
 /** The intake emails addressed to the guest (to whatever address the form carried). */
 const GUEST_INTAKE = new Set(['E1', 'E6']);
 
 export async function createRequestTx(
   c: PoolClient,
-  a: CreateArgs,
+  a: TxArgs,
 ): Promise<{ requestId: string; created: boolean }> {
   const b = a.body;
   const replay = async () => {
@@ -130,13 +133,20 @@ export async function createRequestTx(
       siteUrl: getEnv().NEXT_PUBLIC_SITE_URL,
     });
     // Over the general invite's daily cap: the request stands and Jon's E2 goes, the guest's email does not.
-    const guestOk = !a.capGuestEmails || (await hit('requestSendInvite', a.inviteId));
+    const guestOk = a.sendGuestEmails ?? true;
     for (const e of emails) if (guestOk || !GUEST_INTAKE.has(e.template)) await queueEmail(c, e);
   }
   if (!a.spam) await countEvent('request_sent', c); // T3.11: a honeypot hit is a bot, not a request
   return { requestId, created: true };
 }
 
-export function createRequest(a: CreateArgs) {
-  return withTx((c) => createRequestTx(c, a));
+/**
+ * CR-02: the general invite's cap is counted BEFORE the transaction. hit() goes through the pool; taken inside the
+ * transaction it needed a second connection while this one was held, so a few concurrent general-link Sends used
+ * up the pool (3), waited out its 5 s timeout, and the limiter failed open (the cap went uncounted). A bot (spam)
+ * never counts. A replayed client_key counts once more; it queues no email, so that only makes the cap stricter.
+ */
+export async function createRequest({ capGuestEmails, ...a }: CreateArgs) {
+  const sendGuestEmails = a.spam || !capGuestEmails || (await hit('requestSendInvite', a.inviteId));
+  return withTx((c) => createRequestTx(c, { ...a, sendGuestEmails }));
 }

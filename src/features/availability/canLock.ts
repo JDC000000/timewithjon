@@ -11,6 +11,7 @@ import {
   isWeekFull,
   overlaps,
   rangedBookings,
+  windowFitsDish,
 } from './rules';
 import type {
   Block,
@@ -33,7 +34,8 @@ export type LockRefusal =
   | 'big_day_clash'
   | 'week_full'
   | 'blocked'
-  | 'in_the_past';
+  | 'in_the_past'
+  | 'not_for_this_dish';
 export type LockWarning = 'standby_offer_live';
 
 export interface CanLockInput {
@@ -49,6 +51,12 @@ export interface CanLockInput {
   settings: EngineSettings;
   overrideWeek?: boolean; // "Override this week"
   bookAnyway?: boolean; // "Book anyway" (blocked date or Big Day clash)
+  /**
+   * CR-05: apply rule 2(i), a slot only for a dish that uses its window. On for what a GUEST gets: a stand-by offer
+   * (unless Jon ticked L13's Override) and the take of a suggested time. Jon's own Lock it in and Promote to host
+   * leave it off: A3 lists only the dish's windows, and past that the call is his, like Book anyway.
+   */
+  windowRule?: boolean;
 }
 
 export type CanLockResult = { ok: true; warnings: LockWarning[] } | { ok: false; reason: LockRefusal };
@@ -72,6 +80,13 @@ export function canLock(i: CanLockInput): CanLockResult {
   const range: Range =
     'slot' in i.target ? { startsAt: i.target.slot.startsAt, endsAt: i.target.slot.endsAt } : i.target.range;
   const slotId = 'slot' in i.target ? i.target.slot.id : null;
+  // CR-05, rule 2(i): no lunch for The First Round, no slot for a dates-only dish (see windowRule).
+  if (
+    i.windowRule &&
+    'slot' in i.target &&
+    !windowFitsDish(dishBySlug(i.request.dish), i.target.slot.windowKind)
+  )
+    return { ok: false, reason: 'not_for_this_dish' };
   const dates = datesTouched(range.startsAt, range.endsAt);
   const self = i.request.id; // a request never counts against itself
 
@@ -124,4 +139,5 @@ export const REFUSAL_MESSAGE: Record<LockRefusal, string> = {
   week_full: 'That week is full. Tick Override this week to go ahead.',
   in_the_past: 'That time has already passed.',
   blocked: 'That date is blocked. Tick Book anyway to go ahead.',
+  not_for_this_dish: 'That time doesn’t fit this dish.', // NEW COPY (needs Jon)
 };

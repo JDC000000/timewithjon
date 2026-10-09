@@ -13,7 +13,9 @@ import 'server-only';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { canLock } from '@/features/availability/canLock';
+import { dishBySlug } from '@/content/menu-helpers';
 import { loadEngineData } from '@/features/availability/load';
+import { slotCountsToward } from '@/features/availability/rules';
 import type { CountsToward, RequestStatus } from '@/features/availability/types';
 import { consumeToken, findToken } from '@/features/invites/action-tokens';
 import { q, withTx } from '@/lib/db';
@@ -78,7 +80,11 @@ async function takeTx(c: PoolClient, b: TakeBody, honeypot: boolean, now: Date):
     target = { startsAt: new Date(r.starts_at), endsAt: new Date(r.ends_at), where: r.where ?? null };
   }
   const takenOffer = { offerId: offer.id, honeypot };
-  const out = await lockWithin(c, { requestId: t.request_id, target, mode: 'lock', takenOffer, now }, now);
+  const out = await lockWithin(
+    c,
+    { requestId: t.request_id, target, mode: 'lock', takenOffer, windowRule: windowRuleFor(offer.kind), now },
+    now,
+  );
   if (out.ok) return { kind: 'locked', out };
   // The token stays usable for the other offered times.
   await c.query(`update action_token set used_at = null where id = $1`, [t.id]);
@@ -105,11 +111,20 @@ export async function takeOffer(b: TakeBody, honeypot = false, now = new Date())
   return out.kind === 'refused' ? 'refused' : 'done';
 }
 
+/**
+ * CR-05: a suggested time (Suggest another time, a block's move) must fit the dish; only a stand-by offer can hold
+ * a window the dish doesn't use (Jon's L13 Override, checked when he made the offer).
+ */
+function windowRuleFor(offerKind: string): boolean {
+  return offerKind !== 'standby_open';
+}
+
 /** The offered times canLock would still pass for this guest right now (read-only; a take re-checks). The one
  * just refused fails it too, so it drops out on its own. */
 export async function stillOpen<W extends OfferedTime>(
   requestId: string,
   windows: W[],
+  offerKind: string,
   now = new Date(),
 ): Promise<W[]> {
   if (windows.length === 0) return [];
@@ -125,7 +140,12 @@ export async function stillOpen<W extends OfferedTime>(
     if (w.slotId && !slot) return false;
     const v = canLock({
       now,
-      request: { id: requestId, status: r.status, countsToward: r.counts_toward, dish: r.dish },
+      request: {
+        id: requestId,
+        status: r.status,
+        countsToward: slot ? slotCountsToward(dishBySlug(r.dish)) : r.counts_toward, // as the take locks it (CR-01)
+        dish: r.dish,
+      },
       mode: 'lock',
       target: slot ? { slot } : { range: { startsAt: w.startsAt, endsAt: w.endsAt } },
       bookings: loaded.bookings,
@@ -133,6 +153,7 @@ export async function stillOpen<W extends OfferedTime>(
       weeks: loaded.weeks,
       offers: loaded.offers,
       settings: loaded.settings,
+      windowRule: windowRuleFor(offerKind),
     });
     return v.ok && !v.warnings.includes('standby_offer_live');
   });

@@ -179,7 +179,7 @@ describe('T2.4.01 createOffer', () => {
 describe('T2.4.02 Suggest another time → E5', () => {
   it('moves the request to needs_new_time, clears the wait and sends E5 with the times and one take link', async () => {
     const a = await slotId('2027-06-10');
-    const b = await slotId('2027-06-11', 'evening');
+    const b = await slotId('2027-06-11'); // a lunch: a Long Lunch is never offered an evening (CR-05)
     const { id, email } = await newRequest({ slotIds: [a] });
     const res = await suggestTimes(id, { slotIds: [b, a] }, 'Thursday went before I could grab it.', NOW);
     expect(res.ok).toBe(true);
@@ -262,7 +262,7 @@ describe('T2.4.02 Suggest another time → E5', () => {
   });
 
   it('never offers a time a block shuts (the one block rule) or one outside the season: 409, no offer, no E5', async () => {
-    const { id } = await newRequest();
+    const { id } = await newRequest({ dish: 'the-old-haunt' }); // lunch and evening (CR-05)
     const blocks = await q<{ id: string }>(
       `insert into availability_block (start_date, end_date, kind, window_kind)
        values ('2027-06-06', '2027-06-06', 'blocked', null), ('2027-06-17', '2027-06-17', 'blocked', 'lunch')
@@ -299,6 +299,45 @@ describe('T2.4.02 Suggest another time → E5', () => {
     } finally {
       await q(`delete from availability_block where id = any($1::uuid[])`, [blocks.map((b) => b.id)]);
     }
+  });
+
+  it('CR-05: never offers a window the dish does not use (a Long Lunch an evening, an Encore a lunch): 409, no offer, no E5', async () => {
+    const lunchDish = await newRequest();
+    const encore = await newRequest({ dish: 'the-encore', dates: ['2027-06-19'] });
+    const evening = await slotId('2027-06-24', 'evening');
+    const lunch = await slotId('2027-06-24', 'lunch');
+    for (const [r, slots] of [
+      [lunchDish, [evening]],
+      [lunchDish, [lunch, evening]], // one misfit refuses the lot
+      [encore, [lunch]],
+    ] as const) {
+      expect(await suggestTimes(r.id, { slotIds: [...slots] }, '', NOW)).toEqual({
+        ok: false,
+        status: 409,
+        reason: 'not_for_this_dish',
+      });
+      expect(await q(`select 1 from offer where request_id = $1`, [r.id])).toHaveLength(0);
+      expect(await lastMail(r.email)).toBeUndefined();
+      expect((await req(r.id)).status).toBe('requested');
+    }
+    // The guest's offer page and take run the same rule (canLock windowRule) for a suggested time; a stand-by offer
+    // Jon made with Override keeps its window.
+    const shown = [{ slotId: evening, startsAt: new Date(0), endsAt: new Date(0) }];
+    expect(await stillOpen(lunchDish.id, shown, 'suggested_times', NOW)).toEqual([]);
+    // A misfit suggested offer that exists anyway (made before this rule): the take is refused, nothing locks.
+    const offerId = await withTx((c) =>
+      createOffer(c, { requestId: lunchDish.id, kind: 'suggested_times', slotIds: [evening] }),
+    );
+    const token = await withTx((c) =>
+      issueToken(c, {
+        purpose: 'take_offer',
+        requestId: lunchDish.id,
+        offerId,
+        expiresAt: new Date(NOW.getTime() + 3600e3),
+      }),
+    );
+    expect(await takeOffer({ token, slotId: evening }, false, NOW)).toBe('refused');
+    expect((await req(lunchDish.id)).locked_starts_at).toBeNull();
   });
 
   it('pr46-review M2: refuses a locked request (nothing released, no E5) and a joined one', async () => {
@@ -340,7 +379,7 @@ describe('T2.4.02 Suggest another time → E5', () => {
     const b = await slotId('2027-04-30', 'evening');
     expect(SuggestBody.safeParse({ slotIds: [a, a], lead: '' }).success).toBe(false);
     expect(SuggestBody.safeParse({ slotIds: [a, b], lead: '' }).success).toBe(true);
-    const { id } = await newRequest();
+    const { id } = await newRequest({ dish: 'the-old-haunt' }); // lunch and evening (CR-05)
     const first = await suggestTimes(id, { slotIds: [a, b] }, '', NOW);
     const again = await suggestTimes(id, { slotIds: [b, a] }, '', NOW);
     expect(first.ok && again.ok).toBe(true);
@@ -365,7 +404,7 @@ describe('T2.4.02 Suggest another time → E5', () => {
   });
 
   it('pr46-review H1: a retried E5 renders the byte-identical take link; one token row per email', async () => {
-    const slot = await slotId('2027-06-03', 'evening');
+    const slot = await slotId('2027-06-03'); // a lunch, for a Long Lunch (CR-05)
     const { id, email } = await newRequest();
     const { offerId, token } = await suggestAndGetToken(id, email, [slot]);
     const [log] = await q<{ id: string }>(
@@ -381,7 +420,7 @@ describe('T2.4.02 Suggest another time → E5', () => {
   });
 
   it('pr46-review L3: a live link on an offer past its own expiry shows the state; nothing is locked', async () => {
-    const slot = await slotId('2027-06-03', 'evening');
+    const slot = await slotId('2027-06-03'); // a lunch, for a Long Lunch (CR-05)
     const { id, email } = await newRequest();
     const { offerId, token } = await suggestAndGetToken(id, email, [slot]);
     await q(`update offer set expires_at = $2 where id = $1`, [offerId, new Date(NOW.getTime() - 60e3)]);
@@ -688,6 +727,7 @@ describe('T2.4.07 the guest takes an offer (S18 POST)', () => {
     const [open] = await stillOpen(
       probe.id,
       candidates.map((s) => ({ slotId: s.id, startsAt: s.starts_at, endsAt: s.ends_at })),
+      'suggested_times',
       NOW,
     );
     expect(open).toBeDefined();

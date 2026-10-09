@@ -174,3 +174,29 @@ describe('decision 43(4): Something New, at most 1 a week', () => {
     });
   });
 });
+
+describe('CR-05 rule 2(i): a guest is never locked into a window the dish does not use', () => {
+  const evening = { slot: slot(base, '2027-05-13', 'evening') };
+  const as = (dish: string) => ({
+    request: { id: 'me', status: 'requested' as const, countsToward: 'weekly_cap' as const, dish },
+  });
+  it('with windowRule: a lunch dish on an evening, an evening dish on a lunch and a dates-only dish are refused', () => {
+    const refused = { ok: false, reason: 'not_for_this_dish' };
+    expect(canLock(input({ ...as('the-long-lunch'), target: evening, windowRule: true }))).toEqual(refused);
+    expect(canLock(input({ ...as('the-first-round'), windowRule: true }))).toEqual(refused); // the lunch
+    expect(canLock(input({ ...as('the-encore'), windowRule: true }))).toEqual(refused);
+    // The dish's own windows pass, and a range (a dates-mode time) is not a window.
+    expect(canLock(input({ ...as('the-first-round'), target: evening, windowRule: true })).ok).toBe(true);
+    expect(canLock(input({ ...as('surprise-me'), target: evening, windowRule: true })).ok).toBe(true);
+    const range = {
+      range: {
+        startsAt: vancouverInstant('2027-05-15', '10:00'),
+        endsAt: vancouverInstant('2027-05-15', '12:00'),
+      },
+    };
+    expect(canLock(input({ ...as('the-encore'), target: range, windowRule: true })).ok).toBe(true);
+  });
+  it('without it (Jon’s own Lock it in, an Override stand-by offer) the window is his call', () => {
+    expect(canLock(input({ ...as('the-long-lunch'), target: evening })).ok).toBe(true);
+  });
+});

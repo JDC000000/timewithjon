@@ -7,6 +7,8 @@ import { NextRequest } from 'next/server';
 import { Client } from 'pg';
 import { CLOSED_IN_PERSON_LABEL } from '@/content';
 import { adminCounts } from '@/features/admin/settings';
+import { loadEngineData } from '@/features/availability/load';
+import { bigDayDates } from '@/features/availability/rules';
 import { listRequests } from '@/features/admin/inbox';
 import { findToken, issueManageToken } from '@/features/invites/action-tokens';
 import { loadManageModel } from '@/features/invites/manage-model';
@@ -33,6 +35,8 @@ const SITE = 'http://localhost:3000';
 const OPEN = new Date('2027-03-15T18:00:00Z');
 // Thu/Fri pairs, one week per test that locks (the weekly cap is per week).
 const DAYS = [
+  '2027-04-29',
+  '2027-05-01',
   '2027-05-27',
   '2027-05-28',
   '2027-06-03',
@@ -602,6 +606,38 @@ describe('the joined lifecycle (§6 rules 2–5)', () => {
     expect(await promoteToHost(j2)).toMatchObject({ status: 409, reason: 'already_locked' });
     expect(await promoteToHost(j1)).toMatchObject({ status: 409, reason: 'not_joined' });
     expect(await promoteToHost(randomUUID())).toMatchObject({ status: 404 });
+  });
+
+  it('CR-01: an orphan of a Big Day host, locked on a slot, counts as its own dish, not as the old Big Day', async () => {
+    // The host: a Saturday morning ride, a Big Day. A Long Lunch guest joins it.
+    const host = await locked({
+      startsAt: vancouverInstant('2027-05-01', '09:00'),
+      endsAt: vancouverInstant('2027-05-01', '13:00'),
+      countsToward: 'big_day',
+      where: 'The Shore',
+    });
+    const guest = await newRequest();
+    expect(await joinToBooking(guest, host)).toMatchObject({ ok: true });
+    expect((await row(guest)).counts_toward).toBe('weekly_cap');
+    // The host leaves (rule 4): the guest needs a new time and carries the host's booking, Big Day included (the
+    // copy Promote to host needs).
+    expect(await cancelByGuest(host)).toEqual({ ok: true, already: false });
+    expect(await row(guest)).toMatchObject({ status: 'needs_new_time', counts_toward: 'big_day' });
+    // Jon locks the guest on a Thursday lunch instead (A3 sends the slot).
+    const thuLunch = await slotId('2027-04-29', 'lunch');
+    expect(await lockRequest({ requestId: guest, target: { slotId: thuLunch }, mode: 'lock' })).toMatchObject(
+      {
+        ok: true,
+      },
+    );
+    expect(await row(guest)).toMatchObject({
+      status: 'locked',
+      joined_to_request_id: null,
+      locked_slot_id: thuLunch,
+      counts_toward: 'weekly_cap',
+    });
+    // So the Thursday is not a Big Day: its evening stays open to everyone else.
+    expect(bigDayDates((await loadEngineData()).bookings).has('2027-04-29')).toBe(false);
   });
 
   it('rule 4 via Ask for another time: the old range is kept on the joined guest, so Promote to host still works', async () => {

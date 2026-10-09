@@ -1,0 +1,9 @@
+{
+  "id": "slot-lock-inherits-big-day",
+  "date": "2026-10-08",
+  "task": "CR-01",
+  "area": "requests/lock",
+  "summary": "After a host left (rule 4), a joined guest carried the host's copied kind; Lock it in on a lunch or evening then recorded it as a Big Day, so the engine hid that day's other window from everyone, the week cap missed it and the Big Day meter counted it.",
+  "fix": "A slot lock's kind comes from the dish, never the row, and a slot is never a Big Day (slotCountsToward); the take, stand-by and offer-page checks use the same kind.",
+  "tests": ["tests/int/joined.int.test.ts", "src/features/availability/__tests__/slot-kind.test.ts"]
+}

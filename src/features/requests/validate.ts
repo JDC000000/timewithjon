@@ -83,6 +83,9 @@ export function validateRequest(
     };
   }
 
+  // CR-03: stand-by is a slots-mode week; on the dates path it was stored as is (a non-Monday hit the week foreign
+  // key: a 500).
+  if (b.standbyWeek) return { ok: false, code: 'standby_not_allowed' };
   if (b.dates.length === 0 && !b.windowText?.trim()) return { ok: false, code: 'no_dates' };
   const unavailable = new Set(engine.unavailableDates);
   for (const d of b.dates) {

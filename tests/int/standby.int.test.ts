@@ -345,6 +345,7 @@ describe('T2.4.04 Offer a freed window to one stand-by guest → E7', () => {
     const shown = await stillOpen(
       waiting.id,
       ['2027-06-12', '2027-06-15'].map((d) => ({ slotId: null, ...evening(d) })),
+      'standby_open',
       NOW,
     );
     expect(shown.map((w) => w.startsAt)).toEqual([evening('2027-06-15').startsAt]);

@@ -1,0 +1,9 @@
+{
+  "id": "slots-offered-outside-dish-windows",
+  "date": "2026-10-08",
+  "task": "CR-05",
+  "area": "requests/offers",
+  "summary": "Suggest another time (and a block's move) accepted slots the dish can't use: through the API Jon could offer a lunch to The First Round or a slot to a dates-only dish, and the guest's take locked it.",
+  "fix": "offeredTimes refuses a slot outside the dish's windows (409 not_for_this_dish); canLock has the window rule (windowRule) for what a guest gets: a take of a suggested time, the offer page's list and a stand-by offer without Jon's Override.",
+  "tests": ["tests/int/offers.int.test.ts", "src/features/availability/__tests__/canLock.test.ts"]
+}

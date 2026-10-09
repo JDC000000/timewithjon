@@ -16,11 +16,11 @@ export const slotId = async (date: string, w: 'lunch' | 'evening') =>
   (await q<{ id: string }>(`select id from slot where date = $1 and window_kind = $2`, [date, w]))[0]!.id;
 
 export async function newRequest(
-  over: { name?: string; slotIds?: string[]; standbyWeek?: string; spam?: boolean } = {},
+  over: { name?: string; slotIds?: string[]; standbyWeek?: string; spam?: boolean; dish?: string } = {},
 ): Promise<string> {
   const body = RequestBody.parse({
     clientKey: randomUUID(),
-    dish: 'the-long-lunch',
+    dish: over.dish ?? 'the-long-lunch',
     name: over.name ?? 'Dave Guest',
     email: `dave+${randomUUID().slice(0, 8)}@example.com`,
     crew: 3,

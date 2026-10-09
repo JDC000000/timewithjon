@@ -1,7 +1,18 @@
 // src/lib/engine/rules.ts — the shared C3 predicates. Pure functions only.
-import type { DateRule } from '@/content/types';
+import type { DateRule, Dish } from '@/content/types';
 import { datesTouched, isoWeekday, vancouverDate, vancouverInstant, weekStartOf } from '@/lib/time';
-import type { Block, Booking, BusyInterval, EngineSettings, Offer, Range, Slot, Week } from './types';
+import type {
+  Block,
+  Booking,
+  BusyInterval,
+  CountsToward,
+  EngineSettings,
+  Offer,
+  Range,
+  Slot,
+  Week,
+  WindowKind,
+} from './types';
 
 /** Half-open overlap: [aS,aE) ∩ [bS,bE) ≠ ∅ */
 export function overlaps(a: Range, b: Range): boolean {
@@ -55,6 +66,21 @@ export function dateRuleAllows(rule: DateRule | null | undefined, date: string):
   if (rule === 'weekend') return dow >= 6;
   if (rule === 'weekend-or-thu-fri') return dow >= 4;
   return true;
+}
+
+/**
+ * CR-01: what a lock on a slot counts toward. A slot is one lunch or evening window, never a whole day, so it is
+ * never a Big Day: it counts toward the week like every slots dish (a dish that counts toward nothing, e.g. a call,
+ * still counts toward nothing). Derived from the dish, never from the row: a row can carry a Big Day copied from an
+ * old host (joined-cascade.ts), or a dates dish's kind on a stand-by or suggested window.
+ */
+export function slotCountsToward(dish: Pick<Dish, 'countsToward'> | undefined): CountsToward {
+  return dish?.countsToward === 'none' ? 'none' : 'weekly_cap';
+}
+
+/** Rule 2(i) and L13: a window the dish can use (a lunch is never a First Round's; a dates-only dish has none). */
+export function windowFitsDish(dish: Pick<Dish, 'windows'> | undefined, windowKind: WindowKind): boolean {
+  return Boolean(dish?.windows.includes(windowKind));
 }
 
 export function inSeason(date: string, s: EngineSettings): boolean {

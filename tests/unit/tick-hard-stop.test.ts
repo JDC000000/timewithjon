@@ -7,15 +7,15 @@ import '../fixtures/unit-env';
 const db = vi.hoisted(() => ({ status: new Map<string, string>(), writes: 0 }));
 vi.mock('@/lib/db', () => ({
   q: vi.fn(async (sql: string, params: unknown[] = []) => {
-    if (sql.startsWith('select value from system_status')) {
-      const v = db.status.get(params[0] as string);
-      return v === undefined ? [] : [{ value: v }];
+    if (sql.startsWith('select key, value from system_status')) {
+      return (params[0] as string[]).flatMap((key) =>
+        db.status.has(key) ? [{ key, value: db.status.get(key)! }] : [],
+      );
     }
     if (sql.includes('insert into system_status')) {
       db.writes++;
       db.status.set('last_tick_at', params[0] as string);
-      db.status.set(params[1] as string, params[2] as string);
-      db.status.set(params[3] as string, params[4] as string);
+      for (let i = 1; i < params.length; i += 2) db.status.set(params[i] as string, params[i + 1] as string);
       return [];
     }
     throw new Error(`unexpected query: ${sql}`);

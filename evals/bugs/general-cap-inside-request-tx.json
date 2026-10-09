@@ -1,0 +1,9 @@
+{
+  "id": "general-cap-inside-request-tx",
+  "date": "2026-10-08",
+  "task": "CR-02",
+  "area": "requests/intake",
+  "summary": "The general invite's guest-email cap was counted through the pool from inside the request transaction: a few concurrent general-link Sends used up the 3-connection pool, each stalled 5 s, and the limiter failed open (the cap went uncounted).",
+  "fix": "createRequest takes the cap before its transaction and tells it whether the guest's email may go; a bot (honeypot) never counts.",
+  "tests": ["tests/int/requests-cap-pool.int.test.ts", "tests/int/requests.int.test.ts"]
+}

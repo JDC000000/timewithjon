@@ -11,6 +11,7 @@ import type { PoolClient } from 'pg';
 import { dishBySlug } from '@/content/menu-helpers';
 import { canLock } from '@/features/availability/canLock';
 import { loadEngineData } from '@/features/availability/load';
+import { slotCountsToward, windowFitsDish } from '@/features/availability/rules';
 import type { Slot } from '@/features/availability/types';
 import { takeLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
@@ -115,7 +116,7 @@ async function offerTx(
   }
   const range = slot ? { startsAt: slot.startsAt, endsAt: slot.endsAt } : (a.window as OfferRange);
   // L13: a lunch can't go to a First Round guest; a dates-mode dish takes a range (Override skips this).
-  const fits = slot ? Boolean(dish?.windows.includes(slot.windowKind)) : dish?.mode === 'dates';
+  const fits = slot ? windowFitsDish(dish, slot.windowKind) : dish?.mode === 'dates';
   if (!fits && !a.override) return refuse('not_for_this_dish');
 
   // Serialise with every other offer and lock in the week, then read what holds the window (AC2).
@@ -123,7 +124,12 @@ async function offerTx(
   const loaded = await loadEngineData(a.now, c);
   const verdict = canLock({
     now: a.now,
-    request: { id: a.requestId, status: r.status, countsToward: r.counts_toward, dish: r.dish },
+    request: {
+      id: a.requestId,
+      status: r.status,
+      countsToward: slot ? slotCountsToward(dish) : r.counts_toward, // what the take will lock it as (CR-01)
+      dish: r.dish,
+    },
     mode: 'lock',
     target: slot ? { slot } : { range },
     bookings: loaded.bookings,
@@ -131,6 +137,7 @@ async function offerTx(
     weeks: loaded.weeks,
     offers: loaded.offers,
     settings: loaded.settings,
+    windowRule: !a.override,
   });
   if (!verdict.ok) return refuse(verdict.reason);
   if (verdict.warnings.includes('standby_offer_live')) return refuse('held_by_offer');

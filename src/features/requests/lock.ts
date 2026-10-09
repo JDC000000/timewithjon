@@ -12,7 +12,9 @@ import {
   type LockRefusal,
   type LockWarning,
 } from '@/features/availability/canLock';
+import { dishBySlug } from '@/content/menu-helpers';
 import { loadEngineData } from '@/features/availability/load';
+import { slotCountsToward } from '@/features/availability/rules';
 import type { CountsToward, RequestStatus, Slot } from '@/features/availability/types';
 import { countEvent } from '@/features/analytics/count';
 import { manageLink, type EmailVar } from '@/features/email/link-vars';
@@ -44,6 +46,8 @@ export interface LockInput {
   /** Set when a guest takes an offer: the audit actor is the guest, and a window another guest's live stand-by
    * offer holds is refused (Jon only gets a warning for it; the engine hides it from everyone else, C3 2(f)). */
   takenOffer?: TakenOffer;
+  /** CR-05: refuse a slot the dish doesn't use (canLock's windowRule): set for a guest's take of a suggested time. */
+  windowRule?: boolean;
 }
 
 export type LockResult =
@@ -172,7 +176,11 @@ export async function applyLock(
   const range = slot
     ? { startsAt: slot.startsAt, endsAt: slot.endsAt }
     : (i.target as { startsAt: Date; endsAt: Date });
-  const countsToward = ('countsToward' in i.target && i.target.countsToward) || r.counts_toward;
+  // CR-01: a slot's kind comes from the dish, never the row (which may carry an old host's Big Day); a range takes
+  // the kind Jon set, else the row's (Promote to host passes the copied kind explicitly).
+  const countsToward = slot
+    ? slotCountsToward(dishBySlug(r.dish))
+    : ('countsToward' in i.target && i.target.countsToward) || r.counts_toward;
   // A slot lock has no place yet. (Change time was removed 2026-09-29: a guest who needs another time emails Jon.)
   const where = 'where' in i.target ? i.target.where : null;
 
@@ -207,6 +215,7 @@ export async function applyLock(
     settings: loaded.settings,
     overrideWeek: i.overrideWeek,
     bookAnyway: i.bookAnyway,
+    windowRule: i.windowRule,
   });
   if (!verdict.ok) return refused(verdict.reason);
   if (i.takenOffer && verdict.warnings.includes('standby_offer_live')) return refused('time_taken');
