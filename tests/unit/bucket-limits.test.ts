@@ -6,6 +6,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUCKET_LIMITS, FREE_PLAN_MAX_UPLOAD_BYTES, limitsFor } from '../../ops/bucket-limits';
 import { MAX_UPLOAD_BYTES } from '../../src/features/photos/limits';
+import { EXPORT_MAX_BYTES } from '../../src/features/export/limits';
 import { EXPORTS_BUCKET } from '../../src/lib/adapters/supabase-exports';
 import { PHOTOS_BUCKET } from '../../src/lib/adapters/supabase-storage';
 
@@ -62,6 +63,9 @@ describe('Storage bucket limits', () => {
     );
   });
 
+  it('exports: the bucket limit is the cap the export checks its zip against (one number)', () => {
+    expect(BUCKET_LIMITS.exports.fileSizeLimit).toBe(EXPORT_MAX_BYTES);
+  });
   it('exports: room for the expected book (300-400 MiB), under the 512 MB /tmp it is built in and a 500 MB project limit', () => {
     expect(BUCKET_LIMITS.exports.fileSizeLimit).toBeGreaterThan(400 * MiB);
     expect(BUCKET_LIMITS.exports.fileSizeLimit).toBeLessThan(500 * 1000 * 1000);

@@ -101,6 +101,24 @@ describe('emailAttachments (E4c)', () => {
       mailer.account = 'sender@example.com';
     }
   });
+  it('a stored organiser (the first .ics of the booking) wins over the mailer of the moment, either way', async () => {
+    const pinned = { ...vars, organizerEmail: 'jon@timewithjon.com' };
+    const line = 'ORGANIZER;CN="Time with Jon":mailto:jon@timewithjon.com\r\n';
+    mailer.mode = 'gmail_api'; // would give the connected account if worked out now
+    try {
+      expect((await ics(pinned)).text).toContain(line);
+      expect((await ics({ ...pinned, method: 'CANCEL' })).text).toContain(line);
+      const other = { ...vars, organizerEmail: 'sender@example.com' };
+      mailer.mode = 'resend'; // would give the From address if worked out now
+      expect((await ics(other)).text).toContain('ORGANIZER;CN="Time with Jon":mailto:sender@example.com\r\n');
+      // A row from before (no stored organiser) is still worked out at send time.
+      expect((await ics(vars)).text).toContain(line);
+      mailer.mode = 'gmail_api';
+      expect((await ics(vars)).text).toContain(':mailto:sender@example.com\r\n');
+    } finally {
+      mailer.mode = 'resend';
+    }
+  });
   it.each([
     ['an unknown method', { method: 'PUBLISH' }],
     ['no method', { method: undefined }],

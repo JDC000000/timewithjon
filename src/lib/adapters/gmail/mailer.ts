@@ -19,6 +19,12 @@ const AUTH_REASONS = new Set(['insufficientPermissions', 'authError']);
 const SENDING_LIMIT = /\(Mail sending\)|sending limit/i;
 const QUOTA_RETRY_MS = 60 * 60_000;
 export const GMAIL_TIMEOUT_MS = 10_000;
+/**
+ * The least time a Gmail send needs before the hard stop to start at all. Gmail has no idempotency key: a send it
+ * accepted whose answer is cut off is sent again by the next tick and arrives twice, so with less time than this left
+ * the send waits for the next tick instead (a retryable TimeoutError, nothing sent).
+ */
+export const GMAIL_MIN_START_MS = 5_000;
 
 export interface GmailOptions {
   /** An OAuth access token for the connected account with the gmail.send scope. */
@@ -79,7 +85,8 @@ export function createGmailApiMailer(opts: GmailOptions): Mailer {
       const token = await opts.getAccessToken(); // first: no token, nothing built or sent
       const raw = base64url(buildMime({ ...e, date: now() }));
       const timeoutMs = mailCallTimeoutMs(GMAIL_TIMEOUT_MS);
-      if (timeoutMs <= 0) throw new MailDeadlineError('gmail send not started: past the hard stop');
+      if (timeoutMs < GMAIL_MIN_START_MS)
+        throw new MailDeadlineError('gmail send not started: too close to the hard stop');
       const res = await doFetch(GMAIL_SEND_URL, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
