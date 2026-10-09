@@ -129,24 +129,44 @@ async function shot(page: Page, name: string) {
   if (size) await page.setViewportSize(size);
 }
 
-// Every test posts from 127.0.0.1: keep the per-IP offerTake limit (10/h) out of retries and --repeat-each.
-test.beforeEach(() => db((c) => c.query(`delete from rate_limit where scope = 'offerTake'`)));
-test.afterEach(() =>
-  db(async (c) => {
-    await c.query(
-      `update request set status = 'cancelled', cancelled_at = now() where id = any($1::uuid[]) and status <> 'cancelled'`,
-      [made.splice(0)],
-    );
-    await c.query(`update week set cap_override = null where week_start = any($1::date[])`, [
-      capped.splice(0),
-    ]);
-  }),
-);
+// N2 and AC1 both offer Thu May 13, and AC1 takes it (a lock, undone in afterEach). With fullyParallel workers and
+// the browser projects side by side, N2 could run while another project's AC1 lock stood and find the time gone
+// ("Looks like that one went", 0 radios: seen on main a8fe5f2 and PR #82, WebKit 375). These two hold one Postgres
+// advisory lock from beforeEach until their clean-up is done, so they never overlap, whichever worker runs them.
+const N2_TITLE =
+  'N2: GET, HEAD and a link scanner prefetch of /offer and /new-date change nothing; one POST button';
+const AC1_TITLE =
+  'AC1: taking an offer twice acts once; the second visit shows "You’re locked in for Thu May 13"';
+const MAY13_TESTS = new Set([N2_TITLE, AC1_TITLE]);
+let may13Hold: Client | null = null;
 
-test('N2: GET, HEAD and a link scanner prefetch of /offer and /new-date change nothing; one POST button', async ({
-  page,
-  request,
-}) => {
+// Every test posts from 127.0.0.1: keep the per-IP offerTake limit (10/h) out of retries and --repeat-each.
+test.beforeEach(async () => {
+  await db((c) => c.query(`delete from rate_limit where scope = 'offerTake'`));
+  if (!MAY13_TESTS.has(test.info().title)) return;
+  may13Hold = new Client({ connectionString: process.env.DATABASE_URL });
+  await may13Hold.connect();
+  await may13Hold.query(`select pg_advisory_lock(hashtext('twj_e2e_offer_may13'))`);
+});
+test.afterEach(async () => {
+  try {
+    await db(async (c) => {
+      await c.query(
+        `update request set status = 'cancelled', cancelled_at = now() where id = any($1::uuid[]) and status <> 'cancelled'`,
+        [made.splice(0)],
+      );
+      await c.query(`update week set cap_override = null where week_start = any($1::date[])`, [
+        capped.splice(0),
+      ]);
+    });
+  } finally {
+    // The session's end releases the advisory lock, after AC1's lock on May 13 is undone above.
+    await may13Hold?.end();
+    may13Hold = null;
+  }
+});
+
+test(N2_TITLE, async ({ page, request }) => {
   const may13 = await slot('2027-05-13');
   const s = await seed({ slotIds: [may13.id] });
   const n = await seed({ dish: 'the-encore', mode: 'dates', purpose: 'pick_new_date' });
@@ -187,9 +207,7 @@ test('N2: GET, HEAD and a link scanner prefetch of /offer and /new-date change n
   expect([await snapshot(s.requestId), await snapshot(n.requestId)]).toEqual(before);
 });
 
-test('AC1: taking an offer twice acts once; the second visit shows "You’re locked in for Thu May 13"', async ({
-  page,
-}) => {
+test(AC1_TITLE, async ({ page }) => {
   const may13 = await slot('2027-05-13');
   const s = await seed({ slotIds: [may13.id] });
   await page.goto(offerUrl(s.token));
