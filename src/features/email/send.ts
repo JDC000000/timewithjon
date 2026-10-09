@@ -81,6 +81,14 @@ export function jonEmail(): string {
   return env.JON_PERSONAL_EMAIL ?? env.ADMIN_EMAILS[0]!;
 }
 
+/**
+ * Reply-To on a guest email: EMAIL_REPLY_TO_GUEST when set (an address on our own domain that forwards to Jon,
+ * so the email no longer pairs a timewithjon.com From with a free-mail Reply-To), else Jon's Gmail as before.
+ */
+export function guestReplyTo(): string {
+  return getEnv().EMAIL_REPLY_TO_GUEST ?? jonEmail();
+}
+
 /** Step 1: call inside the transaction that makes the state change. */
 export async function queueEmail(db: Db, a: EmailArgs): Promise<QueueResult> {
   const suppressed = await db.query(`select 1 from email_suppression where email = $1`, [a.to]);
@@ -220,7 +228,7 @@ export async function deliverEmail(id: string, opts: DeliverOptions): Promise<De
         r.fromLocal === 'jon'
           ? (env.EMAIL_FROM_GUEST ?? 'Jon <jon@timewithjon.com>')
           : (env.EMAIL_FROM_ADMIN ?? 'Time with Jon <admin@timewithjon.com>'),
-      replyTo: jonEmail(),
+      replyTo: r.fromLocal === 'jon' ? guestReplyTo() : jonEmail(),
       ...(attachments ? { attachments } : {}),
     });
     // A suppression that lands during the send keeps its status; the provider id is still recorded.

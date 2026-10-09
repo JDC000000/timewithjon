@@ -10,7 +10,7 @@ import 'server-only';
 import type { PoolClient } from 'pg';
 import type { TemplateId } from '@/content/emails';
 import { dishInSentence } from '@/content/menu-helpers';
-import type { EmailVar } from '@/features/email/link-vars';
+import { manageLink, type EmailVar } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { extendManageTokens, reopenManageTokens } from '@/features/invites/action-tokens';
 import { queuedId } from './side-effects';
@@ -122,7 +122,7 @@ export async function hostLeft(
     eventKey: hostAuditId,
     now,
     toStatus: { status: 'needs_new_time', auditAction: 'host_left' },
-    vars: (j) => ({ dish: dishName(j.dish) }),
+    vars: (j) => ({ dish: dishName(j.dish), manageLink: manageLink(j.id) }), // r6 Q4: "Change or cancel"
   });
   // Their manage links ran to the host's end + 7 days; now waiting on Jon, they get the unlocked lifetime (§6).
   // After the cascade, so the request rows are locked before their tokens (the request → action_token order).

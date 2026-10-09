@@ -110,7 +110,7 @@ describe('T2.4.10 E5-E10 and E16: the copy, sent by the real senders', () => {
     expect(await mail(r.email, 'E5')).toEqual({
       subject: 'Another time for The Long Lunch?',
       text:
-        'Thursday went before I could grab it. This one’s still open:\nFri May 14 · noon–2 pm Vancouver time\nTap one and it’s yours.\n' + // Q6: one time
+        'Thursday went before I could grab it. This one’s still open:\nFri May 14 · noon–2 pm Vancouver time\nTap it and it’s yours.\n' + // Q6, r6 Q3a: one time
         `${SITE}/offer?t=TOKEN\n\nJon\n`,
     });
   });
@@ -120,7 +120,8 @@ describe('T2.4.10 E5-E10 and E16: the copy, sent by the real senders', () => {
     expect((await moveToStandby(r.id, '2027-05-12', NOW)).ok).toBe(true);
     expect(await mail(r.email, 'E6')).toEqual({
       subject: 'You’re on stand-by',
-      text: 'You’re on stand-by for the week of May 10. If something opens up, I’ll email you.\n\nJon\n',
+      // r6 Q4: the manage link (a "Change or cancel" button in the HTML part) and "Or just call me." under it.
+      text: `You’re on stand-by for the week of May 10. If something opens up, I’ll email you.\n${SITE}/manage?t=TOKEN\nOr just call me.\n\nJon\n`,
     });
   });
 

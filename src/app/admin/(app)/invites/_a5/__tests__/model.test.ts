@@ -24,7 +24,7 @@ describe('A5 New link sheet (no "our things": Jon, 2026-10-05)', () => {
   it('previews the S2 hero with the one line everyone sees', () => {
     const m = previewModel(form(), DISHES);
     expect(m.heroLine).toBe(OPEN_LINE);
-    expect(OPEN_LINE).toBe('We keep saying we should get or do that epic trip.');
+    expect(OPEN_LINE).toBe('We keep saying we should get together or do that epic trip.');
     expect(m.name).toBe('Dave');
   });
 

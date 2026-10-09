@@ -1,0 +1,14 @@
+{
+  "id": "e6-e5j-no-manage-link",
+  "date": "2026-10-09",
+  "task": "QA r5 N-L6",
+  "area": "email",
+  "summary": "The stand-by confirmation (E6) and the joined guest's \"plan fell through\" email (E5j) had no way to change or cancel.",
+  "fix": "Both carry the manage link as a \"Change or cancel\" button with \"Or just call me.\" under it.",
+  "tests": [
+    "src/features/email/__tests__/templates-html.test.ts",
+    "src/features/requests/__tests__/intake-emails.test.ts",
+    "tests/int/joined.int.test.ts",
+    "tests/int/t2.4-emails.int.test.ts"
+  ]
+}

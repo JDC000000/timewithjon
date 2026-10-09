@@ -603,6 +603,12 @@ describe('the joined lifecycle (§6 rules 2–5)', () => {
       [host],
     );
     expect(e12!.vars.joined).toBe('Joined to it: Dave Guest, Dave Guest, Dave Guest.');
+    // r6 Q4: each joined guest's E5j carries their own manage link ("Change or cancel").
+    const [e5j] = await q<{ vars: Record<string, unknown> }>(
+      `select vars from email_log where request_id = $1 and template = 'E5j'`,
+      [j1],
+    );
+    expect(e5j!.vars.manageLink).toEqual({ link: 'manage', requestId: j1 });
     for (const j of [j1, j2]) {
       expect(await row(j)).toMatchObject({ status: 'needs_new_time', joined_to_request_id: host });
       expect((await row(j)).awaiting_jon_since).not.toBeNull();

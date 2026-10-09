@@ -131,6 +131,7 @@ async function joinTx(c: PoolClient, requestId: string, hostId: string, now: Dat
           r.guest_time_zone,
           requestId,
           true,
+          h.locked_where, // r6 Q1: the host's place, when Jon set one
         ), // Q1: they don't pick the place
       }),
     ),
@@ -235,7 +236,7 @@ async function promoteTx(
       eventKey: locked.auditId,
       now,
       extendLinksTo: endsAt,
-      vars: (j) => lockedEmailVars(j.dish, startsAt, endsAt, j.guest_time_zone, j.id, true), // Q1: joined
+      vars: (j) => lockedEmailVars(j.dish, startsAt, endsAt, j.guest_time_zone, j.id, true, src.locked_where), // Q1, r6 Q1
     })),
   );
   return locked;
