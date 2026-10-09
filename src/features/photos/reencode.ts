@@ -4,7 +4,13 @@ import 'server-only';
 import sharp from 'sharp';
 import { decodeGate } from './decode-gate';
 import { decodeHeicInWorker, HeicRefusedError } from './heic-worker';
-import { MAX_INPUT_PIXELS, MAX_LONG_EDGE_PX } from './limits';
+import {
+  ENCODE_TIMEOUT_SECONDS,
+  HEIC_BUDGET_MS,
+  HEIC_SHARP_TRY_SECONDS,
+  MAX_INPUT_PIXELS,
+  MAX_LONG_EDGE_PX,
+} from './limits';
 
 export class UnreadableImageError extends Error {
   override name = 'UnreadableImageError';
@@ -18,13 +24,7 @@ export interface CleanJpeg {
 /** What a phone or camera sends (the bucket's MIME list). Anything else sharp could read (SVG, TIFF, GIF…) is refused. */
 const ACCEPTED_FORMATS = new Set(['jpeg', 'png', 'webp', 'heif']);
 export type AcceptedFormat = 'jpeg' | 'png' | 'webp' | 'heif';
-/** A pathological image can't hold a function (finalise maxDuration 60 s, the media job's 90 s budget). */
-export const ENCODE_TIMEOUT_SECONDS = 40;
-/**
- * The whole HEIC conversion (decode in a worker + encode) answers within this, slow file or not: with a decode slot's
- * wait (DECODE_WAIT_MS, 15 s) it still fits finalise's 60 s maxDuration. A 12 MP iPhone photo takes a few seconds.
- */
-export const HEIC_BUDGET_MS = 30_000;
+export { ENCODE_TIMEOUT_SECONDS } from './limits';
 /** Tests only: the decoder module the HEIC worker loads, and its budget. */
 export const heicWorkerForTests: { modulePath?: string; budgetMs?: number } = {};
 
@@ -118,7 +118,8 @@ export async function toCleanJpeg(raw: Buffer): Promise<CleanJpeg> {
   // The pixel work holds a decode slot (decode-gate.ts); it throws DecodeBusyError if none frees up in time.
   return decodeGate.run(async () => {
     try {
-      return await encode(raw);
+      // an iPhone HEIC: sharp fails at once (no HEVC), and its try is kept short either way (limits.ts)
+      return await encode(raw, undefined, isHeif(raw) ? HEIC_SHARP_TRY_SECONDS : ENCODE_TIMEOUT_SECONDS);
     } catch (sharpError) {
       if (meta.format !== 'heif' || !isHeif(raw)) {
         throw new UnreadableImageError('not a readable image', { cause: sharpError });

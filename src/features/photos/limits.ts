@@ -27,6 +27,22 @@ export const MAX_INPUT_PIXELS = 50_000_000;
  */
 export const MAX_CONCURRENT_DECODES = 2;
 export const DECODE_WAIT_MS = 15_000;
+/** sharp's own timeout on an encode: a pathological image can't hold a function (finalise 60 s, media job 120 s). */
+export const ENCODE_TIMEOUT_SECONDS = 40;
+/**
+ * A HEIC is first offered to sharp (its libheif reads some HEIF, but not an iPhone's HEVC, where it fails at once);
+ * that try gets at most this long, so a stubborn file can't spend the whole encode timeout before the HEIC path.
+ */
+export const HEIC_SHARP_TRY_SECONDS = 5;
+/**
+ * The whole HEIC conversion (the decode in a worker + the encode) answers within this, slow file or not. With a decode
+ * slot's wait and the sharp try it still fits finalise's 60 s maxDuration: 15 + 5 + 30 = 50 s.
+ */
+export const HEIC_BUDGET_MS = 30_000;
+/** The longest one photo conversion can take, from asking for a decode slot to its answer: the slot's wait, then the
+ *  slower of a sharp encode (any format) and a HEIC (sharp try + HEIC budget). */
+export const WORST_CONVERSION_MS =
+  DECODE_WAIT_MS + Math.max(ENCODE_TIMEOUT_SECONDS * 1000, HEIC_SHARP_TRY_SECONDS * 1000 + HEIC_BUDGET_MS);
 /** Jon's admin thumbnails are 10-minute signed URLs (AD-4, T3.6.07). */
 export const THUMB_URL_TTL_SECONDS = 600;
 /** Raw uploads (with GPS) never outlive this (T3.6 AC7: gone within 1 h 15 min with the 15-min tick). */

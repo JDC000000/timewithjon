@@ -13,6 +13,14 @@ type MediaKind = 'r2_copy' | 'attachment_finalise';
 export class MediaRetryError extends Error {
   override name = 'MediaRetryError';
 }
+/**
+ * Every decode slot on this instance stayed taken: nothing went wrong with the item, so it spends no attempt and
+ * isn't reported; it is simply tried again a minute later.
+ */
+export class MediaBusyError extends MediaRetryError {
+  override name = 'MediaBusyError';
+}
+export const MEDIA_BUSY_RETRY_SECONDS = 60;
 
 interface Ports {
   store: ObjectStore;
@@ -35,7 +43,7 @@ const HANDLERS: Record<MediaKind, (payload: Record<string, unknown>, ports: Port
   async attachment_finalise(payload, { store }) {
     const out = await finalisePhotoUpload(String(payload.photoUploadId), null, store);
     if (!out.ok && out.code === 'not_uploaded') throw new MediaRetryError('upload not there yet');
-    if (!out.ok && out.code === 'busy') throw new MediaRetryError('every decode slot was taken');
+    if (!out.ok && out.code === 'busy') throw new MediaBusyError('every decode slot was taken');
     if (!out.ok && out.code !== 'too_many')
       report(new MediaRetryError(out.code), { area: 'media', step: out.code });
   },
@@ -71,6 +79,15 @@ export async function runMediaJob(
       await q(`update outbox set done_at = now(), last_error = null where id = $1`, [item.id]);
       done++;
     } catch (e) {
+      if (e instanceof MediaBusyError) {
+        // the claim's attempt is given back, and the item comes round again shortly
+        await q(
+          `update outbox set attempts = greatest(attempts - 1, 0), last_error = 'busy',
+                  next_attempt_at = now() + make_interval(secs => $2) where id = $1`,
+          [item.id, MEDIA_BUSY_RETRY_SECONDS],
+        );
+        continue;
+      }
       failed++;
       await q(`update outbox set last_error = $2 where id = $1`, [item.id, errorName(e)]);
       report(e, { area: 'media', kind: item.kind });

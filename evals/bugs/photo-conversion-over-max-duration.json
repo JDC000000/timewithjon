@@ -1,0 +1,9 @@
+{
+  "id": "photo-conversion-over-max-duration",
+  "date": "2026-10-09",
+  "task": "T3.6.03",
+  "area": "photos",
+  "summary": "Inside a decode slot a HEIC got a full 40 s sharp try, then the HEIC decode and a second encode: slot wait + HEIC could pass finalise's 60 s maxDuration, and the media job claimed conversions it had no time left for.",
+  "fix": "The sharp try on an iPhone HEIC is capped at 5 s; the HEIC conversion has its own 30 s budget; the worst case (slot wait + the slower path) is one constant the media job's reserve is derived from, checked against both routes' maxDuration.",
+  "test": "tests/unit/photo-time-budgets.test.ts"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "media-busy-spends-attempts",
+  "date": "2026-10-09",
+  "task": "T3.6.04",
+  "area": "jobs",
+  "summary": "A decode-gate busy answer in the media job spent one of the item's 8 attempts and was reported, so a busy spell could use up the attempts of emailed-story photos.",
+  "fix": "A busy answer gives the claim's attempt back, is not reported, and the item comes round again a minute later.",
+  "test": "tests/int/photos.int.test.ts"
+}
