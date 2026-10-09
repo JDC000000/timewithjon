@@ -23,7 +23,20 @@ const EVENTS: Record<string, DeliveryEvent> = {
 };
 // pr34 L1: the type first, so a subscribed non-email event (contact.*, domain.*) is acknowledged, not retried.
 const Envelope = z.object({ type: z.string() });
-const EmailPayload = z.object({ data: z.object({ email_id: z.string().min(1).max(200) }) });
+const EmailPayload = z.object({
+  created_at: z.string().max(64).optional(),
+  data: z.object({ email_id: z.string().min(1).max(200), created_at: z.string().max(64).optional() }),
+});
+/**
+ * A bounce or complaint for an email_id we haven't recorded is retried (503) only while the email is young enough
+ * that our own send may still be recording it; an older one (a dashboard test, a send from elsewhere on the account)
+ * is acknowledged, so the provider doesn't retry it for a day and switch the endpoint off.
+ */
+const UNKNOWN_ID_RETRY_MS = 60 * 60 * 1000;
+function youngEnoughToWait(createdAt: string | undefined, now = Date.now()): boolean {
+  const at = createdAt ? Date.parse(createdAt) : NaN;
+  return Number.isNaN(at) || now - at < UNKNOWN_ID_RETRY_MS; // no date: wait, as before
+}
 
 export async function POST(req: NextRequest) {
   const secret = getEnv().RESEND_WEBHOOK_SECRET;
@@ -53,6 +66,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return jsonError(400, 'bad_payload', ERRORS.generic);
 
   const emailId = parsed.data.data.email_id;
+  const createdAt = parsed.data.data.created_at ?? parsed.data.created_at;
   let outcome;
   try {
     outcome = await withTx(async (c) => {
@@ -63,7 +77,10 @@ export async function POST(req: NextRequest) {
       const applied = await applyOutcome(c, emailId, event);
       if (applied === 'ignored' && event !== 'delivered') {
         const known = await c.query(`select 1 from email_log where resend_id = $1 limit 1`, [emailId]);
-        if (!known.rowCount) throw new NotRecordedYet(); // rolls the webhook_event row back
+        if (!known.rowCount) {
+          if (youngEnoughToWait(createdAt)) throw new NotRecordedYet(); // rolls the webhook_event row back
+          return 'ignored' as const; // an old email we never sent: acknowledged, nothing applied
+        }
       }
       return applied;
     });

@@ -8,7 +8,6 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import { getEnv } from '@/config/env';
 import { MailerHttpError } from '@/lib/adapters/errors';
-import { currentMailerMode } from '@/lib/adapters/mailer';
 import { mockDeliveryStatus } from '@/lib/adapters/mock/delivery-status';
 import { createResendStatusSource, type DeliveryStatusSource } from '@/lib/adapters/resend/status';
 import { q, withTx } from '@/lib/db';
@@ -55,14 +54,15 @@ export async function bouncePollStatus(): Promise<
   return { disabled: true, status: latch.status, since: latch.at };
 }
 
-/** null = no polling here: the webhook is on, this environment doesn't send through Resend, or it's latched off. */
+/** null = no polling here: the webhook is on, there is no Resend read key, or it's latched off. */
 export async function pollingSource(): Promise<DeliveryStatusSource | null> {
   const env = getEnv();
   if (env.RESEND_WEBHOOK_SECRET) return null;
   let source: DeliveryStatusSource;
   if (env.APP_MODE === 'prototype') source = mockDeliveryStatus;
-  else if ((await currentMailerMode()) === 'resend' && env.RESEND_READ_KEY)
-    source = createResendStatusSource(env.RESEND_READ_KEY);
+  // Whatever the mailer is now: after a switch to the Gmail mailer, the Resend rows of the last days still get their
+  // answer (the claim only takes rows Resend sent, never 'gmail:' ids).
+  else if (env.RESEND_READ_KEY) source = createResendStatusSource(env.RESEND_READ_KEY);
   else return null;
   const latch = await readLatch();
   if (latch) {

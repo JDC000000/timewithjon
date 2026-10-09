@@ -279,9 +279,12 @@ describe('pr34 review: read key, latch, timeout, pacing, claims, races', () => {
     }
     const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(init.headers).toEqual({ Authorization: 'Bearer re_read_1' }); // the read key, not the send key
+    // After a switch to the Gmail mailer the last days' Resend rows still get polled (the claim skips 'gmail:' ids).
     await q(`update system_status set value = 'gmail_api' where key = 'mailer_mode'`);
     resetMailerModeCache();
-    expect(await pollingSource()).toBeNull(); // not sending through Resend: nothing to poll
+    expect(await pollingSource()).not.toBeNull();
+    delete envOverride.RESEND_READ_KEY;
+    expect(await pollingSource()).toBeNull(); // no read key: nothing to poll with
   });
 
   it('M1: a 401/403 latches polling off with ONE report, until the read key changes', async () => {
@@ -600,6 +603,24 @@ describe('webhook mode', () => {
       ok: true,
       outcome: 'ignored',
     });
+  });
+
+  it('an unknown email that is over an hour old (a dashboard test, a send from elsewhere) is acknowledged, not retried', async () => {
+    envOverride.RESEND_WEBHOOK_SECRET = SECRET;
+    const withDate = (type: string, id: string, createdAt: string) =>
+      JSON.stringify({
+        type,
+        created_at: createdAt,
+        data: { email_id: id, created_at: createdAt, to: ['x'] },
+      });
+    const old = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    const res = await call(withDate('email.bounced', `re_${randomUUID()}`, old));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, outcome: 'ignored' });
+    expect(await q(`select 1 from email_suppression`)).toHaveLength(0); // nothing applied
+    // A young one is still retried: our own send may not have recorded its id yet.
+    const young = new Date(Date.now() - 60_000).toISOString();
+    expect((await call(withDate('email.complained', `re_${randomUUID()}`, young))).status).toBe(503);
   });
 
   it('email.complained suppresses; email.delivered ends polling; other types are acknowledged', async () => {

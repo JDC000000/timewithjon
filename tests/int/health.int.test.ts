@@ -185,6 +185,14 @@ describe('healthReport (T3.14.01)', () => {
     expect(none.warnings.some((w) => w.startsWith('tick: '))).toBe(false);
     await beat(TICK_FAILED_KEY, ago(1 * MIN), '0/0'); // every job skipped: not a failure
     expect((await healthReport(NOW)).checks.tick).toBe('ok');
+    // One job ran (it hit the hard stop, the rest were skipped) and failed: a warning, not a red check.
+    await beat(TICK_FAILED_KEY, ago(1 * MIN), '1/1');
+    const one = await healthReport(NOW);
+    expect(one.checks.tick).toBe('ok');
+    expect(one.warnings).toContain('tick: 1 of 1 jobs failed');
+    // Two that ran and both failed: red.
+    await beat(TICK_FAILED_KEY, ago(1 * MIN), '2/2');
+    expect((await healthReport(NOW)).checks.tick).toBe('jobs_failing');
   });
 
   it('the tick heartbeat: missing or 35 min old fails, 34 min passes', async () => {
