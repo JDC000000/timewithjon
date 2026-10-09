@@ -2,7 +2,7 @@
 // for a dish with a range (from 1 to the menu's servesMax) and absent for a fixed-size or one-person dish; its two
 // buttons are 44 px targets, work from the keyboard, keep focus at the ends, and the area passes axe. Read-only:
 // nothing is sent. Each case also saves a screenshot of the page and of the details for the PR
-// (test-results/screens/crew-size/, uploaded by CI as the "ui-screens" artifact).
+// (test-results/screens/crew-size/, uploaded by CI as the "ui-screens-<engine>" artifacts).
 import type { Page } from '@playwright/test';
 import { DISHES, FLOW } from '../../../src/content';
 import { crewRange } from '../../../src/content/menu-helpers';

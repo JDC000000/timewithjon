@@ -31,7 +31,8 @@ export default defineConfig<E2EOptions>({
   retries: 0,
   repeatEach: profile.runs,
   fullyParallel: true,
-  workers: env.CI ? 2 : Number(env.E2E_WORKERS ?? 2),
+  // CI sets E2E_WORKERS per engine leg (.github/workflows/ci.yml: WebKit 1, Chromium 2); 2 when unset.
+  workers: Number(env.E2E_WORKERS ?? 2),
   timeout: 30_000,
   expect: { timeout: 5_000 },
   reporter: env.CI ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]] : [['list']],
