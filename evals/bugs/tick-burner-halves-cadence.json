@@ -1,0 +1,9 @@
+{
+  "id": "tick-burner-halves-cadence",
+  "date": "2026-10-08",
+  "task": "CR-08",
+  "area": "jobs",
+  "summary": "A job that used up every tick's budget (outbox-retry during a Google outage) went back to its registration slot after the skipped jobs ran first, so every job after it ran only every other tick for the outage's length.",
+  "fix": "The job during which the budget ran out runs last on the next tick (tick_overran); skipped jobs still run first.",
+  "tests": ["tests/unit/tick-run-order.test.ts"]
+}
