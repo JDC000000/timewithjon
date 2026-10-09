@@ -37,8 +37,9 @@ Use this first, before any fix-forward, when the live site is broken after a dep
 
 ## 3. Is it healthy?
 
-- `GET /api/health` answers **200** when every check is ok and **503** when any check fails. The public body names
-  each check with ok/fail only; the reasons need the cron secret header (`x-cron-secret`). Checks: `database`,
+- `GET /api/health` answers **200** when every check is ok and **503** when any check fails. The public body is only
+  `{"ok": true|false}`; which check failed, and why, needs the cron secret header (`x-cron-secret`), e.g.
+  `curl -H "x-cron-secret: $CRON_SECRET" https://timewithjon.com/api/health`. Checks: `database`,
   `tick` (the scheduler ran in the last 35 minutes and its jobs didn't all fail), `outbox` (calendar changes
   aren't stuck), `google` (the calendar connection works), `media`, `signin_email`, `seed_invites` (no demo
   invites live outside the prototype).

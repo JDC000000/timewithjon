@@ -95,11 +95,17 @@ test('the menu page opens a dish sheet by keyboard and by deep link, and Esc ret
 });
 
 // The server reaches its database: every later journey depends on it. (A fresh DB has no cron tick or media
-// run yet, so /api/health is 503 overall here; only the database check is asserted.)
+// run yet, so /api/health is 503 overall here; only the database check is asserted.) The per-check report needs
+// the cron header, as the monitoring jobs send it (tests/e2e/run.sh exports the placeholder CRON_SECRET); without
+// it the public answer is only {ok}.
 test('the prototype server reaches its database', async ({ request }) => {
-  const response = await request.get('/api/health');
+  const response = await request.get('/api/health', {
+    headers: { 'x-cron-secret': process.env.CRON_SECRET ?? '' },
+  });
   const report = (await response.json()) as { checks: Record<string, string> };
   expect(report.checks.database).toBe('ok');
+  const pub = (await (await request.get('/api/health')).json()) as Record<string, unknown>;
+  expect(Object.keys(pub)).toEqual(['ok']);
 });
 
 // Jon decision 48: his real photos replaced the stand-ins in public/img. Every photo on /, /menu and /sent loads
