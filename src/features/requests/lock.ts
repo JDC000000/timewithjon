@@ -135,8 +135,12 @@ export async function lockRequestRow(c: PoolClient, requestId: string): Promise<
   return rows[0];
 }
 
+/** The Long Distance is a call: E4 never asks them to pick a place (r6 Q2, approved: Jon 2026-10-09). */
+const CALL_DISH = 'the-long-distance';
+
 /** E4 vars: the time as the site writes it (QA C, with the guest's own zone) and a manage link minted when the
- * email is sent (T2.3.05). `placeKnown` (a joined guest, or Jon set the place): E4 drops "You pick the place" (Q1). */
+ * email is sent (T2.3.05). `placeKnown` (a joined guest, or Jon set the place) or the Long Distance: E4 drops "You
+ * pick the place" (Q1, r6 Q2); `where` (the place Jon set): "Where: {place}." in its spot (r6 Q1). */
 export function lockedEmailVars(
   dishSlug: string,
   startsAt: Date,
@@ -144,13 +148,16 @@ export function lockedEmailVars(
   timeZone: string | null,
   requestId: string,
   placeKnown = false,
+  where: string | null = null,
 ): Record<string, EmailVar> {
+  const place = where?.trim().replace(/[.\s]+$/, ''); // the copy adds its own full stop
   return {
     dish: dishName(dishSlug),
     day: dayLabel(startsAt),
     when: guestWhen(startsAt, endsAt, timeZone),
     manageLink: manageLink(requestId),
-    ...(placeKnown ? { placeKnown: 1 } : {}),
+    ...(placeKnown || dishSlug === CALL_DISH ? { placeKnown: 1 } : {}),
+    ...(place ? { where: place } : {}),
   };
 }
 
@@ -319,7 +326,15 @@ export async function applyLock(
         to: r.contact_email,
         requestId: i.requestId,
         eventKey: audit!.id,
-        vars: lockedEmailVars(r.dish, range.startsAt, range.endsAt, r.guest_time_zone, i.requestId, !!where),
+        vars: lockedEmailVars(
+          r.dish,
+          range.startsAt,
+          range.endsAt,
+          r.guest_time_zone,
+          i.requestId,
+          !!where,
+          where,
+        ),
       }),
     ),
   );

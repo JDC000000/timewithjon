@@ -1,0 +1,13 @@
+{
+  "id": "e4-place-never-said",
+  "date": "2026-10-09",
+  "task": "QA r5 N-L2/N-L3",
+  "area": "email",
+  "summary": "When Jon set the place at lock, E4 dropped \"You pick the place\" but never said where; the Long Distance (a call) was asked to pick a place.",
+  "fix": "E4 says \"Where: {place}.\" when a place is set; the Long Distance gets no place line.",
+  "tests": [
+    "src/features/requests/__tests__/locked-email-vars.test.ts",
+    "src/features/email/__tests__/templates-html.test.ts",
+    "tests/int/lock.int.test.ts"
+  ]
+}

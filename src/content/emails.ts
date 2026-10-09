@@ -57,12 +57,12 @@ export const EMAIL_COPY: Record<TemplateId, EmailCopy> = {
   }, // §14.4. T2.5.02: {openTimes} is E5B_PARTS.withTimes(Jon's offer) or E5B_PARTS.noTimes; {takeLink} is empty with no offer
   E5j: {
     subject: 'About {dish}',
-    body: 'That plan fell through, so your spot on it is off. I’ll send you a new time soon.',
-  }, // T2.7, rule 4: a joined guest whose host cancelled; never names the host; lane L3.
+    body: 'That plan fell through, so your spot on it is off. I’ll send you a new time soon.\n{manageLink}\n{callLine}',
+  }, // T2.7, rule 4: a joined guest whose host cancelled; never names the host; lane L3. Button + note: r6 Q4
   E6: {
     subject: 'You’re on stand-by',
-    body: 'You’re on stand-by for the week of {week}. If something opens up, I’ll email you.',
-  },
+    body: 'You’re on stand-by for the week of {week}. If something opens up, I’ll email you.\n{manageLink}\n{callLine}',
+  }, // r6 Q4 (approved: Jon 2026-10-09): the "Change or cancel" button, "Or just call me." under it
   E7: {
     subject: '{weekday} just opened up',
     body: '{when} is free now. Want it? It’s yours until {until}.\n{takeLink}', // approved: Jon (2026-10-09) Q4
@@ -79,7 +79,7 @@ export const EMAIL_COPY: Record<TemplateId, EmailCopy> = {
   E11: { subject: 'Cancelled, no guilt', body: 'Done. No guilt. The menu’s still there when you’re ready.' },
   E12: {
     subject: 'Cancelled: {dish}, {when}',
-    body: '{name} cancelled {dish} ({when}). Stand-by for that week: {standby}\n{adminLink}',
+    body: '{name} cancelled {dish} ({when}). Stand-by for that week: {standby}.\n{adminLink}', // approved: Jon (2026-10-09) r6 Q3d: the full stop
   }, // T2.7.07: "({when})" so an unlocked request reads "(no time locked yet)"
   // TSD staleness fix: E13 no longer counts dropped mail (inbound is Cloudflare Email Routing). The hourly
   // "What's new" digest reuses E13 (T3.2.06, flagged for review): {lines} holds one subject per email.
@@ -105,7 +105,7 @@ export const E12_PARTS = {
   joined: (names: string) => `Joined to it: ${names}.`, // NEW COPY (needs Jon)
 } as const;
 /** E12 with no week (EML-15): the same body without its stand-by sentence. {standby} is '' then. */
-const E12_NO_WEEK_BODY = EMAIL_COPY.E12.body.replace(' Stand-by for that week: {standby}', '');
+const E12_NO_WEEK_BODY = EMAIL_COPY.E12.body.replace(' Stand-by for that week: {standby}.', '');
 /** EML-10: the hourly "What's new" digest (TSD AD-5 rule 3) reuses E13's body; its lines are emails, not stories. */
 export const E13_HOURLY_SUBJECT = 'What’s new: {count}'; // NEW COPY (needs Jon)
 /** E4c's opening line, by the attached .ics method (REQUEST adds or moves the entry, CANCEL removes it). */
@@ -118,14 +118,17 @@ export const E4C_LEAD = {
 export const SINGULAR = {
   gotTimes: 'Got your time:', // approved: Jon (2026-10-09) Q6 (E1, one time or date)
   stillOpen: 'This one’s still open:', // approved: Jon (2026-10-09) Q6 (E5, E5b, one offered time)
-  pickedNew: 'picked a new time', // approved: Jon (2026-10-09) Q6 (E16, one time or date)
+  pickedNew: 'picked a new time', // approved: Jon (2026-10-09) Q6 (E16, one time or date; r6 Q3b: a shorter pitch too)
+  tapIt: 'Tap it and it’s yours.', // approved: Jon (2026-10-09) r6 Q3a (E5, E5b, one offered time)
 } as const;
+const TAP_ONE = 'Tap one and it’s yours.';
 const STILL_OPEN = 'These are still open:';
 /** "These are still open:", or the singular for one time (Q6). */
 export const stillOpen = (times: string) => (times.includes('\n') ? STILL_OPEN : SINGULAR.stillOpen);
 /** T2.5.02: E5b's two middles. A joined guest always gets noTimes (the offer is the host's; rule 3). */
 export const E5B_PARTS = {
-  withTimes: (times: string) => `${stillOpen(times)}\n${times}\nTap one and it’s yours.`,
+  withTimes: (times: string) =>
+    `${stillOpen(times)}\n${times}\n${times.includes('\n') ? TAP_ONE : SINGULAR.tapIt}`,
   noTimes: 'I’ll send you some new times soon.',
 } as const;
 export const SIGN_OFF = 'Jon';
@@ -143,7 +146,11 @@ export const GUEST_BUTTON = {
   E9: SEE_THE_MENU, // v2.1 COPY (decision 37b): "Pick anything else and it’s yours."
   E10: 'Pick a new date', // approved: Jon (2026-10-09) Q3
   E17: 'Pick a new date', // approved: Jon (2026-10-09) Q8
+  E6: 'Change or cancel', // approved: Jon (2026-10-09) r6 Q4
+  E5j: 'Change or cancel', // approved: Jon (2026-10-09) r6 Q4
 } as const satisfies Partial<Record<TemplateId, string>>;
+/** r6 Q4: the small line under E6's and E5j's button (both parts carry it; it is {callLine} in the copy). */
+export const CALL_NOTE = 'Or just call me.'; // approved: Jon (2026-10-09) r6 Q4
 /** A P.S. under the signature (Jon decisions 45 + 47a): E1 "Got it" carries the no-gifts P.S. and its tag link. */
 export const POSTSCRIPT: Partial<Record<TemplateId, typeof NO_GIFTS_PS>> = { E1: NO_GIFTS_PS };
 export function fill(template: string, vars: Record<string, string | number>): string {
@@ -168,14 +175,19 @@ export const ADMIN_SIGN_IN_EMAIL = {
 /** E1 with no {times} (a row queued before E1 listed them, or an empty list): the pre-option-A body. */
 export const E1_NO_TIMES_BODY = 'Got your times. I’ll lock one in within two days.';
 
-/** Q1 (approved: Jon 2026-10-09): E4 drops this for a joined guest and when Jon set the place. */
+/** Q1 (approved: Jon 2026-10-09): E4 drops this for a joined guest, when Jon set the place, and for the Long
+ *  Distance (a call: r6 Q2). With a place, "Where: {place}." takes its spot (r6 Q1). */
 const E4_PICK_PLACE = ' You pick the place, just tell me where.';
+const E4_WHERE = ' Where: {where}.'; // approved: Jon (2026-10-09) r6 Q1
+/** r6 Q3c: E1 for a pitch with only a rough window (no times or dates to list). */
+export const E1_PITCH_WINDOW_BODY = 'Email me your idea, or let’s talk.'; // approved: Jon (2026-10-09) r6 Q3c
 const E7_UNTIL = ' It’s yours until {until}.';
 
 /**
  * The copy one email renders with, for both its text and its HTML part: the template's, or its variant for these
- * vars. E1 with no {times} keeps the pre-option-A body; one time reads in the singular (Q6: E1, E5, E5b, E16); E4
- * with {placeKnown} drops "You pick the place" (Q1); E12 with no week drops the stand-by sentence (EML-15) and a
+ * vars. E1 with no {times} keeps the pre-option-A body (a pitch with only a rough window: r6 Q3c); one time reads in
+ * the singular (Q6: E1, E5, E5b, E16); E4 with {where} says "Where: {where}." instead of "You pick the place", with
+ * {placeKnown} drops it (Q1, r6 Q1/Q2); E12 with no week drops the stand-by sentence (EML-15) and a
  * host's E12 adds its joined guests (QA4b M3); the hourly digest ({digest: 'hourly'}) has its own subject (EML-10).
  * A row queued before a var existed (E1/E17 {manageLink}, E7 {until}) renders as it was queued, never with an
  * unfilled placeholder.
@@ -183,20 +195,27 @@ const E7_UNTIL = ' It’s yours until {until}.';
 export function copyFor(id: TemplateId, vars: Record<string, string | number>): EmailCopy {
   const c = EMAIL_COPY[id] as EmailCopy | undefined;
   if (!c) return { subject: '', body: '' }; // not a template id (only a copy scanner calls it so)
-  let body = id === 'E1' && !vars.times ? `${E1_NO_TIMES_BODY}\n{manageLink}` : c.body;
-  // Only E1 and E17 gained their link line after rows were queued; every other template still fails closed on a
-  // missing link (pr28 review M2: never a literal "{manageLink}", never a guest email without its link).
-  if ((id === 'E1' || id === 'E17') && !('manageLink' in vars)) body = body.replace('\n{manageLink}', '');
+  let body =
+    id === 'E1' && !vars.times
+      ? `${vars.pitchWindowOnly ? E1_PITCH_WINDOW_BODY : E1_NO_TIMES_BODY}\n{manageLink}`
+      : c.body;
+  // Only E1, E17, E6 and E5j gained their link line after rows were queued; every other template still fails
+  // closed on a missing link (pr28 review M2: never a literal "{manageLink}", never a guest email without its link).
+  if (['E1', 'E17', 'E6', 'E5j'].includes(id) && !('manageLink' in vars))
+    body = body.replace('\n{manageLink}', '').replace('\n{callLine}', '');
+  body = body.replace('{callLine}', CALL_NOTE); // fixed words, not a var
   const one = (v: string | number | undefined) => typeof v === 'string' && v !== '' && !v.includes('\n');
   switch (id) {
     case 'E1':
       if (one(vars.times)) body = body.replace('Got your times:', SINGULAR.gotTimes);
       break;
     case 'E4':
-      if (vars.placeKnown) body = body.replace(E4_PICK_PLACE, '');
+      if (vars.where) body = body.replace(E4_PICK_PLACE, E4_WHERE);
+      else if (vars.placeKnown) body = body.replace(E4_PICK_PLACE, '');
       break;
     case 'E5':
-      if (one(vars.times)) body = body.replace(STILL_OPEN, SINGULAR.stillOpen);
+      if (one(vars.times))
+        body = body.replace(STILL_OPEN, SINGULAR.stillOpen).replace(TAP_ONE, SINGULAR.tapIt);
       break;
     case 'E7':
       if (!('until' in vars)) body = body.replace(E7_UNTIL, '');
@@ -210,7 +229,9 @@ export function copyFor(id: TemplateId, vars: Record<string, string | number>): 
       if (vars.digest === 'hourly') return { subject: E13_HOURLY_SUBJECT, body };
       break;
     case 'E16':
-      if (vars.count === 1) body = body.replace('picked new times', SINGULAR.pickedNew);
+      // One time or date, or none (a shorter pitch with only a rough window, r6 Q3b): "picked a new time".
+      if (typeof vars.count === 'number' && vars.count <= 1)
+        body = body.replace('picked new times', SINGULAR.pickedNew);
       break;
   }
   return { subject: c.subject, body };

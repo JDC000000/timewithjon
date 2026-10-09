@@ -130,3 +130,17 @@ describe('E2 details for Jon (Q5, approved: Jon 2026-10-09; DEV6 follow-up)', ()
     expect(e2({})).toBe('Crew 2. 2 times.');
   });
 });
+
+describe('r6 (approved: Jon 2026-10-09)', () => {
+  it('Q3c: a Pitch Me request with nothing to list marks its E1 (that case only)', () => {
+    const e1 = (over: Partial<Parameters<typeof intakeEmails>[0]>) =>
+      intakeEmails({ ...base, status: 'requested', ...over })[0]!.vars;
+    expect(e1({ dishSlug: 'pitch-me', requestedTimes: [] })).toMatchObject({ pitchWindowOnly: 1 });
+    expect(e1({ dishSlug: 'pitch-me', requestedTimes: ['Sat May 8'] })).not.toHaveProperty('pitchWindowOnly');
+    expect(e1({ dishSlug: 'the-grind', requestedTimes: [] })).not.toHaveProperty('pitchWindowOnly');
+  });
+  it('Q4: E6 carries the manage link', () => {
+    const [e6] = intakeEmails({ ...base, status: 'standby', standbyWeek: '2027-05-10', choiceCount: 0 });
+    expect(e6!.vars.manageLink).toEqual({ link: 'manage', requestId: 'req-1' });
+  });
+});

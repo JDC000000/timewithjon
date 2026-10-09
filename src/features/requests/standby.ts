@@ -13,7 +13,7 @@ import { canLock } from '@/features/availability/canLock';
 import { loadEngineData } from '@/features/availability/load';
 import { slotCountsToward, windowFitsDish } from '@/features/availability/rules';
 import type { Slot } from '@/features/availability/types';
-import { takeLink } from '@/features/email/link-vars';
+import { manageLink, takeLink } from '@/features/email/link-vars';
 import { queueEmail } from '@/features/email/send';
 import { withTx } from '@/lib/db';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -72,7 +72,7 @@ async function moveTx(
         to: r.contact_email,
         requestId: a.requestId,
         eventKey: auditId,
-        vars: { week: standbyWeekLabel(a.weekStart) },
+        vars: { week: standbyWeekLabel(a.weekStart), manageLink: manageLink(a.requestId) }, // r6 Q4
       }),
     ),
   );

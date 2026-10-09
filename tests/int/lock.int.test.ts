@@ -549,6 +549,7 @@ describe('calendar outbox (T2.3.02, T2.3.08, T2.3.09)', () => {
       [id],
     );
     expect(e4!.vars.placeKnown).toBe(1);
+    expect(e4!.vars.where).toBe('The pier'); // r6 Q1: "Where: The pier."
     insert.mockRestore();
   });
 
