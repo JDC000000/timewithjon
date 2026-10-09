@@ -23,6 +23,7 @@ interface SpamRequestRow {
   contact_email: string;
   crew_size: number;
   big_crew: boolean;
+  overnight: boolean;
   standby_week: string | null;
   choices: number;
   calendar_state: string;
@@ -32,7 +33,7 @@ interface SpamRequestRow {
 async function lockRequest(c: PoolClient, id: string): Promise<SpamRequestRow | undefined> {
   const { rows } = await c.query<SpamRequestRow>(
     `select r.spam_suspect, r.status::text, r.dish, r.mode, r.contact_name, r.contact_email::text, r.crew_size,
-            r.big_crew, r.standby_week::text, r.calendar_state::text,
+            r.big_crew, r.overnight, r.standby_week::text, r.calendar_state::text,
             (exists (select 1 from story s where s.request_id = r.id)
              or exists (select j.id from request j where j.joined_to_request_id = r.id)) as has_dependants,
             case when r.mode = 'slots'
@@ -75,6 +76,7 @@ export async function markRequestNotSpam(id: string): Promise<SpamResult> {
         bigCrew: r.big_crew,
         choiceCount: r.choices,
         choiceKind: r.mode === 'slots' ? 'times' : 'dates',
+        overnight: r.overnight,
         standbyWeek: r.standby_week,
         requestedTimes: [], // only E2 is sent here
         jonEmail: jonEmail(),

@@ -1,0 +1,9 @@
+{
+  "id": "email-digest-double-bullet",
+  "date": "2026-10-08",
+  "task": "QA EML-09",
+  "area": "email",
+  "summary": "Each E13 digest line drew a list bullet and its literal '- ', and the link was a bare URL.",
+  "fix": "The HTML list drops the leading '- ' (the text part keeps it); the link is a button (Stories, or Requests for the hourly digest).",
+  "tests": ["src/features/email/__tests__/templates-html.test.ts"]
+}

@@ -64,7 +64,16 @@ export function Layout({ title, children, signOff, ps }: LayoutProps) {
                 >
                   <tbody>
                     <tr>
-                      <td style={{ padding: '32px 40px 40px', font: `400 17px/1.55 ${UI}`, color: INK }}>
+                      {/* EML-17: a long unbroken name or word wraps inside the card at 320 px, never widens it. */}
+                      <td
+                        style={{
+                          padding: '32px 40px 40px',
+                          font: `400 17px/1.55 ${UI}`,
+                          color: INK,
+                          overflowWrap: 'anywhere',
+                          wordBreak: 'break-word',
+                        }}
+                      >
                         <p
                           style={{
                             margin: '0 0 20px',

@@ -72,17 +72,19 @@ const MINTERS: Record<string, Mint> = {
   take: offerMinter('take_offer', 'offer'),
   pick: offerMinter('pick_new_date', 'new-date'),
   // T2.4.05 E9 "Pick anything else": the guest's own invite link, built at send time like every other link. A
-  // revoked invite is never sent (pr51-review L1): the email fails closed.
+  // revoked invite's link is never sent (pr51-review L1), but Jon's honest no still is (EML-04): the link var is
+  // empty, so the email goes with no link line and no button.
   menu: async (db, spec) => {
     const { rows } = spec.requestId
-      ? await db.query<{ name_slug: string; token_secret: string }>(
-          `select i.name_slug, i.token_secret from request r join invite i on i.id = r.invite_id
-            where r.id = $1 and i.revoked_at is null`,
+      ? await db.query<{ name_slug: string; token_secret: string; revoked: boolean }>(
+          `select i.name_slug, i.token_secret, i.revoked_at is not null as revoked
+             from request r join invite i on i.id = r.invite_id
+            where r.id = $1`,
           [spec.requestId],
         )
       : { rows: [] };
     if (!rows[0]) throw new UnknownLinkKindError(spec.link);
-    return inviteLink(rows[0]);
+    return rows[0].revoked ? '' : inviteLink(rows[0]);
   },
 };
 

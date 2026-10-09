@@ -1,0 +1,9 @@
+{
+  "id": "email-e12-no-week-filler",
+  "date": "2026-10-08",
+  "task": "QA EML-15",
+  "area": "email",
+  "summary": "E12 for a request with nothing locked ended 'Stand-by for that week: no week yet'.",
+  "fix": "With no locked time the stand-by sentence is left out (standby '' picks the shorter body).",
+  "tests": ["src/features/email/__tests__/templates-html.test.ts", "tests/int/manage.int.test.ts"]
+}

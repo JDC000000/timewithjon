@@ -146,7 +146,7 @@ describe('AC5: the thresholds in the real send path', () => {
     const [wait] = await q<{ t: Date }>(`select max(not_before) as t from email_queue`);
     expect(await sendHourlyDigest(new Date(wait!.t.getTime() + 1))).toBe('sent');
     expect(sentTemplates()).toEqual(['E1', 'E13']);
-    expect(sendSpy.mock.calls[1]![0].subject).toBe('New stories: 3');
+    expect(sendSpy.mock.calls[1]![0].subject).toBe('What’s new: 3'); // EML-10: the hourly digest's own subject
   });
 
   it('at 85 an E1 is queued for 00:05 UTC and an E4 still sends; at 95 the E4 waits and the banner shows', async () => {

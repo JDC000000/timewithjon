@@ -12,6 +12,7 @@ const base = {
   bigCrew: false,
   choiceCount: 2,
   choiceKind: 'times' as const,
+  overnight: false,
   standbyWeek: null,
   requestedTimes: ['Thu Oct 1, 12:00 pm', 'Sat Oct 3, 6:00 pm'],
   jonEmail: 'jon@example.com',
@@ -42,6 +43,10 @@ describe('E2 summary counts (QA r2 L3)', () => {
     expect(summary(1, 'dates')).toBe('Crew 2. 1 date.');
     expect(summary(2, 'dates')).toBe('Crew 2. 2 dates.');
   });
+  it('QA4 M1: an overnight request tells Jon, in the guest’s own words', () => {
+    const e2 = intakeEmails({ ...base, status: 'requested', choiceKind: 'dates', overnight: true })[1]!;
+    expect(e2.vars.summary).toBe('Crew 2. 2 dates. It’s one night away.');
+  });
 });
 
 describe('requestedTimeLines (E1 lists the requested times, Jon option A; as the site writes them, QA C)', () => {
@@ -53,7 +58,10 @@ describe('requestedTimeLines (E1 lists the requested times, Jon option A; as the
   const noon = at('2026-10-01T19:00:00Z', 2); // Thu Oct 1, noon–2 pm Vancouver (PDT): a lunch
   const eve = at('2026-10-04T02:00:00Z', 3); // Sat Oct 3, 7–10 pm Vancouver: an evening
   it('slots: in order, Vancouver time when the guest has no zone', () => {
-    expect(requestedTimeLines([eve, noon], [], null)).toEqual(['Thu Oct 1 · noon–2 pm', 'Sat Oct 3 · 7 pm']);
+    expect(requestedTimeLines([eve, noon], [], null)).toEqual([
+      'Thu Oct 1 · noon–2 pm Vancouver time',
+      'Sat Oct 3 · 7 pm Vancouver time',
+    ]);
   });
   it('slots: with the guest’s own zone when it differs', () => {
     expect(requestedTimeLines([noon], [], 'America/Toronto')).toEqual([
@@ -61,7 +69,7 @@ describe('requestedTimeLines (E1 lists the requested times, Jon option A; as the
     ]);
   });
   it('an unknown zone falls back to Vancouver', () => {
-    expect(requestedTimeLines([noon], [], 'Not/AZone')).toEqual(['Thu Oct 1 · noon–2 pm']);
+    expect(requestedTimeLines([noon], [], 'Not/AZone')).toEqual(['Thu Oct 1 · noon–2 pm Vancouver time']);
   });
   it('dates mode: the dates, no times', () => {
     expect(requestedTimeLines([], ['2026-10-03', '2026-10-01'], 'Europe/London')).toEqual([

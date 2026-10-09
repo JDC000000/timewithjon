@@ -1,0 +1,9 @@
+{
+  "id": "e2-overnight-not-shown",
+  "date": "2026-10-08",
+  "task": "QA4 M1",
+  "area": "email",
+  "summary": "A request with \"It’s one night away\" ticked reached Jon's E2 with no mention of the night.",
+  "fix": "E2's summary ends with the guest's own words, \"It’s one night away.\", when overnight is set (also on Not spam).",
+  "tests": ["src/features/requests/__tests__/intake-emails.test.ts"]
+}

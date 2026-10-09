@@ -115,6 +115,16 @@ async function cancelTx(
     [requestId, JSON.stringify({ from_status: r.status, to_status: 'cancelled' }), by],
   );
   const after = noSideEffects();
+  // QA4b M3: a host's E12 names the guests riding the booking (read before the cascade moves them).
+  const joinedNames = r.joined_to_request_id
+    ? []
+    : (
+        await c.query<{ contact_name: string }>(
+          `select j.contact_name from request j where j.joined_to_request_id = $1 and j.status = 'locked'
+            order by j.created_at`,
+          [requestId],
+        )
+      ).rows.map((j) => j.contact_name);
 
   if (r.joined_to_request_id) {
     // Rule 2: only this guest's attendee goes (a patch on the host's event). The host's event is never deleted.
@@ -159,9 +169,9 @@ async function cancelTx(
           name: r.contact_name,
           dish,
           when: when ?? E12_PARTS.noTime,
-          standby: wasLocked
-            ? await standbyNames(c, weekStartOf(vancouverDate(r.starts_at!)))
-            : E12_PARTS.noWeek,
+          // EML-15: no locked time, no week: '' drops the stand-by sentence (copyFor).
+          standby: wasLocked ? await standbyNames(c, weekStartOf(vancouverDate(r.starts_at!))) : '',
+          joined: joinedNames.length ? E12_PARTS.joined(joinedNames.join(', ')) : '',
           adminLink: adminLink(requestId),
         },
       }),

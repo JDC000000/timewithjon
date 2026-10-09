@@ -1,0 +1,9 @@
+{
+  "id": "email-long-name-widens-card",
+  "date": "2026-10-08",
+  "task": "QA EML-17",
+  "area": "email",
+  "summary": "A long unbroken name widened the email past 320 px.",
+  "fix": "The Layout's card wraps anywhere (overflow-wrap / word-break).",
+  "tests": ["src/features/email/__tests__/templates-html.test.ts"]
+}

@@ -3,7 +3,7 @@
 //      tag page), never /api/ or an action query. AC4: no note, plan, secret, story or phone: a var the template
 //      doesn't use never reaches the HTML, and the HTML's words are the text part's plus the Layout chrome.
 import { describe, expect, it } from 'vitest';
-import { EMAIL_COPY, type TemplateId } from '@/content/emails';
+import { EMAIL_COPY, GUEST_BUTTON, type TemplateId } from '@/content/emails';
 import { renderEmail } from '@/features/email/registry';
 import { ADMIN_SHELL, MARK } from '@/content/ui/foundation';
 import { HTML_TEMPLATES } from '@/features/email/templates';
@@ -20,8 +20,15 @@ const LEAKS = {
   phone: '+1 604 555 0199',
   before60: 'LEAK-BEFORE60',
 };
-// The Layout mark and the two button labels (both already in src/content: E2_BUTTON, ADMIN_SHELL.settings).
-const CHROME = `${MARK} ${E2_BUTTON} ${ADMIN_SHELL.settings}`;
+// The Layout mark and the button labels (E2_BUTTON, ADMIN_SHELL's, and the guest buttons of EML-03).
+const CHROME = [
+  MARK,
+  E2_BUTTON,
+  ADMIN_SHELL.settings,
+  ADMIN_SHELL.nav.stories,
+  ADMIN_SHELL.nav.requests,
+  ...Object.values(GUEST_BUTTON),
+].join(' ');
 
 describe('email templates (html): T3.2.10 guard', () => {
   it('every template has an html part under this guard', () =>

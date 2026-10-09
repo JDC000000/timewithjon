@@ -1,14 +1,6 @@
 // src/features/email/registry.ts — the text part of every template (renderText) and the full email with its HTML
 // part (renderEmail; the React Email templates are in ./templates, T1.10.U1). E1 carries a P.S. (Jon decisions 45 + 47a).
-import {
-  E1_NO_TIMES_BODY,
-  EMAIL_COPY,
-  JON_FACING,
-  POSTSCRIPT,
-  SIGN_OFF,
-  fill,
-  type TemplateId,
-} from '@/content/emails';
+import { JON_FACING, POSTSCRIPT, SIGN_OFF, copyFor, fill, type TemplateId } from '@/content/emails';
 import { getEnv } from '@/config/env';
 import { ROUTES } from '@/ui/routes';
 import { renderHtml } from './templates';
@@ -37,11 +29,13 @@ export function renderText(
   vars: Record<string, string | number>,
   opts: RenderOptions = {},
 ): Rendered {
-  // E1 queued without {times} (before option A, or an empty list) keeps the old body rather than failing closed.
-  const c = id === 'E1' && !vars.times ? { ...EMAIL_COPY.E1, body: E1_NO_TIMES_BODY } : EMAIL_COPY[id];
+  // E1 queued without {times} (before option A, or an empty list) keeps the old body rather than failing closed;
+  // E12 with no week and the hourly E13 have their own variants (copyFor, EML-15 / EML-10).
+  const c = copyFor(id, vars);
   const jonFacing = JON_FACING.includes(id);
   const subject = fill(c.subject, vars);
-  const body = fill(c.body, vars);
+  // A link var left empty (E5b with no offer, E9 after a revoked invite) leaves no blank line before the sign-off.
+  const body = fill(c.body, vars).replace(/\n+$/, '');
   // Fail closed on a template token with no var. The TEMPLATE is checked, not the filled text: a guest may type
   // braces ('Sam {Jr}'), and that must still send (pr28-verify M3). Only the template id goes into the error.
   if ([...`${c.subject}\n${c.body}`.matchAll(TOKEN)].some((m) => !(m[1]! in vars))) {

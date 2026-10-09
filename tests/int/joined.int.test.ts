@@ -199,7 +199,7 @@ describe('Join to booking (T2.10.01, rule 1)', () => {
       kind: 'manage',
       requestId: joined,
       status: 'locked',
-      when: 'Thu May 27 · noon–2 pm', // QA C: as the site writes it
+      when: 'Thu May 27 · noon–2 pm Vancouver time', // QA C, EML-01: as the site writes it
     });
     expect((await findToken(token))!.expires_at.getTime()).toBe(
       hostRow.locked_ends_at!.getTime() + 7 * 86400_000,
@@ -585,6 +585,12 @@ describe('the joined lifecycle (§6 rules 2–5)', () => {
     const hostRow = await row(host);
     expect(await cancelByGuest(host)).toEqual({ ok: true, already: false });
     expect(remove).toHaveBeenCalledTimes(1);
+    // QA4b M3: Jon's E12 names the guests who were riding the booking.
+    const [e12] = await q<{ vars: Record<string, string> }>(
+      `select vars from email_log where request_id = $1 and template = 'E12'`,
+      [host],
+    );
+    expect(e12!.vars.joined).toBe('Joined to it: Dave Guest, Dave Guest, Dave Guest.');
     for (const j of [j1, j2]) {
       expect(await row(j)).toMatchObject({ status: 'needs_new_time', joined_to_request_id: host });
       expect((await row(j)).awaiting_jon_since).not.toBeNull();

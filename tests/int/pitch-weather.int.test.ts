@@ -207,8 +207,8 @@ describe('T2.4.05 About your pitch → E8 or E9', () => {
     });
   });
 
-  it('pr51-review L1: E9 is never sent with a revoked invite link (fails closed)', async () => {
-    const { id } = await newRequest('pitch-me');
+  it('pr51-review L1 + EML-04: with a revoked invite, E9 still goes, with no link (never the dead one)', async () => {
+    const { id, email } = await newRequest('pitch-me');
     const [inv] = await q<{ id: string }>(
       `insert into invite (is_test, kind, token_secret, name_slug, revoked_at)
        values (true, 'personal', $1, 'revoked-pat', now()) returning id`,
@@ -220,9 +220,27 @@ describe('T2.4.05 About your pitch → E8 or E9', () => {
       ],
     );
     await q(`update request set invite_id = $2 where id = $1`, [id, inv!.id]);
-    await expect(resolveLinkVars(randomUUID(), { menuLink: menuLink(id) })).rejects.toBeInstanceOf(
+    expect(await resolveLinkVars(randomUUID(), { menuLink: menuLink(id) })).toEqual({ menuLink: '' });
+    // A request that doesn't exist is still an unknown link (fails closed).
+    await expect(resolveLinkVars(randomUUID(), { menuLink: menuLink(randomUUID()) })).rejects.toBeInstanceOf(
       UnknownLinkKindError,
     );
+    // Jon's honest no reaches the guest: the row is sent, the text ends with the sign-off, no link and no button.
+    expect(await replyToPitch(id, { reply: 'no' })).toEqual({ ok: true });
+    const [log] = await q<{ status: string }>(
+      `select status from email_log where request_id = $1 and template = 'E9'`,
+      [id],
+    );
+    expect(log!.status).toBe('sent');
+    const [mail] = await q<{ text_body: string; html_body: string | null }>(
+      `select text_body, html_body from dev_outbox where to_email = $1 order by created_at desc limit 1`,
+      [email],
+    );
+    expect(mail!.text_body).toBe(
+      'I can’t make this one happen, and I’d rather say so than leave it hanging. Pick anything else and it’s yours.\n\nJon\n',
+    );
+    expect(mail!.text_body).not.toContain('revoked-pat');
+    expect(mail!.html_body).not.toContain('<a ');
   });
 });
 
@@ -342,7 +360,7 @@ describe('T2.4.06 Weather call → delete the event + E10', () => {
       ['ics:0', 'REQUEST', '0'],
       ['ics:1', 'CANCEL', '1'], // bumped: a CANCEL at the REQUEST's own SEQUENCE would be ignored
     ]);
-    expect(e4c[1]!.lead).toMatch(/^The Long Lunch, Fri Apr 30 · noon–2 pm, is off\./);
+    expect(e4c[1]!.lead).toMatch(/^The Long Lunch, Fri Apr 30 · noon–2 pm Vancouver time, is off\./);
     expect(await q(`select ics_sequence from request where id = $1`, [id])).toEqual([{ ics_sequence: 1 }]);
     expect((await row(id)).locked_starts_at).toBeNull();
   });

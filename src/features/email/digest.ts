@@ -18,6 +18,16 @@ export function digestLine(template: TemplateId, vars: Record<string, string | n
   }
 }
 
+/**
+ * QA4b M2: one digest entry per parked email, "- {subject}", and under it, indented on its own line, the page it
+ * opened (E2, E3, E12, E16's admin link) so Jon can still go straight to that request. The HTML part links the
+ * subject itself (E13.tsx).
+ */
+export function digestEntry(template: TemplateId, vars: Record<string, string | number>): string {
+  const link = typeof vars.adminLink === 'string' && vars.adminLink ? `\n  ${vars.adminLink}` : '';
+  return `- ${digestLine(template, vars)}${link}`;
+}
+
 export async function sendHourlyDigest(now: Date): Promise<DeliverResult | 'none'> {
   const c = await pool().connect();
   let digestId: string;
@@ -46,8 +56,9 @@ export async function sendHourlyDigest(now: Date): Promise<DeliverResult | 'none
       requestId: null,
       eventKey: digestEventKey(now),
       vars: {
+        digest: 'hourly', // EML-10: its own subject (copyFor); the lines are emails, not stories
         count: rows.length,
-        lines: rows.map((r) => `- ${digestLine(r.template, r.vars)}`).join('\n'),
+        lines: rows.map((r) => digestEntry(r.template, r.vars)).join('\n'),
         adminLink: `${getEnv().NEXT_PUBLIC_SITE_URL}/admin`,
       },
     });

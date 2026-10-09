@@ -1,7 +1,7 @@
 // src/lib/when.ts — the house time style (v1.12 pack g1 #3 (a), the S6 picker's tiles): a 12-hour clock, "Fri May 14 ·
 // noon–2 pm" for a lunch, "Fri Apr 16 · 7 pm" for an evening (its start), "Sat Apr 3 · 9 am–1 pm" for any other range.
 // One formatter for the admin screens and for every time a guest reads (emails, /manage, /offer: QA C), so the
-// emails say what the site says. Vancouver time (AD-2); guestWhen() adds the guest's own clock when it differs.
+// emails say what the site says. Vancouver time (AD-2); guestWhen() always says so and adds the guest's clock when it differs.
 import { formatInTimeZone } from 'date-fns-tz';
 import { TZ } from './time';
 
@@ -51,17 +51,18 @@ function knownZone(zone: string | null | undefined): string | null {
 }
 
 /**
- * A time as a guest reads it (QA C): whenLabel(), and for a guest whose zone shows another clock, theirs after it:
- * "Fri May 14 · noon–2 pm Vancouver time (3–5 pm your time)", with their day too when it differs. An evening stays
- * its start in their zone as well.
+ * A time as a guest reads it (QA C; TSD C5 M2, EML-01): whenLabel() and "Vancouver time", always, so a guest with no
+ * zone (every slot dish) or out of town still knows whose clock it is: "Fri May 14 · noon–2 pm Vancouver time". A
+ * guest whose zone shows another clock gets theirs after it, "(3–5 pm your time)", with their day too when it
+ * differs. An evening stays its start in their zone as well.
  */
 export function guestWhen(start: Date, end: Date, guestTimeZone: string | null | undefined): string {
-  const ours = whenLabel(start, end);
+  const ours = `${whenLabel(start, end)} Vancouver time`;
   const zone = knownZone(guestTimeZone);
   if (!zone || zone === TZ) return ours;
   const startOnly = !rangeLabel(start, end).includes('–');
   const time = startOnly ? clockLabel(start, zone) : rangeLabel(start, end, zone);
   const day = dayIn(start, zone);
-  if (`${day} · ${time}` === ours) return ours;
-  return `${ours} Vancouver time (${day === dayIn(start, TZ) ? time : `${day} · ${time}`} your time)`;
+  if (`${day} · ${time}` === whenLabel(start, end)) return ours;
+  return `${ours} (${day === dayIn(start, TZ) ? time : `${day} · ${time}`} your time)`;
 }

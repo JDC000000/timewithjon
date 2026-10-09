@@ -25,9 +25,9 @@ describe('emailPreview', () => {
 });
 
 describe('emailTime', () => {
-  it('"Fri May 21 · noon–2 pm", as the site writes it (QA C)', () => {
+  it('"Fri May 21 · noon–2 pm Vancouver time", as the email writes it (QA C, EML-01)', () => {
     expect(emailTime(vancouverInstant('2027-05-21', '12:00'), vancouverInstant('2027-05-21', '14:00'))).toBe(
-      'Fri May 21 · noon–2 pm',
+      'Fri May 21 · noon–2 pm Vancouver time',
     );
   });
 });

@@ -1,0 +1,14 @@
+{
+  "id": "email-guest-time-no-vancouver",
+  "date": "2026-10-08",
+  "task": "QA EML-01",
+  "area": "email",
+  "summary": "Guest times in E1, E4, E4c, E5, E5b, E7, /manage and /offer said 'Vancouver time' only when the guest's zone was known and different, so every slot-dish guest read a bare 'noon–2 pm' (TSD C5 M2).",
+  "fix": "guestWhen() always writes '{time} Vancouver time' and adds '({time} your time)' when the guest's clock differs.",
+  "tests": [
+    "src/lib/__tests__/when.test.ts",
+    "src/lib/__tests__/time.test.ts",
+    "tests/int/t2.4-emails.int.test.ts",
+    "tests/int/manage.int.test.ts"
+  ]
+}
