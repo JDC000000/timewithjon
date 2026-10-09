@@ -376,6 +376,19 @@ describe('token pages: read-only loaders (T2.7.03, AC1–AC4)', () => {
     expect(await loadNewDateModel(pick)).toMatchObject({ kind: 'new_date', status: 'needs_new_time' });
     await withTx((c) => consumeToken(c, pick));
     expect(await loadNewDateModel(pick)).toMatchObject({ kind: 'current', message: ERRORS.offerGone });
+    // Q7 (approved: Jon 2026-10-09): after Jon cancelled, the old link has no "Already cancelled. No guilt." line
+    // (the heading "Cancelled, no problem" says it); after the guest's own cancel it keeps the line.
+    await q(
+      `update request set status = 'cancelled', cancelled_by = 'jon', cancelled_at = now() where id = $1`,
+      [id],
+    );
+    expect(await loadNewDateModel(pick)).toMatchObject({
+      kind: 'current',
+      label: JON_CANCELLED_LABEL,
+      message: '',
+    });
+    await q(`update request set cancelled_by = 'guest' where id = $1`, [id]);
+    expect(await loadNewDateModel(pick)).toMatchObject({ kind: 'current', message: ALREADY.cancelled });
   });
 });
 

@@ -11,7 +11,7 @@ import { EMAIL_COPY, type TemplateId } from '@/content/emails';
 const ROOT = path.resolve(__dirname, '../..');
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]!);
 const ALLOWED: Record<TemplateId, string[]> = {
-  E1: ['dish', 'times'],
+  E1: ['dish', 'times', 'manageLink'],
   E2: ['dish', 'name', 'summary', 'adminLink'],
   E3: ['name', 'dish', 'adminLink'],
   E4: ['dish', 'day', 'when', 'manageLink'],
@@ -20,7 +20,7 @@ const ALLOWED: Record<TemplateId, string[]> = {
   E5b: ['dish', 'openTimes', 'takeLink'],
   E5j: ['dish'],
   E6: ['week'],
-  E7: ['weekday', 'when', 'takeLink'],
+  E7: ['weekday', 'when', 'until', 'takeLink'],
   E8: ['length', 'manageLink'],
   E9: ['menuLink'],
   E10: ['pickLink'],
@@ -29,7 +29,7 @@ const ALLOWED: Record<TemplateId, string[]> = {
   E13: ['count', 'lines', 'adminLink'],
   E14: ['adminLink'],
   E16: ['dish', 'name', 'adminLink'],
-  E17: [],
+  E17: ['manageLink'],
 };
 const BANNED = /note|plan|seal|surprise|phone|story|stories|before60/i;
 

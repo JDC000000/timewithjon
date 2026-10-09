@@ -133,19 +133,21 @@ export async function lockRequestRow(c: PoolClient, requestId: string): Promise<
 }
 
 /** E4 vars: the time as the site writes it (QA C, with the guest's own zone) and a manage link minted when the
- * email is sent (T2.3.05). */
+ * email is sent (T2.3.05). `placeKnown` (a joined guest, or Jon set the place): E4 drops "You pick the place" (Q1). */
 export function lockedEmailVars(
   dishSlug: string,
   startsAt: Date,
   endsAt: Date,
   timeZone: string | null,
   requestId: string,
+  placeKnown = false,
 ): Record<string, EmailVar> {
   return {
     dish: dishName(dishSlug),
     day: dayLabel(startsAt),
     when: guestWhen(startsAt, endsAt, timeZone),
     manageLink: manageLink(requestId),
+    ...(placeKnown ? { placeKnown: 1 } : {}),
   };
 }
 
@@ -288,7 +290,7 @@ export async function applyLock(
         to: r.contact_email,
         requestId: i.requestId,
         eventKey: audit!.id,
-        vars: lockedEmailVars(r.dish, range.startsAt, range.endsAt, r.guest_time_zone, i.requestId),
+        vars: lockedEmailVars(r.dish, range.startsAt, range.endsAt, r.guest_time_zone, i.requestId, !!where),
       }),
     ),
   );

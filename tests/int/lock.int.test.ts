@@ -538,12 +538,19 @@ describe('calendar outbox (T2.3.02, T2.3.08, T2.3.09)', () => {
       }),
     ).toMatchObject({ ok: true });
     const event = insert.mock.calls[0]![0];
+    // Q2 (approved: Jon 2026-10-09): the guest is on the event, so it reads as theirs: "{Dish} with Jon", only the place.
     expect(event).toMatchObject({
       requestId: id,
-      summary: 'The Long Lunch: Dave',
-      description: 'Crew: 3\nWhere: The pier',
+      summary: 'The Long Lunch with Jon',
+      description: 'Where: The pier',
     });
     expect(JSON.stringify(event)).not.toMatch(/CANARY|555-0100/);
+    // Q1: Jon set the place, so E4 drops "You pick the place".
+    const [e4] = await q<{ vars: Record<string, unknown> }>(
+      `select vars from email_log where request_id = $1 and template = 'E4'`,
+      [id],
+    );
+    expect(e4!.vars.placeKnown).toBe(1);
     insert.mockRestore();
   });
 

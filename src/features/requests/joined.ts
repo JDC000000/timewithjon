@@ -124,7 +124,14 @@ async function joinTx(c: PoolClient, requestId: string, hostId: string, now: Dat
         to: r.contact_email,
         requestId,
         eventKey: audit!.id,
-        vars: lockedEmailVars(r.dish, h.locked_starts_at!, h.locked_ends_at!, r.guest_time_zone, requestId),
+        vars: lockedEmailVars(
+          r.dish,
+          h.locked_starts_at!,
+          h.locked_ends_at!,
+          r.guest_time_zone,
+          requestId,
+          true,
+        ), // Q1: they don't pick the place
       }),
     ),
   );
@@ -228,7 +235,7 @@ async function promoteTx(
       eventKey: locked.auditId,
       now,
       extendLinksTo: endsAt,
-      vars: (j) => lockedEmailVars(j.dish, startsAt, endsAt, j.guest_time_zone, j.id),
+      vars: (j) => lockedEmailVars(j.dish, startsAt, endsAt, j.guest_time_zone, j.id, true), // Q1: joined
     })),
   );
   return locked;

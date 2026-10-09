@@ -1,7 +1,7 @@
 // QA C (M7): every time a guest reads (emails, /manage, /offer) is written the way the site writes it: the picker's
 // "Fri May 14 · noon–2 pm" (an evening is its start, "7 pm"), Vancouver time; a guest in another zone also gets theirs.
 import { describe, expect, it } from 'vitest';
-import { guestWhen } from '@/lib/when';
+import { guestAt, guestWhen } from '@/lib/when';
 import { vancouverInstant } from '@/lib/time';
 
 const at = (date: string, time: string) => vancouverInstant(date, time);
@@ -14,7 +14,7 @@ describe('guestWhen (QA C)', () => {
     expect(guestWhen(...evening, null)).toBe('Fri Apr 16 · 7 pm Vancouver time');
   });
 
-  it('a locked date-based range reads as its hours; a whole day as its start', () => {
+  it('a locked date-based range reads as its hours; one into another day as its start AND end (Q11)', () => {
     expect(guestWhen(at('2027-04-03', '09:00'), at('2027-04-03', '13:00'), null)).toBe(
       'Sat Apr 3 · 9 am–1 pm Vancouver time',
     );
@@ -22,7 +22,21 @@ describe('guestWhen (QA C)', () => {
       'Sat Apr 3 · 9–11:30 am Vancouver time',
     );
     expect(guestWhen(at('2027-04-03', '08:00'), at('2027-04-04', '08:00'), null)).toBe(
-      'Sat Apr 3 · 8 am Vancouver time',
+      'Sat Apr 3 · 8 am to Sun 8 am Vancouver time',
+    );
+    // An overnight in another zone: theirs runs to their own end day too.
+    expect(guestWhen(at('2027-06-24', '15:00'), at('2027-06-25', '11:00'), 'America/Toronto')).toBe(
+      'Thu Jun 24 · 3 pm to Fri 11 am Vancouver time (6 pm to Fri 2 pm your time)',
+    );
+  });
+
+  it('guestAt: one moment (E7’s deadline, Q4), Vancouver time, and theirs when it differs', () => {
+    expect(guestAt(at('2027-04-03', '09:00'), null)).toBe('Sat Apr 3 · 9 am Vancouver time');
+    expect(guestAt(at('2027-04-03', '09:00'), 'America/Toronto')).toBe(
+      'Sat Apr 3 · 9 am Vancouver time (noon your time)',
+    );
+    expect(guestAt(at('2027-04-03', '20:00'), 'Europe/London')).toBe(
+      'Sat Apr 3 · 8 pm Vancouver time (Sun Apr 4 · 4 am your time)',
     );
   });
 
