@@ -1,0 +1,9 @@
+{
+  "id": "no-site-icons",
+  "date": "2026-10-09",
+  "task": "UX-A11Y",
+  "area": "guest",
+  "summary": "No favicon, app icon or og:image: /favicon.ico answered 404 on every page (a console error in Lighthouse) and a shared link had no picture.",
+  "fix": "The approved “J” mark and the “Time with Jon” share image as App Router files (favicon.ico, icon.svg, apple-icon.png, opengraph-image.png + alt); the layout's metadataBase is the site's own origin (getSiteUrl, NEXT_PUBLIC_SITE_URL alone) so og:image is absolute.",
+  "tests": ["tests/unit/site-icons.test.ts", "tests/e2e/ui/site-icons.spec.ts"]
+}

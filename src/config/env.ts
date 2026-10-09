@@ -221,6 +221,19 @@ export function getAppMode(): AppMode {
   return z.enum(APP_MODES).parse(process.env.APP_MODE);
 }
 
+/**
+ * NEXT_PUBLIC_SITE_URL on its own (UX-05: the root layout's metadataBase, so og:image is absolute), with the same rule
+ * as the schema. Like getAppMode it must not need the rest of the env (the layout renders every page); a build made
+ * with only APP_MODE set gets no metadataBase rather than an error.
+ */
+export function getSiteUrl(): URL | undefined {
+  const parsed = z
+    .url()
+    .refine((url) => !url.endsWith('/'))
+    .safeParse(process.env.NEXT_PUBLIC_SITE_URL);
+  return parsed.success ? new URL(parsed.data) : undefined;
+}
+
 /** `next dev` (T4.1.05: the CSP adds 'unsafe-eval' there for React's dev build only). */
 export function isDevServer(): boolean {
   return process.env.NODE_ENV === 'development';
