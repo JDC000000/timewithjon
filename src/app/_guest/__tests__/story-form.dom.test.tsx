@@ -255,4 +255,22 @@ describe('PhotoPicker (per-photo tiles, copy approved by Jon decision 49)', () =
     unmount();
     expect(calls[0]!.init.signal?.aborted).toBe(true);
   });
+
+  it('QA4 L10: the "add a line or a photo" line goes once a photo is added', async () => {
+    const { user, send } = setup();
+    await user.click(send());
+    expect(screen.getByText(STORY_FORM.empty).hidden).toBe(false);
+    await user.upload(addControl(), photo());
+    expect(screen.getByText(STORY_FORM.empty).hidden).toBe(true);
+    expect(story().hasAttribute('aria-invalid')).toBe(false);
+  });
+});
+
+describe('StoryForm name box (QA4 L9)', () => {
+  it('drops bidi controls as typed (an override would flip the name in admin); emoji joiners stay', async () => {
+    const { user } = setup({ endpoint: '/api/story-page', storyPage: { askName: true } });
+    const name = screen.getByRole('textbox', { name: STORY_FORM.nameLabel });
+    await user.type(name, 'Sam \u202eRTL\u2066 \u{1F468}\u200D\u{1F469}');
+    expect((name as HTMLInputElement).value).toBe('Sam RTL \u{1F468}\u200D\u{1F469}');
+  });
 });

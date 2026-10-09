@@ -19,6 +19,7 @@ import {
   saveStoryPageStory,
   storyPageStoryByKey,
 } from '@/features/photos/story-page';
+import { hasBidiControl } from '@/lib/bidi';
 import { isHoneypotFilled, honeypotField } from '@/lib/honeypot';
 import { clientIp, jsonError, noStore, sameOrigin } from '@/lib/http';
 import { hit, limitByIp } from '@/lib/ratelimit';
@@ -28,7 +29,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const Body = z.object({
-  name: singleLine(80).min(1).optional(),
+  // QA4 L9: no bidi overrides in a name Jon reads in admin (as invite names); the form drops them as typed.
+  name: singleLine(80)
+    .min(1)
+    .refine((n) => !hasBidiControl(n), 'bad_character')
+    .optional(),
   body: z.string().trim().max(5000).optional(),
   consent: z.boolean().default(false),
   before60Answer: z.string().trim().max(2000).optional(),

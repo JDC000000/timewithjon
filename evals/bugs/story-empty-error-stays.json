@@ -1,0 +1,9 @@
+{
+  "id": "story-empty-error-stays",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "guest",
+  "summary": "The story form’s “Add a line or a photo first, or skip it.” stayed on screen after a photo was added.",
+  "fix": "Adding a photo clears it, as typing a line does.",
+  "tests": ["src/app/_guest/__tests__/story-form.dom.test.tsx"]
+}
