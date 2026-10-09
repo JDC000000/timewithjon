@@ -93,7 +93,6 @@ const JONS_OWN = [
   'long-distance',
   'old-haunt',
   'catch-release',
-  'bluebird',
   'surprise-me',
   'pitch-me',
 ];
@@ -158,5 +157,7 @@ describe('public/ images (pr89 F3)', () => {
       for (const w of photo.w)
         expect(ALLOWED[`${PHOTO_DIR.slice(1)}/${photo.file}-${w}.webp`], slot).toBeDefined();
     }
+    // and the other way: JONS_OWN names only slots that exist (a removed dish leaves no stale name behind)
+    expect(JONS_OWN.filter((slot) => !Object.hasOwn(PHOTO_SLOTS, slot))).toEqual([]);
   });
 });

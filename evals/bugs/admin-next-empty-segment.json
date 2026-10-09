@@ -1,0 +1,9 @@
+{
+  "id": "admin-next-empty-segment",
+  "date": "2026-10-09",
+  "task": "EML-11",
+  "area": "admin",
+  "summary": "The page to return to after sign-in accepted an admin path with an empty segment or an encoded slash (\"/admin//sign-in\"), which the checks for the sign-in and auth pages didn't see as those pages.",
+  "fix": "safeAdminNext refuses any path with \"//\" or an encoded slash or backslash.",
+  "tests": ["src/features/admin/__tests__/next-path.test.ts"]
+}

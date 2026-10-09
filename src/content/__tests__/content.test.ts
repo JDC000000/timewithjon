@@ -24,17 +24,61 @@ const DATA_KEYS = new Set([
   'availableUntil',
   'JON_FACING',
 ]);
-function strings(v: unknown, out: string[] = []): string[] {
+/**
+ * The arguments every copy function is called with, so each branch is read: no argument, 0, 1 and 2 (singular and
+ * plural), two words, and a list (the "our things" lines). An argument set a function can't take is skipped.
+ */
+const ARG_SETS: unknown[][] = [[], [0], [1], [2], [5], ['X', 'Y'], ['X', 2], [2, 'X'], [['X', 'Y']], [{}]];
+/** Copy functions none of ARG_SETS could call: listed by the coverage test, so no function is silently unscanned. */
+const UNCALLED: string[] = [];
+function strings(v: unknown, out: string[] = [], at = ''): string[] {
   if (typeof v === 'string') out.push(v);
   else if (typeof v === 'function') {
-    const fn = v as (...a: unknown[]) => string;
-    out.push(String(fn.length === 1 && fn.toString().includes('things') ? fn(['X', 'Y']) : fn('X', 'Y')));
+    const fn = v as (...a: unknown[]) => unknown;
+    let called = false;
+    for (const args of ARG_SETS) {
+      try {
+        const got = fn(...args);
+        if (typeof got === 'string') {
+          out.push(got);
+          called = true;
+        } else if (got && typeof got === 'object') {
+          strings(got, out, at);
+          called = true;
+        }
+      } catch {
+        // this argument set doesn't fit: the others cover the function
+      }
+    }
+    if (!called) UNCALLED.push(at);
   } else if (v && typeof v === 'object')
     Object.entries(v).forEach(([k, x]) => {
-      if (!DATA_KEYS.has(k)) strings(x, out);
+      if (!DATA_KEYS.has(k)) strings(x, out, at ? `${at}.${k}` : k);
     });
   return out;
 }
+/**
+ * Every copy module under src/content, not only what the index re-exports (ui/foundation, ui/tag, content/manage and
+ * the admin modules are imported directly by their pages), so a module added later is scanned too. menu-helpers
+ * holds functions over dishes, not copy; types holds none.
+ */
+declare global {
+  // Vitest (Vite) expands import.meta.glob at load time; the repo doesn't carry Vite's client types.
+  interface ImportMeta {
+    glob<T>(patterns: string | string[], options: { eager: true }): Record<string, T>;
+  }
+}
+const MODULES = import.meta.glob<Record<string, unknown>>(
+  ['../**/*.ts', '!../**/__tests__/**', '!../types.ts', '!../index.ts', '!../menu-helpers.ts'],
+  { eager: true },
+);
+const MODULE_LINES = Object.entries(MODULES).flatMap(([file, mod]) =>
+  strings(
+    Object.fromEntries(Object.entries(mod).filter(([k]) => k !== 'INVITE_TEXT')),
+    [],
+    file.replace(/^\.\.\//, ''),
+  ),
+);
 // The Supabase sign-in email template (AD-7, v1.10) is guest-invisible but still Time with Jon copy.
 const SIGN_IN_TEMPLATE = readFileSync(
   path.resolve(__dirname, '../../../supabase/templates/admin-sign-in.html'),
@@ -45,7 +89,8 @@ const SUPABASE_CONFIG = readFileSync(path.resolve(__dirname, '../../../supabase/
 const SIGN_IN_WORDS = SIGN_IN_TEMPLATE.replace(/<!--[\s\S]*?-->/g, '')
   .replace(/<[^>]+>/g, ' ')
   .replace(/&rsquo;/g, '’');
-const ALL = [...strings(content), SIGN_IN_WORDS];
+// Deduplicated: a line both re-exported by the index and read from its own module counts once.
+const ALL = [...new Set([...strings(content), ...MODULE_LINES, SIGN_IN_WORDS])];
 // Everything except the invite-text module (by export, not by value: the same sentence elsewhere must fail).
 const notInviteText = Object.fromEntries(Object.entries(content).filter(([k]) => k !== 'INVITE_TEXT'));
 const ALL_BUT_INVITE_TEXT = [...strings(notInviteText), SIGN_IN_WORDS];
@@ -54,7 +99,19 @@ const NON_HERO = ALL.filter(
     s !== HERO_BODY && s !== OPEN_LINE && !/^We keep saying we should do .+ or that epic trip\.$/.test(s),
 );
 /** Jon's own sign-off (2026-10-05) keeps his "!": the only exemption, for that exact line only. */
-const exempt = (re: RegExp, s: string) => re.source === '!' && s === content.STORY_BLOCK.signOff;
+/**
+ * The named exemptions, each for exact lines only:
+ * - Jon's own sign-off (2026-10-05) keeps his "!";
+ * - "St. John’s" is a city in the Long Distance time-zone list, not a misspelt Jon;
+ * - "reconnect" in Jon's admin lines about Google means reconnecting the calendar account, not the guest-copy cliché.
+ */
+const exempt = (re: RegExp, s: string) =>
+  (re.source === '!' && s === content.STORY_BLOCK.signOff) ||
+  (re.source === '\\bjohn\\b' && s === 'St. John’s (Newfoundland)') ||
+  (re.source === '\\breconnect' && /\bGoogle\b/.test(s));
+/** The banned-word hits in a list of lines (the exemptions above applied). */
+const bannedHits = (lines: readonly string[]) =>
+  lines.flatMap((s) => BANNED.filter((re) => re.test(s) && !exempt(re, s)).map((re) => `${re} :: ${s}`));
 const BANNED = [
   /\bjohn\b/i,
   /—/,
@@ -130,10 +187,34 @@ describe('T0.3 content', () => {
     expect(SUPABASE_CONFIG).toMatch(/^otp_expiry = 900$/m);
   });
   it('AC1 no banned words, em-dashes, "decline", "John" or Calendly words', () => {
-    const hits = ALL.flatMap((s) =>
-      BANNED.filter((re) => re.test(s) && !exempt(re, s)).map((re) => `${re} :: ${s}`),
+    expect(bannedHits(ALL)).toEqual([]);
+  });
+  it('AC1 the scan reads every copy module, each copy function, and every branch of it', () => {
+    const files = Object.keys(MODULES).map((f) => f.replace(/^\.\.\//, ''));
+    expect(files).toEqual(
+      expect.arrayContaining([
+        'ui/foundation.ts',
+        'ui/tag.ts',
+        'manage.ts',
+        'ui/admin-requests.ts',
+        'ui/admin-season.ts',
+        'ui/booking.ts',
+        'ui/landing.ts',
+      ]),
     );
-    expect(hits).toEqual([]);
+    expect(UNCALLED).toEqual([]); // every copy function was read with at least one argument set
+  });
+  it('self-test: a banned word planted in a directly imported module, or in a plural branch only, goes red', () => {
+    const foundation = MODULES['../ui/foundation.ts']!;
+    const planted = {
+      ...foundation,
+      SLIDESHOW: { ...(foundation.SLIDESHOW as object), pause: 'Pause the schedule' },
+    };
+    expect(bannedHits(strings(planted))).toEqual(['/\\bschedul/i :: Pause the schedule']);
+    const plural = { count: (n: number) => (n === 1 ? 'One date' : `${n} slots`) };
+    expect(bannedHits(strings(plural)).length).toBeGreaterThan(0);
+    expect(bannedHits(['St. John’s (Newfoundland)', 'Reconnect Google'])).toEqual([]); // the exemptions, exactly
+    expect(bannedHits(['John’s place', 'Reconnect with old friends']).length).toBe(2);
   });
   it('AC1 the one "!" is Jon’s own sign-off, word for word (approved 2026-10-05), and nothing else has one', () => {
     expect(content.STORY_BLOCK.signOff).toBe('As always, looking forward to whatever is next! - Jon');

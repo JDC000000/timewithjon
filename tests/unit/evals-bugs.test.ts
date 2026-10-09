@@ -25,6 +25,39 @@ function testPaths(entry: Entry): unknown[] {
   );
 }
 
+/** Each named test file with its "(case)" note, if any: "tests/int/manage.int.test.ts (B001)" -> B001. */
+function namedTests(entry: Entry): { file: string; tag: string | null }[] {
+  const raw = entry.tests ?? entry.test;
+  return (Array.isArray(raw) ? raw : [raw])
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) => {
+      const m = /^(.*?)(?: \((.*)\))?$/.exec(t)!;
+      return { file: m[1]!, tag: m[2] ?? null };
+    });
+}
+
+/** The named files that never mention the entry (its id, or its "(case)" note): a test that doesn't say what it guards. */
+function unmentioned(
+  entry: Entry,
+  read: (file: string) => string = (f) => readFileSync(path.join(ROOT, f), 'utf8'),
+  exists: (file: string) => boolean = (f) => existsSync(path.join(ROOT, f)),
+): string[] {
+  return namedTests(entry)
+    .filter(({ file }) => exists(file))
+    .filter(({ file, tag }) => {
+      const text = read(file);
+      return !text.includes(entry.id) && !(tag && text.includes(tag));
+    })
+    .map(({ file }) => file);
+}
+
+/**
+ * Entries dated before this day predate the rule that each named test file mentions its bug, and are let off it
+ * (many name a whole file without saying which case guards them). Every entry from this day on must follow it.
+ */
+const RULE_FROM = '2026-10-10';
+const followsRule = (entry: Entry) => String(entry.date) >= RULE_FROM;
+
 describe('evals/bugs: the regression register', () => {
   it('has one .json file per bug and nothing else', () => {
     expect(files.filter((f) => !f.endsWith('.json'))).toEqual([]);
@@ -61,5 +94,28 @@ describe('evals/bugs: the regression register', () => {
         .map((p) => `${entry.id}: ${p}`);
     });
     expect(missing).toEqual([]);
+  });
+
+  it(`every entry from ${RULE_FROM} on is named in each of its test files (its id, or its "(case)" note)`, () => {
+    const silent = entries
+      .filter(({ entry }) => followsRule(entry))
+      .flatMap(({ entry }) => unmentioned(entry).map((f) => `${entry.id}: ${f}`));
+    expect(silent).toEqual([]);
+  });
+
+  it('the rule applies by date: from its first day on, not before', () => {
+    expect(followsRule({ id: 'a', date: '2026-10-10' } as unknown as Entry)).toBe(true);
+    expect(followsRule({ id: 'b', date: '2026-11-02' } as unknown as Entry)).toBe(true);
+    expect(followsRule({ id: 'c', date: '2026-10-09' } as unknown as Entry)).toBe(false);
+  });
+
+  it('self-test: a file that names the entry, or its case note, passes; one that names neither fails', () => {
+    const entry = { id: 'x-bug', tests: ['a.ts', 'b.ts (case 7)'] } as unknown as Entry;
+    const files: Record<string, string> = { 'a.ts': '// guards x-bug', 'b.ts': "it('case 7', ...)" };
+    const read = (f: string) => files[f] ?? '';
+    const named = (e: Entry) => unmentioned(e, read, (f) => f in files);
+    expect(named(entry)).toEqual([]);
+    files['a.ts'] = '// says nothing';
+    expect(named(entry)).toEqual(['a.ts']);
   });
 });

@@ -2,6 +2,7 @@
 // server's out_of_season check uses. "Today" used to come from
 // toLocaleDateString('en-CA', { timeZone: 'America/Vancouver' }) and was string-sorted against engine dates, so it
 // depended on CLDR keeping en-CA's short date as YYYY-MM-DD. It now comes from Intl's numeric parts in TZ.
+// Regression register: evals/bugs/manage-today-from-locale-string.json
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeekOut } from '@/features/availability/types';
 import { seasonOf } from '../_lib/season';

@@ -21,6 +21,9 @@ export function safeAdminNext(raw: unknown): string | null {
   }
   if (url.origin !== ORIGIN) return null;
   const path = url.pathname;
+  // An empty segment ("/admin//sign-in") or an encoded slash or backslash names a page the checks below can't see
+  // as what it is (a server or browser may fold it into the sign-in or auth page): never followed.
+  if (path.includes('//') || /%(2f|5c)/i.test(path)) return null;
   if (path !== '/admin' && !path.startsWith('/admin/')) return null;
   if (path === SIGN_IN || path.startsWith(`${SIGN_IN}/`) || path.startsWith('/admin/auth')) return null;
   return `${path}${url.search}`;

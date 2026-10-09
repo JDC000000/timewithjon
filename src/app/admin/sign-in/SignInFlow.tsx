@@ -65,12 +65,19 @@ export function SignInFlow({ siteKey, notice }: { siteKey?: string; notice: stri
   return (
     <>
       {step === 'email' ? (
-        <EmailStep initialEmail={email} takeToken={takeToken} onSent={toCodeStep} notice={notice} />
+        <EmailStep
+          initialEmail={email}
+          takeToken={takeToken}
+          onSent={toCodeStep}
+          notice={notice}
+          next={next}
+        />
       ) : (
         <CodeStep
           email={email}
           takeToken={takeToken}
           notice={notice}
+          next={next}
           onSignedIn={() => {
             saveEmail(null);
             router.replace(next ?? '/admin');
@@ -90,11 +97,13 @@ function EmailStep({
   takeToken,
   onSent,
   notice,
+  next,
 }: {
   initialEmail: string;
   takeToken: () => Promise<string | undefined>;
   onSent: (email: string) => void;
   notice: string | null;
+  next: string | null;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const [value, setValue] = useState(initialEmail);
@@ -116,7 +125,7 @@ function EmailStep({
     }
     setProblems([]);
     setBusy(true);
-    const res = await requestCode(value, await takeToken());
+    const res = await requestCode(value, await takeToken(), undefined, next);
     setBusy(false);
     if (res.ok) return onSent(value.trim());
     setProblems([{ message: res.message }]);
@@ -160,11 +169,13 @@ function CodeStep({
   email,
   takeToken,
   notice,
+  next,
   onSignedIn,
 }: {
   email: string;
   takeToken: () => Promise<string | undefined>;
   notice: string | null;
+  next: string | null;
   onSignedIn: () => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
@@ -204,7 +215,7 @@ function CodeStep({
     setCode('');
     setFieldError(null);
     setProblems([]);
-    const res = await requestCode(email, await takeToken());
+    const res = await requestCode(email, await takeToken(), undefined, next);
     setResending(false);
     if (res.ok) announce(SIGN_IN.onTheirWay(email));
     else fail({ message: res.message }, false);

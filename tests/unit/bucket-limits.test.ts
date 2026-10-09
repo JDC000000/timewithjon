@@ -1,6 +1,7 @@
 // The Storage bucket settings live in ops/bucket-limits.ts (pinned on hosted projects by ops/pin-bucket-limits.ts)
 // and in supabase/config.toml (the local stack). This keeps both equal to each other and to the app's own limits,
 // and keeps sign-ups off in the local auth config.
+// Regression register: evals/bugs/exports-bucket-too-small.json
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';

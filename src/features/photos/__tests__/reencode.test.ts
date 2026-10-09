@@ -1,5 +1,6 @@
 // T3.6.03/.08 (AC2): every stored photo is a clean JPEG: no EXIF, no GPS; HEIC and PNG are converted;
 // orientation is baked in; C-5 caps the long edge at 3000 px.
+// Regression register: evals/bugs/photo-decodes-uncapped.json
 import { crc32, deflateSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';

@@ -1,0 +1,13 @@
+{
+  "id": "signin-link-drops-next",
+  "date": "2026-10-09",
+  "task": "EML-11",
+  "area": "admin",
+  "summary": "After \"Open the request\" while signed out, only the typed code returned to that request; the emailed sign-in link always landed on the inbox.",
+  "fix": "Asking for the email also sends the page to return to; the start route keeps it (when it is a safe admin page) in a 15-minute cookie for that browser, and the link's \"Sign me in\" returns there once. Opened in another browser, the link lands on the inbox as before.",
+  "tests": [
+    "src/app/admin/sign-in/SignInNext.dom.test.tsx",
+    "tests/int/admin-signin.int.test.ts",
+    "tests/int/admin-verify.int.test.ts"
+  ]
+}

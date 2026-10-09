@@ -1,15 +1,17 @@
 // src/app/api/admin/auth/confirm/route.ts — T2.1.U1 (V5): the A1c "Sign me in" POST, the ONLY place the emailed
 // link's token_hash is spent. Keeps every T2.1.04 guarantee of the old GET callback: exactly one well-formed token
 // hash, verifyOtp type 'email' only (Supabase consumes it: one use; a replay fails cleanly), the allowlist re-check
-// (401 for a verified user who isn't the admin), a fixed /admin redirect (no open redirect), no-store, and nothing
-// token-related in logs or Sentry. New: same-origin only, plus the interstitial's CSRF token for this exact link
-// (login-CSRF and link scanners can't sign anyone in), and the same per-IP limit as the code route.
+// (401 for a verified user who isn't the admin), an /admin-only redirect (the inbox, or the admin page this browser
+// asked to return to when it requested the email, EML-11, re-checked by next-path.ts: no open redirect), no-store,
+// and nothing token-related in logs or Sentry. New: same-origin only, plus the interstitial's CSRF token for this
+// exact link (login-CSRF and link scanners can't sign anyone in), and the same per-IP limit as the code route.
 // Security-relevant: see the PR body.
 import { NextResponse, type NextRequest } from 'next/server';
 import { getEnv } from '@/config/env';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
 import { setKnownDevice } from '@/features/admin/known-device';
+import { clearNext, keptNext, NEXT_COOKIE } from '@/features/admin/next-cookie';
 import { completeSignIn } from '@/features/admin/verify';
 import { clientIp, jsonError, noStore, readBytesAtMost, sameOrigin } from '@/lib/http';
 import { check } from '@/lib/ratelimit';
@@ -73,7 +75,9 @@ export async function POST(req: NextRequest) {
     return noStore(jsonError(401, 'unauthorized', ERRORS.generic));
   }
   if (!result.ok) return see(SIGN_IN_FAILED);
-  const res = see(ADMIN_HOME);
+  // EML-11: back to the page the sign-in started from, when this browser kept one (else the inbox); used once.
+  const res = see(keptNext(req.cookies.get(NEXT_COOKIE)?.value) ?? ADMIN_HOME);
+  clearNext(res);
   setKnownDevice(res, result.email); // the link signed in: this browser is now the admin's known device
   return res;
 }

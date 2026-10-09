@@ -40,8 +40,15 @@ export async function requestCode(
   email: string,
   turnstileToken: string | undefined,
   post: Send = send,
+  next: string | null = null,
 ): Promise<StartOutcome> {
-  const res = await post('POST', '/api/admin/auth/start', { email: email.trim(), turnstileToken });
+  // EML-11: the admin page to come back to also rides with the emailed link (the start route keeps it for this
+  // browser); the typed code already returns there from this tab.
+  const res = await post('POST', '/api/admin/auth/start', {
+    email: email.trim(),
+    turnstileToken,
+    ...(next ? { next } : {}),
+  });
   if (res.status === 200) return { ok: true };
   if (res.status === 400 && res.code === 'bot_check') return { ok: false, message: ERRORS.botCheck };
   if (res.status === 429) return { ok: false, message: ERRORS.rateLimited };

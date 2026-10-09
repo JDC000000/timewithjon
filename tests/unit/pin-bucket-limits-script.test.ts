@@ -1,5 +1,6 @@
 // ops/pin-bucket-limits.ts against a stand-in Storage API: a dry run reads and changes nothing, --apply sets every
 // differing bucket to ops/bucket-limits.ts and reads it back, and a bucket that still differs exits 1.
+// Regression register: evals/bugs/exports-bucket-too-small.json
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BUCKET_LIMITS } from '../../ops/bucket-limits';
 

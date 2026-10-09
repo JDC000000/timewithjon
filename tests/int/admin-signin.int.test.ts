@@ -1,5 +1,6 @@
 // T2.1.03/07/08/09 (TSD T2.1 AC1, AC7, AC8, AC9): the sign-in door, against the real test DB. Supabase is mocked,
 // so nothing is ever sent. `after()` is captured, so a test can check the answer came before the work ran.
+// Regression register: evals/bugs/signin-link-drops-next.json
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
@@ -42,12 +43,12 @@ async function setSentCount(n: number) {
     [n],
   );
 }
-const start = (email: string, turnstileToken = 'ok', origin = SITE) =>
+const start = (email: string, turnstileToken = 'ok', origin = SITE, next?: string) =>
   POST(
     new NextRequest(`${SITE}/api/admin/auth/start`, {
       method: 'POST',
       headers: { origin, 'content-type': 'application/json' },
-      body: JSON.stringify({ email, turnstileToken }),
+      body: JSON.stringify({ email, turnstileToken, ...(next === undefined ? {} : { next }) }),
     }),
   );
 async function runPending() {
@@ -181,6 +182,27 @@ describe('POST /api/admin/auth/start (T2.1.03, T2.1.08)', () => {
     expect(pending).toHaveLength(0);
     expect(otp).not.toHaveBeenCalled();
   });
+
+  it('EML-11: a safe admin page to return to is kept for the emailed link, for every address alike', async () => {
+    const page = '/admin/requests/11111111-1111-4111-8111-111111111111';
+    for (const email of [ADMIN, 'stranger@example.com']) {
+      const cookie = (await start(email, 'ok', SITE, page)).headers.get('set-cookie') ?? '';
+      expect(cookie).toContain(`twj_admin_next=${encodeURIComponent(page)}`);
+      expect(cookie).toMatch(/HttpOnly/i);
+      expect(cookie).toMatch(/SameSite=strict/i);
+      expect(cookie).toMatch(/Path=\/api\/admin\/auth/i);
+      expect(cookie).toMatch(/Max-Age=900/i);
+    }
+  });
+
+  it.each(['//evil.example', '/admin//sign-in', '/menu', '/admin'])(
+    'EML-11: next=%s is not kept (any kept page is cleared)',
+    async (next) => {
+      const cookie = (await start(ADMIN, 'ok', SITE, next)).headers.get('set-cookie') ?? '';
+      expect(cookie).toMatch(/twj_admin_next=;/);
+      expect(cookie).toMatch(/Max-Age=0/i);
+    },
+  );
 
   it('refuses a foreign Origin (403) and a malformed body (400) before any work', async () => {
     expect((await start(ADMIN, 'ok', 'https://evil.example')).status).toBe(403);

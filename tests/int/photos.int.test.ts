@@ -1,5 +1,6 @@
 // T3.6.02–.08 against the real schema with the in-memory bucket: sign (2 per story, AC4), finalise (AC2, AC6,
 // idempotent), the media job's R2 copy + attachment_finalise, the incoming purge (AC7), admin thumbnails.
+// Regression register: evals/bugs/photo-decodes-uncapped.json
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { pool, q, withTx } from '@/lib/db';
