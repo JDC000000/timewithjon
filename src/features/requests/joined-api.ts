@@ -37,6 +37,12 @@ async function admit<S extends z.ZodType>(
 function answer(res: JoinResult): Response {
   if (res.ok) return noStore(NextResponse.json({ ok: true, warnings: res.warnings }));
   if (res.status === 404) return noStore(jsonError(404, res.reason, ERRORS.generic));
+  // A promote refused for a full week says which booking of the week it would be, for its Override tick (as the
+  // lock sheet's pre-check does).
+  if ('nth' in res && res.nth)
+    return noStore(
+      NextResponse.json({ ok: false, code: res.reason, message: res.message, nth: res.nth }, { status: 409 }),
+    );
   return noStore(jsonError(409, res.reason, res.message));
 }
 

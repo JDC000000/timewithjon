@@ -9,6 +9,8 @@ export interface ApiAnswer<T = Record<string, unknown>> {
   code?: string;
   /** The route's own words for a refusal (e.g. REFUSAL_MESSAGE on a 409), when it sends any. */
   message?: string;
+  /** A full-week refusal: which booking of the week it would be ("Override this week: it would be the 3rd"). */
+  nth?: number;
   data?: T;
 }
 
@@ -38,7 +40,12 @@ export const send: Send = async <T>(
     const json = (await res.json().catch(() => null)) as
       ({ ok?: boolean; code?: string; message?: string } & Record<string, unknown>) | null;
     if (res.ok) return { status: res.status, data: (json ?? {}) as T };
-    return { status: res.status, code: json?.code, message: json?.message };
+    return {
+      status: res.status,
+      code: json?.code,
+      message: json?.message,
+      ...(typeof json?.nth === 'number' ? { nth: json.nth } : {}),
+    };
   } catch {
     return { status: 0 };
   }

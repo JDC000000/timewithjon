@@ -1,0 +1,9 @@
+{
+  "id": "orphan-suggest-refused",
+  "date": "2026-10-09",
+  "task": "QA5-N-M2",
+  "area": "requests/offers",
+  "summary": "After a host cancelled, Suggest another time (and Move to stand-by) for the guest who had joined them answered not_allowed, though the guest was back in Needs a reply.",
+  "fix": "A guest whose host has gone can be offered times or stand-by like anyone; doing so detaches them from the old host. A guest still riding a live host is refused as before.",
+  "tests": ["tests/int/joined.int.test.ts"]
+}

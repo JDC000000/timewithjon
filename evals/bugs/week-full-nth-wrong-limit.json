@@ -1,0 +1,9 @@
+{
+  "id": "week-full-nth-wrong-limit",
+  "date": "2026-10-09",
+  "task": "make host",
+  "area": "availability",
+  "summary": "'Override this week: it would be the Nth' counted the week's cap even when the dish's own one-a-week had refused (e.g. 'the 1st' for a second Something New).",
+  "fix": "canLock says which limit refused; the Nth is counted by that limit (the lock pre-check, the lock and Make host).",
+  "tests": ["src/features/availability/__tests__/canLock.test.ts"]
+}
