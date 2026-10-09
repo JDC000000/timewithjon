@@ -48,6 +48,7 @@ export const FIELD_IDS = {
   night: 'f-night',
   name: 'f-name',
   email: 'f-email',
+  crew: 'f-crew',
 } as const;
 
 /** The same everyday shape the server's zod email check asks for: something@something.tld, no spaces. */

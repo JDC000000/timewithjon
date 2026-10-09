@@ -1,5 +1,5 @@
 // src/lib/requests/validate.ts — T1.7 server re-check of a request against the dish and the engine. Pure.
-import { isBookable } from '@/content/menu-helpers';
+import { crewRange, isBookable } from '@/content/menu-helpers';
 import type { Dish } from '@/content/types';
 import { dateRuleAllows } from '@/features/availability/rules';
 import type { CountsToward, EngineOutput } from '@/features/availability/types';
@@ -19,7 +19,8 @@ export type ValidationCode =
   | 'date_not_allowed'
   | 'overnight_not_allowed'
   | 'night_without_overnight'
-  | 'bad_time_zone';
+  | 'bad_time_zone'
+  | 'crew_out_of_range';
 export type Validated =
   | {
       ok: true;
@@ -58,6 +59,9 @@ export function validateRequest(
   if (dish.flow === 'surprise' && !b.surpriseNeedToKnow?.trim())
     return { ok: false, code: 'need_to_know_required' };
   if (dish.flow === 'pitch' && !b.pitchIdea?.trim()) return { ok: false, code: 'idea_required' };
+  // Q9: the booking screens offer only the dish's own range (crewRange); anything else is a hand-made body.
+  const crew = crewRange(dish);
+  if (b.crew < crew.min || b.crew > crew.max) return { ok: false, code: 'crew_out_of_range' };
   const bigCrew = b.crew >= 16;
   const useSlots =
     dish.mode === 'slots' || (dish.mode === 'slots-or-dates' && b.dates.length === 0 && !b.windowText);

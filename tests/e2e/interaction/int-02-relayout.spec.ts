@@ -33,7 +33,6 @@ test('INT-02 S6: picks change the text; rows stay clean', async ({ page }) => {
 
 test('INT-02 S6: the crew count changes the text; rows stay clean', async ({ page }) => {
   fixmeUnlessLanded(test.fixme, ['s06-picker-open']);
-  test.fixme(TARGET === 'app', 'the S6 crew stepper ("Who’s coming?") is not on main yet (owner lane U3)');
   await gotoScreen(page, 's06-picker-open');
   const more = page.getByRole('button', { name: 'One more' });
   for (let i = 0; i < 2; i++) await clickLikeAPerson(page, more);

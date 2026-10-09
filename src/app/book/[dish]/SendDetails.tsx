@@ -8,9 +8,11 @@
 // (QA M3, draft.ts).
 import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Field, ROUTES } from '@/ui';
+import { Field, FieldGroup, ROUTES } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { FLOW } from '@/content';
+import type { CrewRange } from '@/content/menu-helpers';
+import { DETAILS } from '@/content/ui/booking';
 import { stripBidiControls } from '@/lib/bidi';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
 import { HoneypotField } from '../../_guest/honeypot';
@@ -25,8 +27,18 @@ const toPage = (href: string) => window.location.assign(href);
 /** the refusal line under Send (focus goes there) */
 const SEND_ERROR_ID = 'send-err';
 
-export function useSend(dish: string, guest: GuestView, go: (href: string) => void = toPage) {
+/** A dish with no choice of party size (Q9): the screens don't ask and send 1. */
+const SOLO: CrewRange = { min: 1, max: 1 };
+
+export function useSend(
+  dish: string,
+  guest: GuestView,
+  go: (href: string) => void = toPage,
+  crewRange: CrewRange = SOLO,
+) {
   const [start] = useState(() => prefill(guest));
+  /** Q9: how many of you, the guest included; starts at the dish's smallest party */
+  const [crew, setCrew] = useState(crewRange.min);
   const [name, setName] = useState(start.name);
   const [email, setEmail] = useState(start.email);
   /** T1.7.U2: a personal invite's fields stay behind the summary line until Change */
@@ -46,7 +58,7 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     busy.current = true;
     setFailed(null);
     setSending(true);
-    const details = { name, email, hp };
+    const details = { name, email, hp, crew };
     keyed.current = keyFor(keyed.current, requestPayload('', dish, details, picks));
     const token = guest.general ? await turnstile.takeToken() : undefined;
     const res = await send(requestPayload(keyed.current.key, dish, details, picks, token));
@@ -65,8 +77,11 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     moveFocus(document.getElementById(SEND_ERROR_ID), 'script');
   }
 
-  /** QA M3: a kept draft's details; edited ones open the fields, as Change would. */
-  function restoreDetails(d: { name?: string; email?: string }) {
+  /** QA M3: a kept draft's details; edited ones open the fields, as Change would. A kept crew outside the dish's
+   * range (the data changed since) is dropped. */
+  function restoreDetails(d: { name?: string; email?: string; crew?: string }) {
+    const n0 = d.crew === undefined ? NaN : Number(d.crew);
+    if (Number.isInteger(n0) && n0 >= crewRange.min && n0 <= crewRange.max) setCrew(n0);
     const n = d.name ?? start.name;
     const e = d.email ?? start.email;
     setName(n);
@@ -81,6 +96,9 @@ export function useSend(dish: string, guest: GuestView, go: (href: string) => vo
     setEmail,
     hp,
     setHp,
+    crew,
+    setCrew,
+    crewRange,
     sending,
     failed,
     submit,
@@ -108,6 +126,7 @@ export function DetailsFields({
   const collapsed = summary && !errors.some((e) => e.key === 'name' || e.key === 'email');
   return (
     <div>
+      <CrewStepper s={s} />
       {collapsed ? (
         <p className="sendas">
           <span>
@@ -164,6 +183,44 @@ export function DetailsFields({
       {turnstileBox && <TurnstileSlot box={turnstileBox} />}
       <HoneypotField id="f-hp" value={hp} onChange={setHp} />
     </div>
+  );
+}
+
+/**
+ * Q9 "How many of you?" (PACK v1.12 s10's crew stepper): − n + inside one labelled group, from the dish's smallest
+ * party to the servesMax the menu shows. Each button is a 44 px target; at an end its button says so with
+ * aria-disabled and does nothing, but keeps focus (a disabled button would drop a keyboard user's focus). The number
+ * is read out when it changes. A dish with one size (min = max) doesn't ask.
+ */
+function CrewStepper({ s }: { s: SendState }) {
+  const { crew, setCrew, crewRange } = s;
+  if (crewRange.max <= crewRange.min) return null;
+  return (
+    <FieldGroup id={FIELD_IDS.crew} label={FLOW.crewLabel}>
+      {({ labelId }) => (
+        <div className="stepper" role="group" aria-labelledby={labelId}>
+          <button
+            type="button"
+            aria-label={DETAILS.crewFewer}
+            aria-disabled={crew <= crewRange.min}
+            onClick={() => setCrew((n) => Math.max(crewRange.min, n - 1))}
+          >
+            −
+          </button>
+          <output aria-live="polite" aria-atomic="true" data-testid="crew-count">
+            {crew}
+          </output>
+          <button
+            type="button"
+            aria-label={DETAILS.crewMore}
+            aria-disabled={crew >= crewRange.max}
+            onClick={() => setCrew((n) => Math.min(crewRange.max, n + 1))}
+          >
+            +
+          </button>
+        </div>
+      )}
+    </FieldGroup>
   );
 }
 

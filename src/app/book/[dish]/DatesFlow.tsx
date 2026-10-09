@@ -67,11 +67,11 @@ export function DatesFlow({
   const [zone, setZone] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormError[]>([]);
   const summaryRef = useRef<HTMLDivElement>(null);
-  const s = useSend(dish.slug, guest);
+  const s = useSend(dish.slug, guest, undefined, dish.crew);
   const days = new Map(months.flatMap((m) => m.rows.flat()).flatMap((d) => (d ? [[d.date, d]] : [])));
   useDraft(
     dish.slug,
-    { dates: order, rough, roughOpen, overnight, zone, name: s.name, email: s.email },
+    { dates: order, rough, roughOpen, overnight, zone, crew: String(s.crew), name: s.name, email: s.email },
     (d) => {
       const dates = (d.dates ?? []).filter((x) => days.get(x)?.off === null).slice(0, MAX_DATES);
       setOrder(dates);

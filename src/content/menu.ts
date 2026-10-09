@@ -124,6 +124,7 @@ export const DISHES: Dish[] = [
     dateRule: 'any-day',
     overnightAllowed: false,
     servesMax: 4,
+    servesMin: 4, // "serves 4": a table for four, so the booking screens don't ask (crewRange)
     bookable: true,
     availableUntil: null,
   },

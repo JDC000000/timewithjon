@@ -2,6 +2,7 @@
 // engine output. Pure and serialisable: the server page builds it, the client flow renders it. Client code imports
 // this module, so it uses the browser-safe date helpers in src/lib/civil.ts, never date-fns.
 import { FLOW, SECTIONS, type DateRule, type Dish, type Flow } from '@/content';
+import { crewRange, type CrewRange } from '@/content/menu-helpers';
 import type { EngineOutput } from '@/features/availability/types';
 import type { Invite } from '@/features/invites/repo';
 import { civilDateIn, monthDay, monthNameDay } from '@/lib/civil';
@@ -24,6 +25,8 @@ export interface DishView {
   suggestionsLead: string | null;
   /** The Long Distance asks for the guest's time zone (T1.6.U2, TSD M2). */
   asksTimeZone: boolean;
+  /** How many may come (Q9): min = max means the screens don't ask. */
+  crew: CrewRange;
 }
 
 export interface FlowNotices {
@@ -70,6 +73,7 @@ export function dishView(d: Dish): DishView {
     suggestions: d.suggestions ?? [],
     suggestionsLead: d.suggestionsLead ?? null,
     asksTimeZone: d.slug === 'the-long-distance',
+    crew: crewRange(d),
   };
 }
 

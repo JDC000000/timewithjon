@@ -20,7 +20,7 @@ export const FLOW = {
   emailHint: 'So I can send the invite.',
   phoneLabel: 'Phone (optional)',
   phoneHint: 'Only if I don’t have it.',
-  crewLabel: 'Who’s coming?',
+  crewLabel: 'How many of you?', // approved: Jon (2026-10-09), Q9
   crewDefault: 'Just me.',
   crewHint:
     'Just you is perfect. Up to 15 is fine. Bring someone from the old days if you like. Bonus points if I haven’t seen them in years.',

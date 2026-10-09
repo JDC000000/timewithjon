@@ -75,13 +75,14 @@ export function BookingFlow({
   const picksError = errorFor(errors, 'picks');
   const [need, setNeed] = useState('');
   const [plan, setPlan] = useState('');
-  const s = useSend(dish.slug, guest);
+  const s = useSend(dish.slug, guest, undefined, dish.crew);
   useDraft(
     dish.slug,
     {
       picks: [...selection.picks],
       standbyWeek: selection.standbyWeek,
       ...(surprise ? { need, plan } : {}),
+      crew: String(s.crew),
       name: s.name,
       email: s.email,
     },
