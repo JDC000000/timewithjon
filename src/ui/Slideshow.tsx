@@ -192,22 +192,22 @@ function renderSlides(
 }
 
 /**
- * The Pause/Play toggle. Nothing when the photos are not rotating (see `on`). QA4 L8: a toggle button keeps one name,
- * "Pause" (+ `label`, which slideshow: the dish), and aria-pressed says whether it's paused ("Pause The Grind,
- * pressed" = paused). The visible word still flips to Play.
+ * The Pause/Play toggle. Nothing when the photos are not rotating (see `on`). QA4 L8: the name is the action the
+ * button shows, "Pause" or "Play" (+ `label`, which slideshow: the dish), with no aria-pressed, so the visible word is
+ * always the start of the name (WCAG 2.5.3) and it never reads "Play, pressed".
  */
 export function SlideshowToggle({ label }: { label?: string } = {}) {
   const show = useContext(SlideshowContext);
   if (!show?.on) return null;
+  const word = show.paused ? SLIDESHOW.play : SLIDESHOW.pause;
   return (
     <button
       type="button"
       className="ph-play"
-      aria-pressed={show.paused}
-      aria-label={label ? `${SLIDESHOW.pause} ${label}` : SLIDESHOW.pause} // NEW COPY (needs Jon): "Pause {dish}"
+      aria-label={label ? `${word} ${label}` : undefined} // NEW COPY (needs Jon): "Pause {dish}" / "Play {dish}"
       onClick={show.toggle}
     >
-      {show.paused ? SLIDESHOW.play : SLIDESHOW.pause}
+      {word}
     </button>
   );
 }

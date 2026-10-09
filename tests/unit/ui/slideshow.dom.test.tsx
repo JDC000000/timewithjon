@@ -159,24 +159,23 @@ describe('PhotoSlot slideshow', () => {
     vi.unstubAllGlobals();
   });
 
-  it('Pause stops the rotation; Play resumes it (QA4 L8: one name, aria-pressed = paused; the word shown flips)', () => {
+  it('Pause stops the rotation; Play resumes it (QA4 L8: the name is the word shown, no aria-pressed)', () => {
     vi.useFakeTimers();
     readyState = 'complete';
     const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
     slidesLoad(container);
     const btn = screen.getByRole('button', { name: SLIDESHOW.pause });
-    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    expect(btn.hasAttribute('aria-pressed')).toBe(false);
     expect(btn.closest('figure')).not.toBeNull();
     fireEvent.click(btn);
+    // label in name (WCAG 2.5.3): the name follows the visible word; never "Play, pressed"
+    expect(screen.getByRole('button', { name: SLIDESHOW.play })).toBe(btn);
     expect(btn.textContent).toBe(SLIDESHOW.play);
-    expect(btn.getAttribute('aria-pressed')).toBe('true');
-    // the name never flips with the state: a screen reader hears "Pause, pressed" (paused), never "Play, pressed"
-    expect(screen.getByRole('button', { name: SLIDESHOW.pause, pressed: true })).toBe(btn);
+    expect(btn.hasAttribute('aria-pressed')).toBe(false);
     act(() => void vi.advanceTimersByTime(SLIDE_MS * 3));
     expect(onTop(container)).toBe(1);
     fireEvent.click(btn);
-    expect(btn.textContent).toBe(SLIDESHOW.pause);
-    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: SLIDESHOW.pause })).toBe(btn);
     act(() => void vi.advanceTimersByTime(SLIDE_MS));
     expect(onTop(container)).toBe(2);
   });
@@ -240,7 +239,7 @@ describe('PhotoSlot slideshow', () => {
   });
 });
 
-// QA4 L8: seven toggles on /menu all read "Pause"; each now names its dish.
+// QA4 L8: seven toggles on /menu all read "Pause"; each now names its dish (and its action).
 describe('SlideshowToggle label (QA4 L8)', () => {
   afterEach(() => vi.useRealTimers());
   it('a card’s toggle carries the dish name, so each slideshow is told apart', () => {
@@ -263,8 +262,9 @@ describe('SlideshowToggle label (QA4 L8)', () => {
     const grind = screen.getByRole('button', { name: `${SLIDESHOW.pause} The Grind` });
     expect(screen.getByRole('button', { name: `${SLIDESHOW.pause} The Shore Ride` })).not.toBe(grind);
     fireEvent.click(grind);
-    expect(screen.getByRole('button', { name: `${SLIDESHOW.pause} The Grind`, pressed: true })).toBe(grind);
+    expect(screen.getByRole('button', { name: `${SLIDESHOW.play} The Grind` })).toBe(grind);
     expect(grind.textContent).toBe(SLIDESHOW.play);
+    expect(grind.hasAttribute('aria-pressed')).toBe(false);
   });
 });
 

@@ -170,7 +170,7 @@ export function DateLockSheet(props: {
             name="start"
             value={other === null ? start : 'other'}
             options={[
-              ...startOptions(props.dish).map((v) => ({
+              ...startOptions(props.dish, props.overnight).map((v) => ({
                 value: v,
                 words: clockLabel(vancouverInstant('2027-05-08', v)),
               })),

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { connection } from 'next/server';
 import { HEADLINE, OPEN_LINE } from '@/content/site';
 import { SKIP_TO_CONTENT } from '@/content/ui/foundation';
-import { getAppMode } from '@/config/env';
+import { getAppMode, getSiteUrl } from '@/config/env';
 import { FocusRoot } from '@/ui';
 import { LateItalic } from '@/ui/LateItalic';
 import { StagingBanner } from '@/ui/StagingBanner';
@@ -12,7 +12,7 @@ import '@/ui/tokens.css';
 import '@/ui/site.css';
 
 // AD-12 + creative v1.4 §6.7: static tags only, never a guest's name.
-export const metadata: Metadata = {
+const SITE_METADATA: Metadata = {
   title: 'Time with Jon',
   robots: { index: false, follow: false },
   openGraph: {
@@ -20,6 +20,15 @@ export const metadata: Metadata = {
     description: `${OPEN_LINE} ${HEADLINE}`,
   },
 };
+
+/**
+ * UX-05: the site icons and the share image are files Next serves from src/app (favicon.ico, icon.svg, apple-icon.png,
+ * opengraph-image.png + its alt); metadataBase (the site's own origin) makes og:image absolute.
+ */
+export function generateMetadata(): Metadata {
+  const base = getSiteUrl();
+  return base ? { ...SITE_METADATA, metadataBase: base } : SITE_METADATA;
+}
 
 // The pack's page shell: the skip link first, then the page (every page puts id="main" on its <main>), then the
 // focus root (probe + live region). viewport-fit=cover comes from the viewport export below.
