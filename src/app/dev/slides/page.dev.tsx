@@ -17,12 +17,13 @@ const FIXTURE: PhotoSlots = {
   card: { file: 'catch-release', w: [480, 800, 1200], alt: '', slides: 3 },
 };
 
-/** test-only framing (photo-views.json shape): photo 1 framed at both band breakpoints, slide 2 positioned only */
+/** test-only framing (photo-views.json shape): photo 1 framed at both band breakpoints, slide 2 positioned only,
+ *  slide 3 a narrow frame (its margins must show paper, not the photos under it) */
 const FIXTURE_VIEWS: PhotoViews = {
   show: [
     { band: { pos: '50% 20%', frame: 1.2 }, 'band-l': { pos: '50% 30%', frame: 0.9 } },
     { band: '30% 40%' },
-    {},
+    { band: { pos: '50% 50%', frame: 0.6 }, 'band-l': { pos: '50% 50%', frame: 0.6 } },
   ],
   card: [{ dish: { pos: '50% 25%', frame: 1 } }, {}, {}],
 };

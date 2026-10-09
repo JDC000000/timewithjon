@@ -51,7 +51,7 @@ afterEach(() => {
 
 const imgs = (c: HTMLElement) => [...c.querySelectorAll('figure img')] as HTMLImageElement[];
 const onTop = (c: HTMLElement) => {
-  const on = imgs(c).filter((i) => i.classList.contains('is-on'));
+  const on = [...c.querySelectorAll('figure .ph-slide.is-on')];
   return on.length === 0 ? 1 : on.length + 1; // photo n is on top when photos 2..n are faded in
 };
 function pageLoads() {

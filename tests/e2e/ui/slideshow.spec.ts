@@ -39,7 +39,7 @@ const show = (page: Page) => page.locator('figure[data-slot="show"]');
 const card = (page: Page) => page.locator('li.dish');
 
 async function onTop(fig: Locator): Promise<number> {
-  return 1 + (await fig.locator('img.ph-slide.is-on').count());
+  return 1 + (await fig.locator('.ph-slide.is-on').count());
 }
 async function slidesLoaded(fig: Locator) {
   await expect(fig.locator('img')).toHaveCount(3);
@@ -57,13 +57,16 @@ test('photo 1 renders as a still photo; photos 2..n join after load in the same 
   const before = await fig.boundingBox();
   await slidesLoaded(fig);
   expect(await fig.boundingBox()).toEqual(before);
-  for (const img of await fig.locator('img.ph-slide').all()) {
+  for (const img of await fig.locator('.ph-slide img').all()) {
     await expect(img).toHaveAttribute('alt', '');
     await expect(img).toHaveAttribute('loading', 'lazy');
-    // stacked over photo 1 in the figure's box (these slides are unframed, so they fill it; the centring
-    // translate may round a fraction of a pixel)
+    // stacked over photo 1: centred in the figure's box and inside it (a framed slide is smaller; see the framing
+    // tests; the centring translate may round a fraction of a pixel)
     const [b, f] = [(await img.boundingBox())!, (await fig.boundingBox())!];
-    for (const k of ['x', 'y', 'width', 'height'] as const) expect(b[k], k).toBeCloseTo(f[k], 0);
+    expect(b.x + b.width / 2).toBeCloseTo(f.x + f.width / 2, 0);
+    expect(b.y + b.height / 2).toBeCloseTo(f.y + f.height / 2, 0);
+    expect(b.width).toBeLessThanOrEqual(f.width + 0.5);
+    expect(b.height).toBeLessThanOrEqual(f.height + 0.5);
   }
 });
 
@@ -75,7 +78,7 @@ test('crossfades every 5 s; Pause holds the photo, Play resumes', async ({ page 
   expect(await onTop(fig)).toBe(1);
   await page.clock.runFor(SLIDE_MS);
   await expect.poll(() => onTop(fig)).toBe(2);
-  const second = fig.locator('img.ph-slide').first();
+  const second = fig.locator('.ph-slide').first();
   await expect.poll(() => second.evaluate((i) => Number(getComputedStyle(i).opacity))).toBe(1);
 
   // QA4 L8: one name ("Pause"); aria-pressed says it's paused; the word shown flips to Play
@@ -212,4 +215,32 @@ test("framing: a framed photo's box is its frame ratio, centred, at 375/768/1024
     // slide 2 has no frame: it fills the figure, as before framing
     expect(Math.abs(two.width - f.width) + Math.abs(two.height - f.height)).toBeLessThan(1);
   }
+});
+
+test('framing: a framed slide on top shows paper in its margins, never the photos under it', async ({
+  page,
+}) => {
+  await page.goto(BENCH);
+  const fig = show(page);
+  await slidesLoaded(fig);
+  await fig.getByRole('button', { name: 'Pause' }).click();
+  await fig.scrollIntoViewIfNeeded();
+  const f = (await fig.boundingBox())!;
+  // a strip at the figure's left edge: outside slide 3's narrow frame (0.6), inside photo 1 and slide 2
+  const clip = { x: f.x + 2, y: f.y + f.height / 2 - 10, width: 12, height: 20 };
+  const set = (state: 'slide3' | 'bare') =>
+    fig.evaluate((el, s) => {
+      el.querySelector<HTMLElement>(':scope > img')!.style.visibility = s === 'bare' ? 'hidden' : '';
+      el.querySelectorAll<HTMLElement>('.ph-slide').forEach((sl) => {
+        sl.style.transition = 'none';
+        sl.classList.toggle('is-on', s === 'slide3');
+        sl.style.visibility = s === 'bare' ? 'hidden' : '';
+      });
+      el.querySelector<HTMLElement>('.ph-play')!.style.visibility = 'hidden';
+    }, state);
+  await set('slide3');
+  const withSlide = await page.screenshot({ clip });
+  await set('bare');
+  const paperOnly = await page.screenshot({ clip });
+  expect(withSlide.equals(paperOnly), 'margin pixels = the bare paper').toBe(true);
 });

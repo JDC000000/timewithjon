@@ -113,21 +113,26 @@ export function SlideshowSlides({
 }) {
   const show = useContext(SlideshowContext);
   if (!show?.on) return null;
+  // Each slide is an unfiltered frame box (the paper around a framed photo) holding its graded <img>: site.css.
   return slides.map((s, i) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <span
       key={s.src}
       className={cx('ph-slide', show.active > i && 'is-on')}
-      src={s.src}
-      srcSet={s.srcSet}
-      sizes={sizes}
-      alt=""
-      loading="lazy"
-      fetchPriority="low"
-      decoding="async"
-      onLoad={() => show.loaded(i + 1)}
       style={s.style as CSSProperties | undefined}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={s.src}
+        srcSet={s.srcSet}
+        sizes={sizes}
+        alt=""
+        loading="lazy"
+        fetchPriority="low"
+        decoding="async"
+        onLoad={() => show.loaded(i + 1)}
+        style={s.style as CSSProperties | undefined}
+      />
+    </span>
   ));
 }
 
