@@ -1,0 +1,12 @@
+{
+  "id": "digest-drops-request-links",
+  "date": "2026-10-08",
+  "task": "QA4b M2",
+  "area": "email",
+  "summary": "When the daily guard parked Jon's E2/E12/E16 into the hourly digest, the digest listed bare subjects with no link to each request, and tag-like name text was reported dropped.",
+  "fix": "Each entry keeps its admin link (an indented URL line in the text part, the subject as a link in the HTML); names are escaped, never stripped.",
+  "tests": [
+    "src/features/email/__tests__/digest-entry.test.ts",
+    "src/features/email/__tests__/templates-html.test.ts"
+  ]
+}

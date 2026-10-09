@@ -12,6 +12,7 @@ const base = {
   bigCrew: false,
   choiceCount: 2,
   choiceKind: 'times' as const,
+  overnight: false,
   standbyWeek: null,
   requestedTimes: ['Thu Oct 1, 12:00 pm', 'Sat Oct 3, 6:00 pm'],
   jonEmail: 'jon@example.com',
@@ -41,6 +42,10 @@ describe('E2 summary counts (QA r2 L3)', () => {
     expect(summary(2, 'times')).toBe('Crew 2. 2 times.');
     expect(summary(1, 'dates')).toBe('Crew 2. 1 date.');
     expect(summary(2, 'dates')).toBe('Crew 2. 2 dates.');
+  });
+  it('QA4 M1: an overnight request tells Jon, in the guest’s own words', () => {
+    const e2 = intakeEmails({ ...base, status: 'requested', choiceKind: 'dates', overnight: true })[1]!;
+    expect(e2.vars.summary).toBe('Crew 2. 2 dates. It’s one night away.');
   });
 });
 

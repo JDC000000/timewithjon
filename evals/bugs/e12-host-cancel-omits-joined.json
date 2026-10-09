@@ -1,0 +1,9 @@
+{
+  "id": "e12-host-cancel-omits-joined",
+  "date": "2026-10-08",
+  "task": "QA4b M3",
+  "area": "email",
+  "summary": "When a host cancelled, Jon's E12 did not mention the guests joined to that booking.",
+  "fix": "E12 adds a line naming the joined guests (read before the cascade moves them).",
+  "tests": ["tests/int/joined.int.test.ts", "src/features/email/__tests__/templates-html.test.ts"]
+}

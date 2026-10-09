@@ -94,6 +94,8 @@ export const EMAIL_COPY: Record<TemplateId, EmailCopy> = {
 export const E12_PARTS = {
   noTime: 'no time locked yet',
   nobody: 'nobody',
+  /** QA4b M3: a host cancelled; the guests joined to that booking (they get E5j and wait on Jon). */
+  joined: (names: string) => `Joined to it: ${names}.`, // NEW COPY (needs Jon)
 } as const;
 /** E12 with no week (EML-15): the same body without its stand-by sentence. {standby} is '' then. */
 const E12_NO_WEEK_BODY = EMAIL_COPY.E12.body.replace(' Stand-by for that week: {standby}', '');
@@ -150,12 +152,18 @@ export const E1_NO_TIMES_BODY = 'Got your times. I’ll lock one in within two d
 
 /**
  * The copy one email renders with, for both its text and its HTML part: the template's, or its variant for these
- * vars. E1 with no {times} keeps the pre-option-A body; E12 with no week drops the stand-by sentence (EML-15); the
- * hourly digest ({digest: 'hourly'}) has its own subject (EML-10).
+ * vars. E1 with no {times} keeps the pre-option-A body; E12 with no week drops the stand-by sentence (EML-15) and a
+ * host's E12 adds its joined guests (QA4b M3); the hourly digest ({digest: 'hourly'}) has its own subject (EML-10).
  */
 export function copyFor(id: TemplateId, vars: Record<string, string | number>): EmailCopy {
   if (id === 'E1' && !vars.times) return { ...EMAIL_COPY.E1, body: E1_NO_TIMES_BODY };
-  if (id === 'E12' && vars.standby === '') return { ...EMAIL_COPY.E12, body: E12_NO_WEEK_BODY };
+  if (id === 'E12') {
+    const body = vars.standby === '' ? E12_NO_WEEK_BODY : EMAIL_COPY.E12.body;
+    // QA4b M3: the joined guests' line, on its own line before the link, only when a host cancelled with guests on the booking.
+    return vars.joined
+      ? { ...EMAIL_COPY.E12, body: body.replace('\n{adminLink}', '\n{joined}\n{adminLink}') }
+      : { ...EMAIL_COPY.E12, body };
+  }
   if (id === 'E13' && vars.digest === 'hourly') return { ...EMAIL_COPY.E13, subject: E13_HOURLY_SUBJECT };
   return EMAIL_COPY[id];
 }

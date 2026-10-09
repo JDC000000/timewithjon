@@ -126,6 +126,45 @@ describe('email audit 2026-10-08 (EML)', () => {
     expect(nobody.text).toContain('Stand-by for that week: nobody');
   });
 
+  it('QA4b M3: a host’s E12 names the guests joined to the booking, before the link', async () => {
+    const r = await renderEmail(
+      'E12',
+      { ...VARS.E12, joined: 'Joined to it: Kim, Alex.' },
+      { siteUrl: SITE },
+    );
+    expect(r.text).toBe(
+      'Sam cancelled The Long Lunch (Thu Oct 1 · noon–2 pm). Stand-by for that week: Alex, Kim\nJoined to it: Kim, Alex.\nhttps://timewithjon.com/admin/requests/0f6c1f4e-1111-4222-8333-444455556666\n',
+    );
+    expect(words(r.html!)).toContain('Joined to it: Kim, Alex.');
+    // No joined guests: the line is not there (and old rows without the var render as before).
+    expect((await renderEmail('E12', { ...VARS.E12, joined: '' }, { siteUrl: SITE })).text).not.toContain(
+      'Joined',
+    );
+  });
+
+  it('QA4b M2: the hourly digest keeps each request’s own link, and tag-like name text is escaped, not dropped', async () => {
+    const lines = [
+      '- New request: The Long Lunch from Sam مرحبا <b>x</b>',
+      `  ${SITE}/admin/requests/1`,
+      '- Updated: The Flat White from Kim',
+      `  ${SITE}/admin/requests/2`,
+      '- Calendar update',
+    ].join('\n');
+    const r = await renderEmail(
+      'E13',
+      { digest: 'hourly', count: 3, lines, adminLink: `${SITE}/admin` },
+      { siteUrl: SITE },
+    );
+    expect(r.text).toContain(
+      `- New request: The Long Lunch from Sam مرحبا <b>x</b>\n  ${SITE}/admin/requests/1\n`,
+    );
+    expect(r.html!.match(/<li>.*?<\/li>/g)).toEqual([
+      `<li><a href="${SITE}/admin/requests/1" style="color:#1f1f1f;text-decoration:underline">New request: The Long Lunch from Sam مرحبا &lt;b&gt;x&lt;/b&gt;</a></li>`,
+      `<li><a href="${SITE}/admin/requests/2" style="color:#1f1f1f;text-decoration:underline">Updated: The Flat White from Kim</a></li>`,
+      '<li>Calendar update</li>',
+    ]);
+  });
+
   it('EML-17: the card wraps a long unbroken name instead of widening past 320 px', async () => {
     const html = (await renderEmail('E2', { ...VARS.E2, name: 'X'.repeat(80) }, { siteUrl: SITE })).html!;
     expect(html).toMatch(/overflow-wrap:anywhere;word-break:break-word/);

@@ -5,6 +5,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { TZ, vancouverInstant } from '@/lib/time';
 import { guestWhen } from '@/lib/when';
 import { ROW } from '@/content/ui/admin-requests';
+import { DATES } from '@/content/ui/booking';
 import type { EmailArgs } from '@/features/email/send';
 
 export interface IntakeEmailInput {
@@ -19,6 +20,8 @@ export interface IntakeEmailInput {
   choiceCount: number;
   /** What the choices are: picked times (slots mode) or dates (dates mode), for E2's count (QA r2 L3). */
   choiceKind: 'times' | 'dates';
+  /** The guest ticked "It’s one night away" (QA4 M1: E2 says so, in the guest's own words). */
+  overnight: boolean;
   standbyWeek: string | null;
   /** E1: the requested times (slots mode) or dates (dates mode), one line each; see requestedTimeLines. */
   requestedTimes: string[];
@@ -68,7 +71,7 @@ export function intakeEmails(i: IntakeEmailInput): EmailArgs[] {
     i.status === 'standby'
       ? `Stand-by, week of ${standbyWeekLabel(i.standbyWeek!)}.`
       : `${ROW[i.choiceKind](i.choiceCount)}.`
-  }`;
+  }${i.overnight ? ` ${DATES.oneNight}.` : ''}`;
   const jon: EmailArgs = {
     template: 'E2',
     to: i.jonEmail,
