@@ -131,12 +131,22 @@ export function SlideshowSlides({
   ));
 }
 
-/** The Pause/Play toggle (aria-pressed = paused). Nothing when the photos are not rotating (see `on`). */
-export function SlideshowToggle() {
+/**
+ * The Pause/Play toggle. Nothing when the photos are not rotating (see `on`). QA4 L8: a toggle button keeps one name,
+ * "Pause" (+ `label`, which slideshow: the dish), and aria-pressed says whether it's paused ("Pause The Grind,
+ * pressed" = paused). The visible word still flips to Play.
+ */
+export function SlideshowToggle({ label }: { label?: string } = {}) {
   const show = useContext(SlideshowContext);
   if (!show?.on) return null;
   return (
-    <button type="button" className="ph-play" aria-pressed={show.paused} onClick={show.toggle}>
+    <button
+      type="button"
+      className="ph-play"
+      aria-pressed={show.paused}
+      aria-label={label ? `${SLIDESHOW.pause} ${label}` : SLIDESHOW.pause} // NEW COPY (needs Jon): "Pause {dish}"
+      onClick={show.toggle}
+    >
       {show.paused ? SLIDESHOW.play : SLIDESHOW.pause}
     </button>
   );

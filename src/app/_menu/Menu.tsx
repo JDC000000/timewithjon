@@ -44,10 +44,13 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
 export function DishPhotoScope({
   slot,
   slots,
+  label,
   children,
 }: {
   slot: string;
   slots?: PhotoSlots;
+  /** QA4 L8: the dish's name, so each toggle on /menu is told apart ("Pause The Grind"). */
+  label?: string;
   children: ReactNode;
 }) {
   const count = slideCount(slot, slots);
@@ -56,7 +59,7 @@ export function DishPhotoScope({
     <SlideshowScope count={count}>
       {children}
       <div className="ph-ctl">
-        <SlideshowToggle />
+        <SlideshowToggle label={label} />
       </div>
     </SlideshowScope>
   );
@@ -96,7 +99,7 @@ export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
                 {c.dishes.map((d) =>
                   d.href ? (
                     <li className="dish" key={d.slug}>
-                      <DishPhotoScope slot={d.slot}>
+                      <DishPhotoScope slot={d.slot} label={d.name}>
                         <DishLink slug={d.slug} href={d.href}>
                           <DishInner d={d} first={d.slug === firstSlug} />
                         </DishLink>
@@ -104,7 +107,7 @@ export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
                     </li>
                   ) : (
                     <li className="dish dish--off" key={d.slug}>
-                      <DishPhotoScope slot={d.slot}>
+                      <DishPhotoScope slot={d.slot} label={d.name}>
                         <div className="dish-row">
                           <DishInner d={d} first={d.slug === firstSlug} />
                         </div>

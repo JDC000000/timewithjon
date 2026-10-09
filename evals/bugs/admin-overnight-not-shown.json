@@ -1,0 +1,15 @@
+{
+  "id": "admin-overnight-not-shown",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "admin",
+  "summary": "A request the guest marked “It’s one night away” saved overnight=true, but the admin detail, the inbox row and the dates Lock sheet never said so; its lengths stopped at a day, so Jon would book a half day.",
+  "fix": "The detail shows Away: one night away (with a pitch’s “Which night?” answer), the inbox row adds “one night away”, and the Lock sheet offers and picks a “one night away” length (24 h placeholder, within the lock API’s 72 h).",
+  "tests": [
+    "src/app/admin/_requests/detail-view.test.ts",
+    "src/app/admin/_requests/rows.test.ts",
+    "src/app/admin/_requests/lock-sheet.test.ts",
+    "src/app/admin/_requests/qa4-dates-lock.dom.test.tsx",
+    "tests/int/admin-ui-reads.int.test.ts"
+  ]
+}

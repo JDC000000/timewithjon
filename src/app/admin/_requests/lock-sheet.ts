@@ -7,8 +7,22 @@ import type { CountsToward } from '@/features/availability/types';
 import { dayLabel, vancouverInstant } from '@/lib/time';
 import { clockLabel } from './format';
 
-export function defaultsFor(dish: string): { start: string; minutes: number } {
-  return LOCK_DEFAULTS.byDish[dish] ?? LOCK_DEFAULTS.fallback;
+/** A dish's Start and Length; a request that is one night away starts on the overnight length (QA4 M1). */
+export function defaultsFor(dish: string, overnight = false): { start: string; minutes: number } {
+  const d = LOCK_DEFAULTS.byDish[dish] ?? LOCK_DEFAULTS.fallback;
+  return overnight ? { ...d, minutes: LOCK_DEFAULTS.overnight.minutes } : d;
+}
+
+/**
+ * The Length chips (QA4 M1): the fixed five, plus "one night away" when the dish allows a night away or the guest
+ * asked for one (the lock takes up to 72 h: lock-api MAX_LENGTH_MINUTES).
+ */
+export function lengthOptions(
+  dish: string,
+  overnight = false,
+): readonly { words: string; minutes: number }[] {
+  const offered = overnight || Boolean(dishBySlug(dish)?.overnightAllowed);
+  return offered ? [...LOCK_DEFAULTS.lengths, LOCK_DEFAULTS.overnight] : LOCK_DEFAULTS.lengths;
 }
 
 /** The Start options: the fixed three plus the dish's default, in clock order. */
@@ -43,7 +57,10 @@ export function defaultCountsToward(dish: string, minutes: number): CountsToward
 }
 
 export function lengthWords(minutes: number): string {
-  return LOCK_DEFAULTS.lengths.find((l) => l.minutes === minutes)?.words ?? `${minutes} min`;
+  return (
+    [...LOCK_DEFAULTS.lengths, LOCK_DEFAULTS.overnight].find((l) => l.minutes === minutes)?.words ??
+    `${minutes} min`
+  );
 }
 
 /** "Lock in Sat May 8, 9 am". */

@@ -1,0 +1,9 @@
+{
+  "id": "slideshow-toggle-name-flips",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "a11y",
+  "summary": "The slideshow button flipped its name (Pause to Play) and aria-pressed together, so it read “Play, pressed”; every toggle on /menu was just “Pause”.",
+  "fix": "The toggle keeps one name, “Pause” plus the dish on /menu cards, and aria-pressed says it is paused; the word shown still flips.",
+  "tests": ["tests/unit/ui/slideshow.dom.test.tsx", "tests/e2e/ui/slideshow.spec.ts"]
+}

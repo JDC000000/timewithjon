@@ -13,6 +13,7 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'rea
 import { AFTER_SEND, ERRORS } from '@/content';
 import { STORY_FORM } from '@/content/ui/guest-after';
 import { TurnstileSlot, useGuestTurnstile } from '@/features/requests/GuestTurnstile';
+import { stripBidiControls } from '@/lib/bidi';
 import { Button, Field } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { HoneypotField } from './honeypot';
@@ -84,6 +85,14 @@ export function StoryForm(p: StoryFormProps) {
   const storyRef = useRef<HTMLTextAreaElement>(null);
   const thanksRef = useRef<HTMLParagraphElement>(null);
   const errRef = useRef<HTMLParagraphElement>(null);
+  // QA4 L10: "Add a line or a photo first" goes once a photo is added (as it goes once a line is typed). Adjusted while
+  // rendering, as React advises for state that follows other state.
+  const photoCount = photos.state.items.length;
+  const [seenPhotos, setSeenPhotos] = useState(photoCount);
+  if (photoCount !== seenPhotos) {
+    setSeenPhotos(photoCount);
+    if (photoCount > seenPhotos && empty) setEmpty(false);
+  }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -168,7 +177,7 @@ export function StoryForm(p: StoryFormProps) {
           maxLength={80}
           autoComplete="name"
           value={name}
-          onChange={(e) => setName(e.currentTarget.value)}
+          onChange={(e) => setName(stripBidiControls(e.currentTarget.value))} // QA4 L9
         />
       )}
       <div className={empty ? 'field bad' : 'field'} style={{ maxWidth: 'none' }}>

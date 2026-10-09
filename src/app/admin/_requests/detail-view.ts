@@ -3,9 +3,10 @@
 // The sealed plan is never here: only `hasSealedPlan` (C4, AD-11).
 import { CHECK, DETAIL, INBOX, ROW } from '@/content/ui/admin-requests';
 import type { RequestDetail } from '@/features/admin/detail';
+import { PITCH } from '@/content/ui/booking';
 import { dishAfterPossessive } from '@/content/menu-helpers';
 import { dayLabel, vancouverInstant } from '@/lib/time';
-import { ageLabel, shortDate, whenLabel } from './format';
+import { ageLabel, shortDate, whenLabel, zoneLabel } from './format';
 import { flagsOf, type FilterKey } from './rows';
 
 export interface Fact {
@@ -50,6 +51,13 @@ export interface DetailView {
   dateKeys: string[];
   /** A Pitch Me request: "About your pitch" is the fill, "Lock in…" opens the dates sheet (wireframe 09 A3h). */
   pitch: boolean;
+  /**
+   * QA4 M2: a dated request (a Big Day, The Encore, a weekend Old Haunt, a pitch), with or without dates: Lock in
+   * opens the dates sheet. With only a rough window (no dates), the sheet asks for any date in the season.
+   */
+  datesMode: boolean;
+  /** QA4 M1: the guest said it's one night away: the Lock sheet picks the overnight length. */
+  overnight: boolean;
   /** A locked Big Day: the weather call applies (wireframe 09 A3m). */
   bigDayLocked: boolean;
   /** "Cancel Sam's Old Haunt, Thu May 13?": the dish without a leading "The" and the locked day (wireframe 09 A3l). */
@@ -132,6 +140,8 @@ function spamView(d: RequestDetail): DetailView {
     spam: true,
     dateKeys: [],
     pitch: false,
+    datesMode: false,
+    overnight: false,
     bigDayLocked: false,
     cancelWords: null,
     failed: [],
@@ -162,7 +172,15 @@ export function detailView(
       facts.push({ label: DETAIL.labels.calendar, value: DETAIL.calendarState[d.calendarState] });
   }
   if (d.pitchIdea) facts.push({ label: DETAIL.labels.idea, value: quote(d.pitchIdea), quote: true });
-  if (d.pitchIdea && prefs.windowText) facts.push({ label: DETAIL.labels.when, value: prefs.windowText });
+  // QA4 M2: the guest's rough window, on every dated dish (it was only on a pitch), in their words.
+  if (prefs.windowText) facts.push({ label: DETAIL.labels.when, value: prefs.windowText });
+  // QA4 M1: "one night away" (the guest's words), with their "Which night?" answer when they gave one.
+  if (d.overnight)
+    facts.push({
+      label: DETAIL.labels.away,
+      value: d.overnightNight ? `${PITCH.oneNightAway} · ${quote(d.overnightNight)}` : PITCH.oneNightAway,
+    });
+  if (d.guestTimeZone) facts.push({ label: DETAIL.labels.zone, value: zoneLabel(d.guestTimeZone) }); // QA4 L3
   if (open) facts.push({ label: DETAIL.labels.crew, value: DETAIL.crew(d.crewSize) }); // a locked page drops it (A3k)
   if (open && d.inviteKind === 'general') facts.push({ label: DETAIL.labels.link, value: DETAIL.general });
   if (d.hasSealedPlan) facts.push({ label: DETAIL.labels.plan, value: DETAIL.sealed });
@@ -186,6 +204,8 @@ export function detailView(
     spam: false,
     dateKeys: d.mode === 'dates' ? prefs.dates : [],
     pitch: d.dish === 'pitch-me',
+    datesMode: d.mode === 'dates' || d.dish === 'pitch-me',
+    overnight: d.overnight,
     bigDayLocked: filter === 'locked' && d.countsToward === 'big_day',
     cancelWords:
       filter === 'locked' && d.lockedStartsAt

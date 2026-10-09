@@ -28,7 +28,7 @@ export default async function SlidesPage() {
           <section className="menu" aria-label="Sample card">
             <ul>
               <li className="dish">
-                <DishPhotoScope slot="card" slots={FIXTURE}>
+                <DishPhotoScope slot="card" slots={FIXTURE} label="Sample card">
                   <a className="dish-row" href="#card">
                     <h2 className="dish-name">Sample card</h2>
                     <PhotoSlot slot="card" kind="dish" controls="outside" slots={FIXTURE} />

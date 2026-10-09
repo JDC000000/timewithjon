@@ -22,6 +22,10 @@ export interface RequestDetail {
   bigCrew: boolean;
   datePrefs: unknown;
   overnight: boolean;
+  /** QA4 M1: the guest's "Which night?" answer on an overnight request (Pitch Me), their own words. */
+  overnightNight: string | null;
+  /** QA4 L3: the zone a Long Distance guest gave (IANA), so Jon sees which clock they're on. */
+  guestTimeZone: string | null;
   pitchIdea: string | null;
   needToKnow: string | null;
   note: string | null;
@@ -69,6 +73,8 @@ interface DetailRow {
   big_crew: boolean;
   date_prefs: unknown;
   overnight: boolean;
+  overnight_night: string | null;
+  guest_time_zone: string | null;
   pitch_idea: string | null;
   surprise_need_to_know: string | null;
   note: string | null;
@@ -99,7 +105,8 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
             case when r.status = 'locked' and coalesce(${endedSql('$2')}, false) then 'done'
                  else r.status::text end as status,
             r.is_test, r.spam_suspect, r.contact_name, r.contact_email::text,
-            r.contact_phone, r.crew_size, r.big_crew, r.date_prefs, r.overnight, r.pitch_idea,
+            r.contact_phone, r.crew_size, r.big_crew, r.date_prefs, r.overnight, r.overnight_night,
+            r.guest_time_zone, r.pitch_idea,
             r.surprise_need_to_know, r.note, r.before60_note, r.jon_note, r.has_sealed_plan,
             (select count(*)::int from request o
               where o.guest_id = r.guest_id and o.id <> r.id and o.status <> 'cancelled') as other_requests,
@@ -128,6 +135,8 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
     bigCrew: r.big_crew,
     datePrefs: r.date_prefs,
     overnight: r.overnight,
+    overnightNight: r.overnight_night,
+    guestTimeZone: r.guest_time_zone,
     pitchIdea: r.pitch_idea,
     needToKnow: r.surprise_need_to_know,
     note: r.note,

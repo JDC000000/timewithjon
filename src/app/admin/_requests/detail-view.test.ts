@@ -21,6 +21,8 @@ const base = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   bigCrew: false,
   datePrefs: null,
   overnight: false,
+  overnightNight: null,
+  guestTimeZone: null,
   pitchIdea: null,
   needToKnow: null,
   note: 'Bringing someone from the old days. No shellfish for Sam.',
@@ -339,5 +341,63 @@ describe('detailView: failed sends (T3.2.U1)', () => {
     ]);
     expect(detailView(base(), now).failed).toEqual([]);
     expect(detailView(base(), now).flags).toEqual([]);
+  });
+});
+
+// QA4 (proto walkthrough r4, 2026-10-08): what the guest told Jon must reach the detail.
+describe('detailView: QA4 M1 one night away, M2 rough window, L3 time zone', () => {
+  const hike = (over: Partial<RequestDetail> = {}) =>
+    base({ dish: 'the-grind', dishName: 'The Grind', mode: 'dates', times: [], note: null, ...over });
+
+  it('M1: an overnight request says "one night away" (the guest’s words) and the Lock sheet knows', () => {
+    const v = detailView(hike({ overnight: true, datePrefs: { dates: ['2027-05-08', '2027-05-15'] } }), now);
+    expect(v.facts).toContainEqual({ label: DETAIL.labels.away, value: 'one night away' });
+    expect(v.overnight).toBe(true);
+    expect(
+      detailView(hike({ datePrefs: { dates: ['2027-05-08'] } }), now).facts.map((f) => f.label),
+    ).not.toContain(DETAIL.labels.away);
+  });
+  it('M1: a pitch’s "Which night?" answer rides with it, as their words', () => {
+    const v = detailView(
+      hike({
+        dish: 'pitch-me',
+        pitchIdea: 'Hut trip.',
+        overnight: true,
+        overnightNight: 'Sat May 8, near Squamish',
+      }),
+      now,
+    );
+    expect(v.facts).toContainEqual({
+      label: DETAIL.labels.away,
+      value: 'one night away · “Sat May 8, near Squamish”',
+    });
+  });
+  it('M2: a rough window shows on every dated dish, not only a pitch, and Lock in opens the dates sheet', () => {
+    const v = detailView(hike({ datePrefs: { dates: [], window_text: 'Any weekend in late May' } }), now);
+    expect(v.facts).toContainEqual({ label: DETAIL.labels.when, value: 'Any weekend in late May' });
+    expect(v.datesMode).toBe(true);
+    expect(v.dateKeys).toEqual([]);
+    // the manage / new-date forms send dates and a window together: both show
+    const both = detailView(hike({ datePrefs: { dates: ['2027-05-29'], window_text: 'or June' } }), now);
+    expect(both.facts).toContainEqual({ label: DETAIL.labels.when, value: 'or June' });
+    expect(both.dates).toEqual(['Sat May 29']);
+    expect(detailView(base(), now).datesMode).toBe(false); // a slots request keeps its times bar
+  });
+  it('L3: a Long Distance guest’s zone is named as the booking form names it; another zone reads as its id', () => {
+    const ld = (zone: string) =>
+      detailView(
+        hike({ dish: 'the-long-distance', guestTimeZone: zone, datePrefs: { dates: ['2027-05-08'] } }),
+        now,
+      );
+    expect(ld('America/St_Johns').facts).toContainEqual({
+      label: DETAIL.labels.zone,
+      value: 'St. John’s (Newfoundland)',
+    });
+    expect(ld('Asia/Kolkata').facts).toContainEqual({ label: DETAIL.labels.zone, value: 'Asia/Kolkata' });
+    expect(ld('America/Argentina/Buenos_Aires').facts).toContainEqual({
+      label: DETAIL.labels.zone,
+      value: 'America/Argentina/Buenos Aires',
+    });
+    expect(detailView(hike(), now).facts.map((f) => f.label)).not.toContain(DETAIL.labels.zone);
   });
 });

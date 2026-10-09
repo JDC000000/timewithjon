@@ -76,13 +76,16 @@ test('crossfades every 5 s; Pause holds the photo, Play resumes', async ({ page 
   const second = fig.locator('img.ph-slide').first();
   await expect.poll(() => second.evaluate((i) => Number(getComputedStyle(i).opacity))).toBe(1);
 
-  const btn = fig.getByRole('button', { name: 'Pause' });
+  // QA4 L8: one name ("Pause"); aria-pressed says it's paused; the word shown flips to Play
+  const btn = fig.getByRole('button', { name: 'Pause', exact: true });
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
   await btn.click();
-  await expect(fig.getByRole('button', { name: 'Play' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  await expect(btn).toHaveText('Play');
   await page.clock.runFor(SLIDE_MS * 3);
   expect(await onTop(fig)).toBe(2);
-  await fig.getByRole('button', { name: 'Play' }).click();
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
   await page.clock.runFor(SLIDE_MS);
   await expect.poll(() => onTop(fig)).toBe(3);
   await page.clock.runFor(SLIDE_MS);
@@ -96,8 +99,8 @@ test('the toggle: a 44 px target at the photo’s bottom-right, on a solid chip,
   // the site scrolls smoothly: measure only once a scroll has landed
   await page.addStyleTag({ content: 'html { scroll-behavior: auto !important; }' });
   for (const [fig, btn] of [
-    [show(page), show(page).getByRole('button', { name: 'Pause' })],
-    [card(page).locator('figure'), card(page).getByRole('button', { name: 'Pause' })],
+    [show(page), show(page).getByRole('button', { name: 'Pause', exact: true })],
+    [card(page).locator('figure'), card(page).getByRole('button', { name: 'Pause Sample card' })],
   ] as const) {
     await expect(btn).toBeVisible();
     await btn.scrollIntoViewIfNeeded();
@@ -143,10 +146,11 @@ test('a card’s toggle is outside its link (no nested control) and the bench is
 }) => {
   await page.goto(BENCH);
   await slidesLoaded(card(page).locator('figure'));
-  const btn = card(page).getByRole('button', { name: 'Pause' });
+  const btn = card(page).getByRole('button', { name: 'Pause Sample card' }); // QA4 L8: names its card
   expect(await btn.evaluate((e) => e.closest('a'))).toBeNull();
   await btn.click();
-  await expect(card(page).getByRole('button', { name: 'Play' })).toBeVisible();
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  await expect(btn).toHaveText('Play');
   expect(page.url()).toMatch(/\/dev\/slides$/); // the press did not follow the card's link
   const { violations } = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -162,5 +166,5 @@ test('reduced motion: photo 1 only, no toggle, no rotation', async ({ page }) =>
   await page.clock.runFor(SLIDE_MS * 2);
   for (const fig of [show(page), card(page).locator('figure')])
     await expect(fig.locator('img')).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /^(Pause|Play)$/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^(Pause|Play)\b/ })).toHaveCount(0);
 });

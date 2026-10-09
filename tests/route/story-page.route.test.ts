@@ -142,4 +142,15 @@ describe('POST /api/story-page (T3.12)', () => {
     expect(res.status).toBe(403);
     expect(await q(`select 1 from story where body = $1`, [`${tag} evil`])).toEqual([]);
   });
+
+  it('QA4 L9: a name with a bidi override (U+202E) is refused, as invite names are; nothing saved', async () => {
+    const res = await post(
+      '/api/story-page',
+      { name: 'Sam \u202eLTR', body: `${tag} bidi`, consent: false, clientKey: randomUUID() },
+      invite,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ ok: false, code: 'invalid', message: ERRORS.generic });
+    expect(await q(`select 1 from story where body = $1`, [`${tag} bidi`])).toEqual([]);
+  });
 });

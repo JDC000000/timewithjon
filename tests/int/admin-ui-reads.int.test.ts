@@ -195,6 +195,36 @@ describe('RequestDetail: the A3 fields', () => {
   });
 });
 
+describe('QA4 M1/M2/L3: what the guest told Jon reaches A2 and A3', () => {
+  it('overnight, the "Which night?" answer, a rough window and the guest’s zone are read', async () => {
+    const id = await makeRequest({
+      status: 'requested',
+      awaiting_jon_since: new Date(),
+      mode: 'dates',
+      dish: 'the-shore-ride',
+      date_prefs: JSON.stringify({ dates: [], window_text: 'Any weekend in late May' }),
+      overnight: true,
+      overnight_night: 'Sat, near Squamish',
+      guest_time_zone: 'America/St_Johns',
+    });
+    const card = await cardIn('needs_reply', id);
+    expect(card).toMatchObject({ overnight: true, windowText: 'Any weekend in late May', datesCount: 0 });
+    const d = (await getRequestDetail(id))!;
+    expect(d).toMatchObject({
+      overnight: true,
+      overnightNight: 'Sat, near Squamish',
+      guestTimeZone: 'America/St_Johns',
+    });
+    const plain = await makeRequest({ status: 'requested', awaiting_jon_since: new Date() });
+    expect((await cardIn('needs_reply', plain))!.overnight).toBe(false);
+    expect(await getRequestDetail(plain)).toMatchObject({
+      overnight: false,
+      overnightNight: null,
+      guestTimeZone: null,
+    });
+  });
+});
+
 describe('requestOptions: what the A3 sheets offer', () => {
   it('open times skip their own picks, are open by the engine and capped; weeks start at their pick', async () => {
     const [pick] = await q<{ id: string; date: string }>(

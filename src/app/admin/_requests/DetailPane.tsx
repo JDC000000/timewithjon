@@ -89,7 +89,7 @@ export function DetailPane(p: DetailPaneProps) {
   const pickedTime = view.times.find((t) => t.slotId === picked);
   const needsTick = pickedTime?.override ?? null;
   const canLockSlot = Boolean(pickedTime?.lockable) && (!needsTick || ticks[needsTick]);
-  const datesMode = view.dateKeys.length > 0 || view.pitch;
+  const datesMode = view.datesMode; // QA4 M2: a dated request with only a rough window is still one
   // Once the page reads it as locked, the window is over whatever the phase says (no state reset in an effect).
   const locking = view.open && (phase === 'window' || phase === 'sending');
   const close = () => setSheet(null);
@@ -510,10 +510,17 @@ export function DetailPane(p: DetailPaneProps) {
                     : pickedTime && startWindow({ slotId: pickedTime.slotId }, pickedTime.label)
                 }
               >
-                <span>{ACTIONS.lockIn}</span>{' '}
-                <span>
-                  <KeepWhole text={lockWhen} />
-                </span>
+                {datesMode && !lockWhen ? (
+                  // QA4 M2: only a rough window, no date to name yet: the sheet asks for one (as a pitch's does)
+                  LOCK_SHEET.lockOpen
+                ) : (
+                  <>
+                    <span>{ACTIONS.lockIn}</span>{' '}
+                    <span>
+                      <KeepWhole text={lockWhen} />
+                    </span>
+                  </>
+                )}
               </Button>
             )}
             {datesMode ? null : (
@@ -609,6 +616,7 @@ export function DetailPane(p: DetailPaneProps) {
           dates={view.dateKeys}
           season={p.season}
           pitch={view.pitch}
+          overnight={view.overnight}
           open={sheet === 'lock'}
           onClose={close}
           onCommit={(target, label) => startWindow(target, label)}

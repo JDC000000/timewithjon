@@ -3043,6 +3043,9 @@ span.nw > span.nw {
 html[data-hugetext] .h1 {
   font-size: 1.5rem;
 } /* 48 px at 200% text: "Week of Apr 15–16" fits a 320 phone without splitting the range */
+html[data-hugetext] .code-in {
+  letter-spacing: var(--ls-code);
+} /* QA4 L7: at 200% text on a 320 phone, the 0.5em spacing pushed the 6th digit out of the code box (A1b) */
 html[data-bigtext] .bigcode {
   font-size: min(var(--fs-code-l), 12vw);
 } /* the 6-digit code is one word: it scales to the phone instead of being cut */
@@ -3555,6 +3558,11 @@ li[hidden] {
 }
 .story-block .body + .body {
   margin-top: var(--s4);
+}
+/* QA4 L7: the stories@ address is one long word; at 200% text on a 320/375 phone it is wider than the column, so it
+   may break anywhere rather than push the page sideways. */
+.story-block a[href^='mailto:'] {
+  overflow-wrap: anywhere;
 }
 
 /* Photo slideshows (src/ui/Slideshow.tsx; a slot's `slides` > 1, private builds only): photos 2..n stack over photo 1

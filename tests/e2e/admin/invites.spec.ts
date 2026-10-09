@@ -101,10 +101,15 @@ test('AC2: a revoked link shows the S16 stale line on its next request', async (
   const row = await makeLink(page, name);
   const path = await forPath(row);
   expect(await opensStale(page, baseURL!, path)).toBe(false);
+  // QA4 L8: every row action names whose link it is, for a screen reader
+  for (const action of [A5.copyLink, A5.copyText, A5.revoke])
+    await expect(row.getByRole('button', { name: `${action}, ${name}`, exact: true })).toBeVisible();
   await row.getByRole('button', { name: A5.revoke }).click();
   await row.getByRole('button', { name: A5.revokeYes }).click();
   await expect(page.getByRole('status')).toHaveText(A5.revoked);
   await expect(row.getByRole('button', { name: A5.revoke })).toHaveCount(0);
+  // QA4 L8: focus lands on the revoked row's name, not on the page
+  await expect(row.getByText(name, { exact: true })).toBeFocused();
   expect(await opensStale(page, baseURL!, path)).toBe(true);
 });
 

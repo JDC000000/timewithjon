@@ -1,0 +1,13 @@
+{
+  "id": "story-name-bidi-override",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "guest",
+  "summary": "The story page’s name box accepted bidi-override characters (U+202E), so “RTL” read “LTR” in admin Stories; invite names already refused them.",
+  "fix": "The name box drops bidi controls as typed and POST /api/story-page refuses a name carrying one (emoji joiners stay).",
+  "tests": [
+    "src/lib/__tests__/bidi.test.ts",
+    "src/app/_guest/__tests__/story-form.dom.test.tsx",
+    "tests/route/story-page.route.test.ts"
+  ]
+}
