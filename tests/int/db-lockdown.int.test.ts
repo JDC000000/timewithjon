@@ -2,6 +2,7 @@
 // no policies, and the anon/authenticated roles (the Data API's) hold no privilege on any public table, sequence or
 // function, today or on objects a later migration creates. This fails if a migration ships a table without RLS, adds
 // a policy, or grants those roles anything.
+// Regression register: evals/bugs/db-default-privileges-later-objects.json
 import { afterAll, describe, expect, it } from 'vitest';
 import { pool, q } from '@/lib/db';
 
