@@ -34,7 +34,7 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
           ring. The words are the sheet's own "Book {dish}" (PERSONAL.book). It is on every bookable card whatever
           the gate: the card always opens its sheet, which shows Book or the gate line (e.g. "Booking opens …"). */}
       {d.sheet ? (
-        // NEW COPY (needs Jon): the card label "Book the Flat White" (the sheet's button words, now on every card)
+        // approved: Jon (2026-10-09): the card label "Book The Flat White" (the sheet's button words, on every card)
         <span className="btn dish-book">
           {d.sheet.book.label}{' '}
           <span className="arr" aria-hidden="true">

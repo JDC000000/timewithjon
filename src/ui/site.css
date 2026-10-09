@@ -3665,8 +3665,16 @@ dialog.sheet .ph {
 a.dish-row:has(> .dish-book) > .dish-detail {
   padding-bottom: var(--s2);
 }
-a.dish-row:hover .dish-book {
-  background: var(--c-wash);
+/* colour pick A (Jon asked for a clearer call to action): the site's gilt fill with ink words and a 1 px ink edge
+   (gilt alone against the page is only 1.81:1, so the ink edge draws the button); a deeper gold on hover and press.
+   tests/unit/ui/menu-card-button-colour.test.ts keeps the contrast. */
+.dish-row .dish-book {
+  background: var(--c-gilt);
+  border-color: var(--c-ink);
+  color: var(--c-ink);
+}
+a.dish-row:is(:hover, :active) .dish-book {
+  background: #c99a1c;
 }
 
 /* T1.1a.U2 (R1-21): under reduced motion nothing moves, whatever a later rule sets (the tokens already zero the durations) */
