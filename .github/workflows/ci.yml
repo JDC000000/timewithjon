@@ -211,6 +211,10 @@ jobs:
       - name: Build production and staging, expect 404 on /dev/outbox
         run: scripts/check-no-dev-routes.sh
 
+      # The staging build is still in .next: every route that converts HEIC must ship heic-decode in its trace
+      - name: Every route that converts HEIC ships its decoder
+        run: node scripts/check-heic-shipped.mjs
+
   e2e:
     name: E2E smoke (Chromium + WebKit)
     # T4.3.01. The SMOKE profile only (both engines, 375 + 1440, 100% text, 1 run; target <= 5 min). The full

@@ -1,0 +1,9 @@
+{
+  "id": "heic-decoder-not-shipped",
+  "date": "2026-10-09",
+  "task": "T3.6.03",
+  "area": "photos",
+  "summary": "Once the HEIC decode moved into a worker that loads heic-decode by a path computed at run time, the build trace no longer listed heic-decode or libheif-js, so the hosted functions didn't have them: every HEIC upload on the staging site answered 'unreadable' in about 2 s, while every local test passed.",
+  "fix": "heic-worker.ts keeps a resolve the bundler reads (createRequire(import.meta.url).resolve('heic-decode')), so every route that uses the worker ships heic-decode and libheif-js again; the worker still loads it from the app root at run time. CI copies each such route's traced files alone and decodes a HEIC from them.",
+  "tests": ["scripts/check-heic-shipped.mjs", "src/features/photos/__tests__/heic-worker-shipped.test.ts"]
+}
