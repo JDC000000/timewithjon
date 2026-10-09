@@ -1,11 +1,11 @@
 // /book/[dish] view model (T1.5.U1, T1.5.U4): what the page shows around the picker, from the dish and the C3
-// engine output. Pure and serialisable: the server page builds it, the client flow renders it.
-import { formatInTimeZone } from 'date-fns-tz';
+// engine output. Pure and serialisable: the server page builds it, the client flow renders it. Client code imports
+// this module, so it uses the browser-safe date helpers in src/lib/civil.ts, never date-fns.
 import { FLOW, SECTIONS, type DateRule, type Dish, type Flow } from '@/content';
 import type { EngineOutput } from '@/features/availability/types';
 import type { Invite } from '@/features/invites/repo';
-import { TZ } from '@/lib/time';
-import { monthDay } from './civil';
+import { civilDateIn, monthDay, monthNameDay } from '@/lib/civil';
+import { TZ } from '@/lib/tz';
 
 /** The dish as the client flow needs it (no server-only fields). */
 export interface DishView {
@@ -78,7 +78,7 @@ export function flowNotices(engine: Pick<EngineOutput, 'awayNotice' | 'opensAt'>
   return {
     // An away block always carries its confirm-by date (admin season schema); without one there is nothing to say.
     away: a && a.confirmBy ? FLOW.away(monthDay(a.until), monthDay(a.confirmBy)) : null,
-    opensOn: engine.opensAt ? FLOW.opensOn(formatInTimeZone(new Date(engine.opensAt), TZ, 'MMMM d')) : null,
+    opensOn: engine.opensAt ? FLOW.opensOn(monthNameDay(civilDateIn(new Date(engine.opensAt), TZ))) : null,
   };
 }
 

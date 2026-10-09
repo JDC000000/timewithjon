@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Browser, Page, Request } from '@playwright/test';
 import { Client } from 'pg';
-import { longDate } from '../../../src/app/book/[dish]/_lib/civil';
+import { longDate } from '../../../src/lib/civil';
 import { maskEmail, SEND_AS } from '../../../src/app/book/[dish]/_lib/prefill';
 import { FLOW } from '../../../src/content';
 import { LOCK, LOCK_SHEET, ordinal } from '../../../src/content/ui/admin-requests';

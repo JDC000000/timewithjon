@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # tests/lighthouse/run.sh — T4.6.04 (+T1.11.U3): Lighthouse mobile (the default preset: Moto G class device, slow 4G,
-# simulated throttling) on /, /menu, /book/<dish> and After Send; performance and accessibility must both be 90 or
-# more. CI only (.github/workflows/lighthouse.yml), after `pnpm db:test`. The prototype is built and started exactly
-# as tests/e2e/run.sh does (placeholder env, stand-in admin auth, loopback), then prepare.ts sets up each page's
-# state, each page is audited LH_RUNS times, and check.ts takes the median run and fails under 90.
+# simulated throttling) on /, /menu, /book/<picker dish>, /book/<dates dish> and After Send; performance and
+# accessibility must both be 90 or more. CI only (.github/workflows/lighthouse.yml), after `pnpm db:test`. The
+# prototype is built and started exactly as tests/e2e/run.sh does (placeholder env, stand-in admin auth, loopback),
+# then prepare.ts sets up each page's state, each page is audited LH_RUNS times, and check.ts takes the median run
+# and fails under 90.
 set -euo pipefail
 LIGHTHOUSE="lighthouse@13.5.0" # pinned: package.json / pnpm-lock.yaml are not this lane's (PR #107)
 LH_RUNS="${LH_RUNS:-3}"

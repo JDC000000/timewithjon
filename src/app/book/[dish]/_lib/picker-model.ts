@@ -4,7 +4,7 @@ import { collapseSpokenFor } from '@/features/availability/collapse';
 import type { WeekOut, WindowKind, WindowOut } from '@/features/availability/types';
 import { WINDOW_WORDS } from '@/content/ui/booking';
 import { windowNameParts } from '@/features/availability/a11y';
-import { addCivilDays, dayRange, monthName, shortDate } from './civil';
+import { addCivilDays, dayRange, monthName, shortDate } from '@/lib/civil';
 
 export interface TileView {
   slotId: string;
