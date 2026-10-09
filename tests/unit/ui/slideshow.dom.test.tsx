@@ -116,7 +116,7 @@ describe('PhotoSlot slideshow', () => {
     expect(onTop(container)).toBe(1);
   });
 
-  it('Pause stops the rotation; Play resumes it (aria-pressed, the label is the action)', () => {
+  it('Pause stops the rotation; Play resumes it (QA4 L8: one name, aria-pressed = paused; the word shown flips)', () => {
     vi.useFakeTimers();
     readyState = 'complete';
     const { container } = render(<PhotoSlot slot="show" kind="band" slots={FIXTURE} />);
@@ -127,10 +127,13 @@ describe('PhotoSlot slideshow', () => {
     fireEvent.click(btn);
     expect(btn.textContent).toBe(SLIDESHOW.play);
     expect(btn.getAttribute('aria-pressed')).toBe('true');
+    // the name never flips with the state: a screen reader hears "Pause, pressed" (paused), never "Play, pressed"
+    expect(screen.getByRole('button', { name: SLIDESHOW.pause, pressed: true })).toBe(btn);
     act(() => void vi.advanceTimersByTime(SLIDE_MS * 3));
     expect(onTop(container)).toBe(1);
-    fireEvent.click(screen.getByRole('button', { name: SLIDESHOW.play }));
+    fireEvent.click(btn);
     expect(btn.textContent).toBe(SLIDESHOW.pause);
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
     act(() => void vi.advanceTimersByTime(SLIDE_MS));
     expect(onTop(container)).toBe(2);
   });
@@ -191,5 +194,33 @@ describe('PhotoSlot slideshow', () => {
     fireEvent.click(btn);
     act(() => void vi.advanceTimersByTime(SLIDE_MS * 2));
     expect(onTop(container)).toBe(1);
+  });
+});
+
+// QA4 L8: seven toggles on /menu all read "Pause"; each now names its dish.
+describe('SlideshowToggle label (QA4 L8)', () => {
+  afterEach(() => vi.useRealTimers());
+  it('a card’s toggle carries the dish name, so each slideshow is told apart', () => {
+    vi.useFakeTimers();
+    readyState = 'complete';
+    const { container } = render(
+      <ul>
+        {['The Grind', 'The Shore Ride'].map((name) => (
+          <li className="dish" key={name}>
+            <DishPhotoScope slot="show" slots={FIXTURE} label={name}>
+              <a className="dish-row" href="#x">
+                <PhotoSlot slot="show" kind="dish" controls="outside" slots={FIXTURE} />
+              </a>
+            </DishPhotoScope>
+          </li>
+        ))}
+      </ul>,
+    );
+    slidesLoad(container);
+    const grind = screen.getByRole('button', { name: `${SLIDESHOW.pause} The Grind` });
+    expect(screen.getByRole('button', { name: `${SLIDESHOW.pause} The Shore Ride` })).not.toBe(grind);
+    fireEvent.click(grind);
+    expect(screen.getByRole('button', { name: `${SLIDESHOW.pause} The Grind`, pressed: true })).toBe(grind);
+    expect(grind.textContent).toBe(SLIDESHOW.play);
   });
 });
