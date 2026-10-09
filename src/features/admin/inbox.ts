@@ -31,6 +31,12 @@ const END = `coalesce(h.locked_ends_at, r.locked_ends_at)`;
 export const endedSql = (now: string) => `(h.status = 'done' or ${END} <= ${now})`;
 /** endedSql with $1 = now. */
 export const ENDED = endedSql('$1');
+/**
+ * QA4b M3: a guest riding on a booking (locked or done, no range of its own, rule 1) has the host's time: the A2
+ * row and the A3 detail both read it, so they never disagree. Aliases r/h.
+ */
+export const sharedTime = (col: 'locked_starts_at' | 'locked_ends_at') =>
+  `case when r.locked_starts_at is null and r.status in ('locked', 'done') then h.${col} else r.${col} end`;
 const TAB_WHERE: Record<InboxTab, string> = {
   needs_reply: `r.awaiting_jon_since is not null and not r.spam_suspect`,
   waiting: `r.status = 'needs_new_time' and r.awaiting_jon_since is null and not r.spam_suspect`,
@@ -44,9 +50,9 @@ const TAB_WHERE: Record<InboxTab, string> = {
 const TAB_ORDER: Record<InboxTab, string> = {
   needs_reply: `r.awaiting_jon_since asc`, // the longest wait first
   waiting: `r.created_at asc`,
-  locked: `r.locked_starts_at asc nulls last`,
+  locked: `${sharedTime('locked_starts_at')} asc nulls last`,
   standby: `r.standby_week asc nulls last, r.created_at asc`,
-  done: `r.locked_starts_at desc nulls last, r.created_at desc`,
+  done: `${sharedTime('locked_starts_at')} desc nulls last, r.created_at desc`,
   cancelled: `r.cancelled_at desc nulls last`,
   check: `r.created_at asc`,
 };
@@ -122,7 +128,8 @@ export async function listRequests(
 ): Promise<{ cards: InboxCard[]; truncated: boolean }> {
   const fetched = await q<CardRow>(
     `select r.id, r.dish, r.mode, r.status, r.is_test, r.contact_name, r.crew_size, r.big_crew,
-            r.awaiting_jon_since, r.created_at, r.locked_starts_at, r.locked_ends_at, r.standby_week::text,
+            r.awaiting_jon_since, r.created_at, ${sharedTime('locked_starts_at')} as locked_starts_at,
+            ${sharedTime('locked_ends_at')} as locked_ends_at, r.standby_week::text,
             i.kind as invite_kind,
             (select count(*)::int from request_slot_choice c where c.request_id = r.id) as times_count,
             coalesce(case when jsonb_typeof(r.date_prefs -> 'dates') = 'array'

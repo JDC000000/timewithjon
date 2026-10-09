@@ -8,6 +8,7 @@ import { Client } from 'pg';
 import { CLOSED_IN_PERSON_LABEL } from '@/content';
 import { adminCounts } from '@/features/admin/settings';
 import { getRequestDetail } from '@/features/admin/detail';
+import { sentLines } from '@/app/manage/_lib/sent-lines';
 import { loadEngineData } from '@/features/availability/load';
 import { bigDayDates } from '@/features/availability/rules';
 import { listRequests } from '@/features/admin/inbox';
@@ -285,9 +286,12 @@ describe('the admin detail of a shared booking (QA4b M3)', () => {
   it('each page names the other: the guest has the host and its time, the host its guests; after the host leaves, neither', async () => {
     const lunch = await slotId('2027-06-11', 'lunch');
     const host = await locked({ slotId: lunch });
-    const guest = await newRequest();
+    const guest = await newRequest({ slotIds: [lunch] }); // they picked the host's time (Join is offered for it)
     expect(await joinToBooking(guest, host)).toMatchObject({ ok: true });
     const [h, g] = [await getRequestDetail(host), await getRequestDetail(guest)];
+    // The A2 row reads the shared time too (it read "crew 1" with no time).
+    const card = (await listRequests('locked', OPEN)).cards.find((c) => c.id === guest);
+    expect(card).toMatchObject({ lockedStartsAt: h!.lockedStartsAt, lockedEndsAt: h!.lockedEndsAt });
     expect(g).toMatchObject({
       status: 'locked',
       lockedStartsAt: h!.lockedStartsAt, // the host's time is theirs (rule 1)
@@ -304,6 +308,10 @@ describe('the admin detail of a shared booking (QA4b M3)', () => {
       joinedHost: { id: host, on: false },
     });
     expect((await getRequestDetail(host))!.joinedGuests).toEqual([]);
+    // Their manage page: "Let's find another time", without the old time listed as theirs.
+    const model = await loadManageModel(await withTx((c) => issueManageToken(c, guest)));
+    expect(model).toMatchObject({ kind: 'manage', status: 'needs_new_time', when: null, hostLeft: true });
+    expect(await sentLines(model as Extract<typeof model, { kind: 'manage' }>)).toEqual([]);
   });
 });
 
