@@ -1,0 +1,9 @@
+{
+  "id": "night-away-not-carried",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "guest",
+  "summary": "The shorter-pitch form (from E8's link) had no “It’s one night away” box, and after a weather call /new-date showed it unticked, so a guest who didn't tick it again lost the night.",
+  "fix": "The manage and new-date models carry the stored value; every new-time form starts as the guest left it, and the pitch form has the box.",
+  "tests": ["src/app/manage/__tests__/night-away.dom.test.tsx", "tests/int/manage.int.test.ts"]
+}
