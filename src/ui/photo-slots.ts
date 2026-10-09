@@ -173,7 +173,7 @@ export const PHOTO_VIEWS: PhotoViews = PHOTO_VIEWS_JSON as PhotoViews;
 /**
  * The inline style for source `i` (0 = photo 1) of a slot. No view for it: `pos` as a plain object-position (exactly
  * today's markup), or nothing. With a view: custom properties the photo layer in site.css reads per breakpoint,
- * `--p-<key>` (position), `--f-<key>` (frame) and `--z-<key>` (zoom), plus `--p` (the slot's pos) as the fallback.
+ * `--p-<key>` (position), `--f-<key>` (frame) and `--zm-<key>` (zoom; not `--z-`, which is the z-index tokens' namespace), plus `--p` (the slot's pos) as the fallback.
  */
 export function photoViewStyle(
   slot: string,
@@ -189,7 +189,7 @@ export function photoViewStyle(
     else {
       style[`--p-${key}`] = v.pos;
       if (v.frame !== undefined) style[`--f-${key}`] = v.frame;
-      if (v.zoom !== undefined) style[`--z-${key}`] = v.zoom;
+      if (v.zoom !== undefined) style[`--zm-${key}`] = v.zoom;
     }
   }
   return style;

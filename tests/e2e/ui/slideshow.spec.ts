@@ -634,3 +634,32 @@ test('round 6: a view zoom draws the photo larger about its position, clipped by
   expect(framed!.width / framed!.height).toBeCloseTo(0.8, 2);
   expect(framed!.height).toBeCloseTo(framedTile!.height, 0);
 });
+
+// PH-24: with no zoom in the data, every photo is drawn at scale 1, the dish sheets' header photos included (a
+// zoom variable once shared its name with the --z-sheet z-index token and drew them 50x).
+test('PH-24: no zoom set, every photo is drawn at scale 1 (landing, menu cards, an open dish sheet)', async ({
+  page,
+}) => {
+  const unscaled = (s: string) => s === 'none' || s === '1';
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const path of ['/', '/menu'] as const) {
+    await page.goto(path);
+    const scales = await page
+      .locator('figure.ph img')
+      .evaluateAll((is) => is.map((i) => getComputedStyle(i).scale));
+    expect(scales.length, path).toBeGreaterThan(0);
+    expect(
+      scales.filter((s) => !unscaled(s)),
+      path,
+    ).toEqual([]);
+  }
+  await page.waitForLoadState('networkidle'); // hydrated: the card opens its sheet
+  await page.locator('li.dish > a.dish-row').first().click();
+  const sheetImg = page.locator('dialog[open] figure.ph--sheet img');
+  await expect(sheetImg).toBeVisible();
+  expect(unscaled(await sheetImg.evaluate((i) => getComputedStyle(i).scale))).toBe(true);
+  const [f, i] = await sheetImg.evaluate((img) =>
+    [img.closest('figure')!, img].map((n) => n.getBoundingClientRect().width),
+  );
+  expect(i!).toBeLessThanOrEqual(f! + 0.5); // never larger than its box
+});
