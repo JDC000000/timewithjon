@@ -73,6 +73,8 @@ export interface InboxCard {
   datesCount: number;
   /** A pitch's "when" in the guest's words ("sometime in June"). */
   windowText: string | null;
+  /** QA4 M1: the guest said it's one night away. */
+  overnight: boolean;
   countsToward: 'weekly_cap' | 'big_day' | 'none' | null;
   inviteKind: InviteKind;
   cancelledAt: string | null;
@@ -102,6 +104,7 @@ interface CardRow {
   times_count: number;
   dates_count: number;
   window_text: string | null;
+  overnight: boolean;
   counts_toward: InboxCard['countsToward'];
   cancelled_at: Date | null;
   cancelled_by: InboxCard['cancelledBy'];
@@ -124,7 +127,7 @@ export async function listRequests(
             (select count(*)::int from request_slot_choice c where c.request_id = r.id) as times_count,
             coalesce(case when jsonb_typeof(r.date_prefs -> 'dates') = 'array'
                           then jsonb_array_length(r.date_prefs -> 'dates') end, 0) as dates_count,
-            nullif(r.date_prefs ->> 'window_text', '') as window_text,
+            nullif(r.date_prefs ->> 'window_text', '') as window_text, r.overnight,
             r.counts_toward, r.cancelled_at, r.cancelled_by, r.closed_in_person, r.contact_problem, r.guest_rsvp
        from request r join invite i on i.id = r.invite_id
        left join request h on h.id = r.joined_to_request_id
@@ -160,6 +163,7 @@ export async function listRequests(
     timesCount: r.times_count,
     datesCount: r.dates_count,
     windowText: r.window_text,
+    overnight: r.overnight,
     countsToward: r.counts_toward,
     inviteKind: r.invite_kind,
     cancelledAt: iso(r.cancelled_at),

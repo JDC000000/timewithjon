@@ -26,6 +26,7 @@ const card = (over: Partial<InboxCard> = {}): InboxCard => ({
   timesCount: 2,
   datesCount: 0,
   windowText: null,
+  overnight: false,
   countsToward: 'weekly_cap',
   inviteKind: 'general',
   cancelledAt: null,
@@ -167,5 +168,28 @@ describe('rowView', () => {
     expect(rowView(card({ dishName: null, dish: 'old-dish', timesCount: 0 }), 'needs', now).meta).toBe(
       'old-dish · crew 3',
     );
+  });
+});
+
+describe('rowView: QA4 M1', () => {
+  it('an overnight request says "one night away" in the row meta, after the window or the dates', () => {
+    const c = card({
+      mode: 'dates',
+      timesCount: 0,
+      datesCount: 2,
+      overnight: true,
+      dish: 'the-grind',
+      dishName: 'The Grind',
+    });
+    expect(rowView(c, 'needs', now).meta).toBe('The Grind · crew 3 · 2 dates · one night away');
+    const w = card({
+      mode: 'dates',
+      timesCount: 0,
+      windowText: 'late May',
+      overnight: true,
+      dishName: 'The Grind',
+    });
+    expect(rowView(w, 'needs', now).meta).toBe('The Grind · crew 3 · late May · one night away');
+    expect(rowView(card(), 'needs', now).meta).not.toContain('one night away');
   });
 });

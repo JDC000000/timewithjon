@@ -1,0 +1,13 @@
+{
+  "id": "admin-rough-window-missing",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "admin",
+  "summary": "A date dish booked through “Rather give a rough window?” showed only Dish / Crew / Link on the admin detail (the window showed only for Pitch Me); Lock in had no date to offer and Suggest opened “Send 0 times”.",
+  "fix": "The guest’s window shows as When on every dated request, and a dated request with no dates still opens the dates Lock sheet, which asks for any season date (as a pitch does).",
+  "tests": [
+    "src/app/admin/_requests/detail-view.test.ts",
+    "src/app/admin/_requests/qa4-dates-lock.dom.test.tsx",
+    "tests/int/admin-ui-reads.int.test.ts"
+  ]
+}

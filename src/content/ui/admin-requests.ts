@@ -2,6 +2,7 @@
 // and the request detail (A3, A3b, A3c) that isn't in src/content yet. Words come from the v1.12 design pack and
 // the approved wireframe 09 (the copy list Jon approved, decision 31; each line names its source).
 // A line with no source in the pack or wireframe is marked NEW COPY (needs Jon): a placeholder Jon must write.
+import { PITCH } from './booking';
 
 export const SIGN_IN = {
   title: 'Sign in',
@@ -123,6 +124,7 @@ export const DETAIL = {
     plan: 'The plan',
     need: 'You need',
     was: 'Was', // (wireframe 09 A2d)
+    zone: 'Time zone', // NEW COPY (needs Jon): QA4 L3, the Long Distance guest's zone (no wireframe label)
   },
   general: 'General',
   crew: (n: number) => (n === 1 ? 'Just me' : `${n} of us`), // (wireframe 09 A3)
@@ -299,6 +301,12 @@ export const LOCK_DEFAULTS = {
     { words: 'half a day', minutes: 240 }, // approved: Jon (2026-10-03)
     { words: 'a day', minutes: 480 }, // approved: Jon (2026-10-03)
   ],
+  /**
+   * QA4 M1: the Length chip for a request that is "one night away" (the guest's own words, DATES.oneNight /
+   * PITCH.oneNightAway). Offered when the dish allows a night away or the guest asked for one; picked when they did.
+   * NEW COPY (needs Jon): 24 h (the start to the same time the next day) is a placeholder length.
+   */
+  overnight: { words: PITCH.oneNightAway, minutes: 24 * 60 },
   /** The Start options every dated dish offers (plus its own default). */
   starts: ['07:00', '09:00', '12:00'], // approved: Jon (2026-10-03)
   /** Per dish: the Start and Length picked when the sheet opens. */

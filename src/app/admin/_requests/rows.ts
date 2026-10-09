@@ -2,6 +2,7 @@
 // or the date, the meta line, the Jon-only flags). Pure: the page passes `now`.
 import { JON_FLAGS } from '@/content';
 import { INBOX, MAIL, ROW } from '@/content/ui/admin-requests';
+import { PITCH } from '@/content/ui/booking';
 import type { InboxCard, InboxTab } from '@/features/admin/inbox';
 import { dayLabel, vancouverInstant } from '@/lib/time';
 import { ageLabel, shortDate, whenLabel } from './format';
@@ -76,6 +77,7 @@ export function rowView(card: InboxCard, key: FilterKey, now: Date, failedSend =
   } else if (card.timesCount > 0) {
     parts.push(ROW.times(card.timesCount));
   }
+  if (card.overnight) parts.push(PITCH.oneNightAway); // QA4 M1: the guest's own words, so Jon never books a half day
   const since = new Date(card.awaitingJonSince ?? card.createdAt);
   return { ...base, age: ageLabel(since, now), meta: parts.join(' · ') };
 }

@@ -5,7 +5,7 @@
 // closes the sheet and starts the same A3b undo window as a slots lock; the POST goes when the window ends.
 import { useState } from 'react';
 import { Button, Field, KeepWhole, Sheet } from '@/ui';
-import { LOCK_DEFAULTS, LOCK_SHEET, SHEETS } from '@/content/ui/admin-requests';
+import { LOCK_SHEET, SHEETS } from '@/content/ui/admin-requests';
 import type { CountsToward } from '@/features/availability/types';
 import { dishAfterPossessive } from '@/content/menu-helpers';
 import { dayLabel, vancouverInstant } from '@/lib/time';
@@ -14,6 +14,7 @@ import {
   commitParts,
   defaultCountsToward,
   defaultsFor,
+  lengthOptions,
   lengthWords,
   parseClock,
   startOptions,
@@ -73,11 +74,15 @@ export function DateLockSheet(props: {
   dates: string[];
   season: { start: string; end: string };
   pitch: boolean;
+  /** QA4 M1: the guest said it's one night away: the overnight length is offered and picked. */
+  overnight?: boolean;
   open: boolean;
   onClose: () => void;
   onCommit: (target: DatesTarget, label: string) => void;
 }) {
-  const d = defaultsFor(props.dish);
+  const d = defaultsFor(props.dish, props.overnight);
+  // QA4 M2: a pitch, or a dated request with only a rough window, has no dates to pick from: any season date.
+  const anyDate = props.pitch || props.dates.length === 0;
   const [date, setDate] = useState(props.dates[0] ?? '');
   const [start, setStart] = useState<string>(d.start);
   const [other, setOther] = useState<string | null>(null);
@@ -121,7 +126,7 @@ export function DateLockSheet(props: {
           commit();
         }}
       >
-        {props.pitch ? (
+        {anyDate ? (
           <Field
             id={`${id}-date`}
             label={LOCK_SHEET.date}
@@ -200,7 +205,10 @@ export function DateLockSheet(props: {
             label={LOCK_SHEET.length}
             name="length"
             value={minutes}
-            options={LOCK_DEFAULTS.lengths.map((l) => ({ value: l.minutes, words: l.words }))}
+            options={lengthOptions(props.dish, props.overnight).map((l) => ({
+              value: l.minutes,
+              words: l.words,
+            }))}
             onChange={setMinutes}
           />
         </fieldset>

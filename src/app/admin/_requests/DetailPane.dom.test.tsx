@@ -38,6 +38,8 @@ const view: DetailView = {
   spam: false,
   dateKeys: [],
   pitch: false,
+  datesMode: false,
+  overnight: false,
   bigDayLocked: false,
   cancelWords: null,
   failed: [],

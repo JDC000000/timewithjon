@@ -5,6 +5,7 @@ import {
   commitParts,
   defaultCountsToward,
   defaultsFor,
+  lengthOptions,
   lengthWords,
   parseClock,
   startOptions,
@@ -58,5 +59,21 @@ describe('defaults and counts', () => {
     expect(commitParts('2027-04-03', '09:00')).toEqual({ verb: 'Lock in', when: 'Sat Apr 3, 9 am' });
     const p = commitParts('2027-06-12', '12:00');
     expect(`${p.verb} ${p.when}`).toBe(commitLabel('2027-06-12', '12:00'));
+  });
+});
+
+describe('QA4 M1: the overnight length', () => {
+  it('is offered on a dish that allows a night away, or when the guest asked; picked when they asked', () => {
+    const words = (dish: string, overnight?: boolean) => lengthOptions(dish, overnight).map((l) => l.words);
+    expect(words('the-grind')).toContain('one night away');
+    expect(words('pitch-me')).toContain('one night away');
+    expect(words('the-encore')).not.toContain('one night away');
+    expect(words('the-encore', true)).toContain('one night away');
+    expect(defaultsFor('the-grind', true)).toEqual({ start: '09:00', minutes: 24 * 60 });
+    expect(defaultsFor('the-grind')).toEqual({ start: '09:00', minutes: 240 });
+    expect(lengthWords(24 * 60)).toBe('one night away');
+  });
+  it('stays inside what the lock API takes (72 h)', () => {
+    for (const l of lengthOptions('pitch-me', true)) expect(l.minutes).toBeLessThanOrEqual(72 * 60);
   });
 });

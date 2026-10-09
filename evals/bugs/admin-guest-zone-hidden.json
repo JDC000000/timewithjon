@@ -1,0 +1,9 @@
+{
+  "id": "admin-guest-zone-hidden",
+  "date": "2026-10-08",
+  "task": "QA4",
+  "area": "admin",
+  "summary": "A Long Distance guest’s time zone was stored and used in their emails but never shown to Jon in admin.",
+  "fix": "The detail shows Time zone, named as the booking form names it (another zone as its id).",
+  "tests": ["src/app/admin/_requests/detail-view.test.ts", "tests/int/admin-ui-reads.int.test.ts"]
+}
