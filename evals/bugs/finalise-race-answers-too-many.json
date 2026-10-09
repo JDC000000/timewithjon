@@ -1,0 +1,9 @@
+{
+  "id": "finalise-race-answers-too-many",
+  "date": "2026-10-09",
+  "task": "T3.6.03",
+  "area": "photos",
+  "summary": "Two finalises of the same upload: when the first committed the photo that filled the story, the second (which had read the upload before that commit) answered 409 too_many for a photo that was saved, and the uploader took it as final.",
+  "fix": "When the story looks full, finalise first answers the photo this upload already made (a replay), and only refuses otherwise.",
+  "test": "tests/int/photos.int.test.ts"
+}
