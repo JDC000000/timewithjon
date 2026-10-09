@@ -1,0 +1,9 @@
+{
+  "id": "heic-decode-no-deadline",
+  "date": "2026-10-09",
+  "task": "T3.6.03",
+  "area": "photos",
+  "summary": "The HEIC pixel decode (libheif, synchronous) had no deadline: a slow file could hold the finalise function past its 60 s limit.",
+  "fix": "The HEIC decode runs in a worker thread that is terminated at the deadline; the whole HEIC conversion answers within 30 s (unreadable when it can't), inside maxDuration with a decode slot's wait.",
+  "test": "src/features/photos/__tests__/reencode-heic.test.ts"
+}

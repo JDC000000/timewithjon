@@ -29,5 +29,6 @@ export async function POST(req: NextRequest) {
   if (out.code === 'not_stored') return noStore(NextResponse.json({ mock: true }));
   // The picker offers only 2, so this is a replayed or scripted call: the generic line (no new copy).
   if (out.code === 'too_many') return noStore(jsonError(409, 'too_many_photos', ERRORS.generic));
+  if (out.code === 'too_many_attempts') return noStore(jsonError(409, 'too_many_attempts', ERRORS.generic));
   return noStore(jsonError(403, 'capability_expired', ERRORS.stale));
 }

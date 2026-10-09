@@ -20,6 +20,8 @@ import { removeRequests } from '../fixtures/requests-db';
 import { NextRequest } from 'next/server';
 import type { PoolClient } from 'pg';
 import { POST as finaliseRoute } from '@/app/api/photos/finalise/route';
+import { POST as signRoute } from '@/app/api/photos/sign/route';
+import { FAILED_UPLOADS_PER_PHOTO, MAX_PHOTOS } from '@/features/photos/limits';
 
 const mem = vi.hoisted(() => ({ store: null as unknown as MemoryStore }));
 vi.mock('@/lib/adapters/photos', async (orig) => ({
@@ -852,5 +854,67 @@ describe('admin thumbnails (T3.6.07)', () => {
     expect(photos).toHaveLength(2);
     for (const p of photos) expect(p.url).toMatch(/^memory:\/\/read\/final\/[0-9a-f-]{36}\.jpg\?ttl=600$/);
     expect(await storyPhotosForAdmin(randomUUID(), mem.store)).toEqual([]);
+  });
+});
+
+describe('sign: a lifetime cap on upload attempts that end without a photo', () => {
+  const SITE = 'http://localhost:3000';
+  const LIMIT = MAX_PHOTOS.after_send * FAILED_UPLOADS_PER_PHOTO; // 10
+  const signViaRoute = () =>
+    signRoute(
+      new NextRequest(`${SITE}/api/photos/sign`, {
+        method: 'POST',
+        headers: { origin: SITE, 'content-type': 'application/json' },
+        body: '{}',
+      }),
+    );
+  /** sign -> upload bytes no decoder accepts -> finalise refuses them (unreadable) */
+  const refusedRound = async (storyId: string) => {
+    const id = await upload(storyId, Buffer.from('these bytes are not an image'));
+    expect(await finalisePhotoUpload(id, storyId, mem.store)).toMatchObject({
+      ok: false,
+      code: 'unreadable',
+    });
+  };
+  beforeEach(async () => {
+    await q(`delete from rate_limit`);
+  });
+
+  it('after MAX_PHOTOS x 5 refused uploads the next sign is refused (409): sign -> upload -> refused cannot loop', async () => {
+    const requestId = await newRequest();
+    cap.requestId = requestId;
+    const storyId = (await ensureAfterSendStory(requestId))!;
+    for (let i = 0; i < LIMIT; i++) await refusedRound(storyId);
+    expect(await signPhotoUpload(storyId, mem.store)).toEqual({ ok: false, code: 'too_many_attempts' });
+    const res = await signViaRoute();
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { code: string }).code).toBe('too_many_attempts');
+    // nothing new was signed
+    expect(await q(`select 1 from photo_upload where story_id = $1`, [storyId])).toHaveLength(LIMIT);
+  });
+
+  it('a guest with refusals just under the cap still adds both photos; finished photos never count', async () => {
+    const storyId = await newStory();
+    for (let i = 0; i < LIMIT - 1; i++) await refusedRound(storyId);
+    for (let n = 0; n < MAX_PHOTOS.after_send; n++) {
+      const id = await upload(storyId, await jpegWithGps());
+      expect((await finalisePhotoUpload(id, storyId, mem.store)).ok).toBe(true);
+    }
+    // the story is full: the photo cap answers, not the attempt cap
+    expect(await signPhotoUpload(storyId, mem.store)).toEqual({ ok: false, code: 'too_many' });
+  });
+
+  it('abandoned uploads (signed, never finished, expired) count; uploads still in flight do not', async () => {
+    const storyId = await newStory();
+    for (let i = 0; i < LIMIT - 2; i++) await refusedRound(storyId);
+    await signPhotoUpload(storyId, mem.store);
+    await signPhotoUpload(storyId, mem.store);
+    // two in flight: the photo cap holds the 3rd, the attempt count is still LIMIT - 2
+    expect(await signPhotoUpload(storyId, mem.store)).toEqual({ ok: false, code: 'too_many' });
+    await q(
+      `update photo_upload set expires_at = now() - interval '1 second' where story_id = $1 and finalised_at is null`,
+      [storyId],
+    );
+    expect(await signPhotoUpload(storyId, mem.store)).toEqual({ ok: false, code: 'too_many_attempts' });
   });
 });
