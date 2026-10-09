@@ -121,6 +121,7 @@ export const envSchema = z
     EMAIL_FROM_GUEST: optionalString,
     EMAIL_FROM_ADMIN: optionalString,
     JON_PERSONAL_EMAIL: z.email().optional(),
+    EMAIL_REPLY_TO_GUEST: z.email().optional(),
 
     GOOGLE_OAUTH_CLIENT_ID: optionalString,
     GOOGLE_OAUTH_CLIENT_SECRET: optionalString,
