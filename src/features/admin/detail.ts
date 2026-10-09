@@ -5,7 +5,7 @@ import 'server-only';
 import { dishBySlug } from '@/content/menu-helpers';
 import type { InviteKind, RequestStatus } from '@/features/availability/types';
 import { q } from '@/lib/db';
-import { endedSql } from './inbox';
+import { endedSql, sharedTime } from './inbox';
 import { type ChosenTime, chosenTimes, iso, noTimesLeft } from './times';
 
 export interface RequestDetail {
@@ -118,10 +118,8 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
               where o.guest_id = r.guest_id and o.id <> r.id and o.status <> 'cancelled') as other_requests,
             r.awaiting_jon_since, r.created_at,
             -- QA4b M3: a guest riding on a booking that is on has no range of its own: the host's is theirs (rule 1)
-            case when r.locked_starts_at is null and r.status in ('locked', 'done') then h.locked_starts_at
-                 else r.locked_starts_at end as locked_starts_at,
-            case when r.locked_starts_at is null and r.status in ('locked', 'done') then h.locked_ends_at
-                 else r.locked_ends_at end as locked_ends_at,
+            ${sharedTime('locked_starts_at')} as locked_starts_at,
+            ${sharedTime('locked_ends_at')} as locked_ends_at,
             -- and the host's event is theirs too (they're an attendee on it), not "Not on the calendar"
             case when r.locked_starts_at is null and r.status in ('locked', 'done') and h.id is not null
                  then h.calendar_state else r.calendar_state end as calendar_state,

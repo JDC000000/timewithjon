@@ -36,6 +36,8 @@ export type ManageModel =
       canCancel: boolean;
       canAskAnother: boolean;
       canAddStory: boolean;
+      /** QA4b M3: the booking they joined fell through (the host left, rule 4): nothing of theirs is booked or asked. */
+      hostLeft: boolean;
     });
 
 export interface OfferWindow {
@@ -65,6 +67,7 @@ interface Row {
   own_plan: string | null;
   own_pitch: string | null;
   own_when: string | null;
+  joined_to_request_id: string | null;
 }
 
 async function loadView(
@@ -78,6 +81,7 @@ async function loadView(
   tz: string | null;
   jonCancelled: boolean;
   started: boolean;
+  hostLeft: boolean;
 } | null> {
   const [r] = await q<Row>(
     `select r.status, r.dish, r.closed_in_person, r.cancelled_by::text as cancelled_by, r.guest_time_zone,
@@ -86,7 +90,7 @@ async function loadView(
             case when r.joined_to_request_id is null then r.locked_where else h.locked_where end as where_text,
             case when $2 then r.surprise_plan_sealed end as own_plan,
             case when $2 then r.pitch_idea end as own_pitch,
-            case when $2 then r.date_prefs->>'window_text' end as own_when
+            case when $2 then r.date_prefs->>'window_text' end as own_when, r.joined_to_request_id
        from request r left join request h on h.id = r.joined_to_request_id
       where r.id = $1`,
     [requestId, withPlan],
@@ -110,6 +114,8 @@ async function loadView(
     tz: r.guest_time_zone,
     jonCancelled: isJonCancelled(r),
     started: hasStarted(r, now),
+    // A joined guest whose host left (rule 4) still names it, and waits on Jon for a new time.
+    hostLeft: r.status === 'needs_new_time' && r.joined_to_request_id !== null,
   };
 }
 
@@ -151,6 +157,7 @@ export async function loadManageModel(
     // 2026-10-05: after Jon cancelled for them, the guest can send new times (rerequest takes it back to Jon).
     canAskAnother: open || loaded.jonCancelled,
     canAddStory: true,
+    hostLeft: loaded.hostLeft,
   };
 }
 

@@ -19,7 +19,7 @@ import { KeepWhole, PhotoSlot, ROUTES, SiteFooter, SiteHeader } from '@/ui';
 import { NARROW } from '../_guest/layout';
 import { SentReceipt } from '../_guest/sent-receipt';
 import { dishPhotoSlot, dishView } from '../book/[dish]/_lib/flow-view';
-import { loadRequestLines } from '../sent/model';
+import { sentLines } from './_lib/sent-lines';
 import { ManageActions } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -74,12 +74,6 @@ function Expired({ message }: { message: string }) {
 }
 
 type Open = Extract<ManageModel, { kind: 'manage' }>;
-
-/** QA L7: while nothing is locked, the times (or dates, window, stand-by days) the guest sent, as /sent lists them. */
-async function sentLines(model: Open): Promise<string[]> {
-  const waiting = ['requested', 'needs_new_time', 'standby'].includes(model.status);
-  return !model.when && waiting ? loadRequestLines(model.requestId) : [];
-}
 
 function Manage({ model, token, sent }: { model: Open; token: string; sent: string[] }) {
   const dish = dishBySlug(model.dish.slug);

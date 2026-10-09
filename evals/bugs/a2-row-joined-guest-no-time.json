@@ -1,0 +1,9 @@
+{
+  "id": "a2-row-joined-guest-no-time",
+  "date": "2026-10-09",
+  "task": "QA4b-M3",
+  "area": "admin/requests",
+  "summary": "In the Locked in list, a joined guest's row read 'crew 1' with no time, though they share the host's.",
+  "fix": "The list reads a riding guest's time from its host (sharedTime, the same SQL as the A3 detail), and sorts by it.",
+  "tests": ["tests/int/joined.int.test.ts"]
+}

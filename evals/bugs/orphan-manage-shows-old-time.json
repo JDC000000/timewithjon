@@ -1,0 +1,9 @@
+{
+  "id": "orphan-manage-shows-old-time",
+  "date": "2026-10-09",
+  "task": "QA4b-M3",
+  "area": "requests/manage",
+  "summary": "After the booking they joined fell through (the host left), the guest's manage page still listed that booking's time under 'Let's find another time', as if it were still theirs.",
+  "fix": "A joined guest whose host left reads 'Let's find another time' with no time listed; nothing of theirs is booked or asked.",
+  "tests": ["tests/int/joined.int.test.ts"]
+}
