@@ -46,11 +46,16 @@ describe('S1 open hero', () => {
   it('one h1: the fixed open line, then How about now?', () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(text(html.match(/<h1.*<\/h1>/)![0])).toBe(
-      'We keep saying we should get or do that epic trip.How about now?',
+      'We keep saying we should get together or do that epic trip.How about now?',
     );
   });
   it('the CTA goes to the activity menu (ROUTES.menu = /menu, the S04 page, decision 37b/c)', () => {
-    expect(links(html)).toEqual([['/menu', 'See the activity menu →']]);
+    expect(links(html)).toEqual([['/menu', 'Book a Time with Jon →']]);
+  });
+  it('H2 (Jon, 2026-10-09): the CTA is the gold primary button, "Book a Time with Jon", same target', () => {
+    expect(html).toMatch(
+      /<a[^>]*class="btn btn--gold"[^>]*href="\/menu"|<a[^>]*href="\/menu"[^>]*class="btn btn--gold"/,
+    );
   });
   it('the fact line keeps "April 1" whole', () => {
     expect(html).toContain(
@@ -76,11 +81,11 @@ describe('S1 open hero', () => {
 describe('S2 personal hero', () => {
   it('AC2: "Dave." then the one line everyone sees (Jon, 2026-10-05), then How about now?', () => {
     const h1 = text(personal().match(/<h1.*<\/h1>/)![0]);
-    expect(h1).toBe('Dave.We keep saying we should get or do that epic trip.How about now?');
+    expect(h1).toBe('Dave.We keep saying we should get together or do that epic trip.How about now?');
   });
   it('AC2: an invite’s things never show, with or without them (and nothing of theirs reaches the page)', () => {
     expect(text(personal({ our_things: [] }))).toContain(
-      'Dave.We keep saying we should get or do that epic trip.',
+      'Dave.We keep saying we should get together or do that epic trip.',
     );
     const html = personal({ our_things: ['<b>x</b> & co'] });
     expect(html).not.toContain('&lt;b&gt;x');

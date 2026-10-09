@@ -100,7 +100,6 @@ async function newRequest(o: { crew?: number; tz?: string; slotIds?: string[] } 
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );

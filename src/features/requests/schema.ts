@@ -24,7 +24,6 @@ const multiLine = (max: number) =>
     .refine((s) => !CONTROL_EXCEPT_NEWLINES.test(s), 'control_character');
 // M3/L8: a repeated slot or date is a malformed request (400), not a primary-key crash (500).
 const unique = <T>(a: T[]) => new Set(a).size === a.length;
-export const CREW_BIG = 16;
 
 export const RequestBody = z.object({
   clientKey: z.uuid(),

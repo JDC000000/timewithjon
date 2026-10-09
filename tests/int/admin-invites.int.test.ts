@@ -72,7 +72,6 @@ async function addRequest(inviteId: string, spam = false): Promise<string> {
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );

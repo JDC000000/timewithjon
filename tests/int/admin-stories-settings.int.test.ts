@@ -61,7 +61,6 @@ async function newRequest(o: { email?: string; crew?: number; spam?: boolean } =
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );

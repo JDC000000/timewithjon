@@ -37,7 +37,6 @@ export async function newRequest(
       mode: 'slots',
       status: over.standbyWeek ? 'standby' : 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );

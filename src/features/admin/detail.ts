@@ -19,7 +19,6 @@ export interface RequestDetail {
   spamSuspect: boolean;
   contact: { name: string; email: string; phone: string | null };
   crewSize: number;
-  bigCrew: boolean;
   datePrefs: unknown;
   overnight: boolean;
   /** QA4 M1: the guest's "Which night?" answer on an overnight request (Pitch Me), their own words. */
@@ -74,7 +73,6 @@ interface DetailRow {
   contact_email: string;
   contact_phone: string | null;
   crew_size: number;
-  big_crew: boolean;
   date_prefs: unknown;
   overnight: boolean;
   overnight_night: string | null;
@@ -111,7 +109,7 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
             case when r.status = 'locked' and coalesce(${endedSql('$2')}, false) then 'done'
                  else r.status::text end as status,
             r.is_test, r.spam_suspect, r.contact_name, r.contact_email::text,
-            r.contact_phone, r.crew_size, r.big_crew, r.date_prefs, r.overnight, r.overnight_night,
+            r.contact_phone, r.crew_size, r.date_prefs, r.overnight, r.overnight_night,
             r.guest_time_zone, r.pitch_idea,
             r.surprise_need_to_know, r.note, r.before60_note, r.jon_note, r.has_sealed_plan,
             (select count(*)::int from request o
@@ -150,7 +148,6 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
     spamSuspect: r.spam_suspect,
     contact: { name: r.contact_name, email: r.contact_email, phone: r.contact_phone },
     crewSize: r.crew_size,
-    bigCrew: r.big_crew,
     datePrefs: r.date_prefs,
     overnight: r.overnight,
     overnightNight: r.overnight_night,

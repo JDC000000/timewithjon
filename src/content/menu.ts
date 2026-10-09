@@ -141,7 +141,7 @@ export const DISHES: Dish[] = [
     countsToward: 'weekly_cap', // like Something New (part of a day); Jon can re-count it at lock-in
     dateRule: 'any-day',
     overnightAllowed: false,
-    servesMax: 15, // "up to 3 families" has no head count: the site's usual group size (16+ is a big crew)
+    servesMax: 15, // "up to 3 families" has no head count: the site's usual group size
     bookable: true,
     availableUntil: null,
   },

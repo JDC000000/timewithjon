@@ -27,7 +27,6 @@ export type Validated =
       mode: 'slots' | 'dates';
       countsToward: CountsToward;
       status: 'requested' | 'standby';
-      bigCrew: boolean;
     }
   | { ok: false; code: ValidationCode };
 
@@ -66,7 +65,6 @@ export function validateRequest(
   const crew = crewRange(dish);
   if (!opts.keepStoredCrew && (b.crew < crew.min || b.crew > crew.max))
     return { ok: false, code: 'crew_out_of_range' };
-  const bigCrew = b.crew >= 16;
   const useSlots =
     dish.mode === 'slots' || (dish.mode === 'slots-or-dates' && b.dates.length === 0 && !b.windowText);
 
@@ -78,7 +76,7 @@ export function validateRequest(
       const wk = engine.weeks.find((w) => w.weekStart === b.standbyWeek);
       if (weekOver || !wk || wk.state !== 'spoken_for' || b.slotIds.length > 0)
         return { ok: false, code: 'standby_not_allowed' };
-      return { ok: true, mode: 'slots', countsToward: 'weekly_cap', status: 'standby', bigCrew };
+      return { ok: true, mode: 'slots', countsToward: 'weekly_cap', status: 'standby' };
     }
     if (b.slotIds.length === 0) return { ok: false, code: 'no_times' };
     if (!b.slotIds.every((id) => open.has(id))) return { ok: false, code: 'time_gone' }; // full, blocked, pre-release, wrong window
@@ -87,7 +85,6 @@ export function validateRequest(
       mode: 'slots',
       countsToward: dish.countsToward === 'jon_sets' ? 'none' : dish.countsToward,
       status: 'requested',
-      bigCrew,
     };
   }
 
@@ -109,5 +106,5 @@ export function validateRequest(
       : dish.mode === 'slots-or-dates'
         ? (dish.datesCountToward ?? 'big_day')
         : dish.countsToward;
-  return { ok: true, mode: 'dates', countsToward, status: 'requested', bigCrew };
+  return { ok: true, mode: 'dates', countsToward, status: 'requested' };
 }

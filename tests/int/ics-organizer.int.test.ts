@@ -61,7 +61,6 @@ async function lockedBooking(startsAt: string): Promise<string> {
       mode: 'slots',
       status: 'requested',
       countsToward: 'weekly_cap',
-      bigCrew: false,
       dishName: 'The Long Lunch',
     }),
   );

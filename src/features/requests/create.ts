@@ -27,7 +27,6 @@ export interface CreateArgs {
   mode: 'slots' | 'dates';
   status: 'requested' | 'standby';
   countsToward: CountsToward;
-  bigCrew: boolean;
   dishName: string;
   /**
    * The invite's kind: its guest intake emails count toward that invite's daily cap (requestSendInvite for the
@@ -134,9 +133,9 @@ export async function createRequestTx(
                           spam_suspect, crew_size, big_crew, guest_time_zone, note, date_prefs, overnight, pitch_idea,
                           surprise_need_to_know, surprise_plan_sealed, standby_week, counts_toward, overnight_night, awaiting_jon_since,
                           client_payload_hash)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12 >= 16,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,
              case when $11 or $10::request_status = 'standby' then null else now() end,
-             $24)
+             $23)
      on conflict (client_key) do nothing returning id`,
     [
       a.isTest,
@@ -150,8 +149,7 @@ export async function createRequestTx(
       a.mode,
       a.status,
       a.spam,
-      b.crew,
-      a.bigCrew,
+      b.crew, // big_crew is derived from it ($12 >= 16), as the column's check demands; it is never shown
       b.guestTimeZone ?? null,
       b.note ?? null,
       a.mode === 'dates' ? JSON.stringify({ dates: b.dates, window_text: b.windowText ?? null }) : null,
@@ -198,7 +196,6 @@ export async function createRequestTx(
       guestEmail: b.email,
       guestName: b.name,
       crew: b.crew,
-      bigCrew: a.bigCrew,
       choiceCount: a.mode === 'slots' ? b.slotIds.length : b.dates.length,
       choiceKind: a.mode === 'slots' ? 'times' : 'dates',
       overnight: b.overnight,

@@ -1,6 +1,6 @@
 // src/features/invites/landing-model.ts — T1.2 non-UI: S1/S2/S16 view model. The page renders this; no logic in JSX.
 import { dishBySlug, inSentence, isBookable, bookHref } from '@/content/menu-helpers';
-import { OPEN_LINE, PERSONAL, SEE_THE_MENU } from '@/content/site';
+import { BOOK_A_TIME, OPEN_LINE, PERSONAL } from '@/content/site';
 import type { InviteSession } from '@/features/invites/session';
 import { ROUTES } from '@/ui/routes';
 
@@ -21,7 +21,7 @@ export function landingModel(s: InviteSession, now = new Date()): LandingModel {
       variant: 'open',
       stale: s.state === 'stale',
       heroLine: OPEN_LINE,
-      cta: { label: SEE_THE_MENU, href: ROUTES.menu },
+      cta: { label: BOOK_A_TIME, href: ROUTES.menu },
     };
   }
   const inv = s.invite;

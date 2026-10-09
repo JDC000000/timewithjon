@@ -68,7 +68,6 @@ async function newRequest(name: string, isTest = false): Promise<string> {
     mode: 'slots' as const,
     status: 'requested' as const,
     countsToward: 'weekly_cap' as const,
-    bigCrew: false,
     dishName: 'The Long Lunch',
   };
   const id = (await withTx((c) => createRequestTx(c, a))).requestId;

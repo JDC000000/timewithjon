@@ -53,7 +53,6 @@ const args = (
   mode: 'slots' as const,
   status,
   countsToward: 'weekly_cap' as const,
-  bigCrew: false,
   dishName: 'The Long Lunch',
 });
 const create = (a: ReturnType<typeof args>) => withTx((c) => createRequestTx(c, a));
@@ -128,6 +127,12 @@ describe('request intake', () => {
     expect(await findRecentDuplicate(again, inviteId)).toBeNull(); // past the 10 minutes: a new request
     await q(`update request set created_at = now(), status = 'cancelled' where id = $1`, [first.requestId]);
     expect(await findRecentDuplicate(again, inviteId)).toBeNull(); // cancelled since: a new request
+  });
+  it('a crew of 16 (only off the guest path: the Send form caps each dish at 15) still saves: big_crew follows the crew', async () => {
+    const { requestId } = await create(args(mk({ crew: 16 })));
+    expect(await q(`select crew_size, big_crew from request where id = $1`, [requestId])).toEqual([
+      { crew_size: 16, big_crew: true },
+    ]);
   });
   it('L3 a client_key replayed from another invite is refused', async () => {
     const b = mk();
