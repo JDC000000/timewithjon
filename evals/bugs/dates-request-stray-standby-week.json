@@ -1,0 +1,9 @@
+{
+  "id": "dates-request-stray-standby-week",
+  "date": "2026-10-08",
+  "task": "CR-03",
+  "area": "requests/intake",
+  "summary": "A dates-dish request body with a stray standbyWeek was accepted: a non-Monday value hit the week foreign key (a 500 from POST /api/requests), a Monday was stored on a requested row.",
+  "fix": "validateRequest refuses standbyWeek on the dates path (standby_not_allowed); nothing is stored.",
+  "tests": ["src/features/requests/__tests__/validate.test.ts"]
+}

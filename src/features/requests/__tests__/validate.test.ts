@@ -43,6 +43,33 @@ describe('validateRequest', () => {
       code: 'standby_not_allowed',
     });
   });
+  it('CR-03 refuses a stray standbyWeek on the dates path (an Encore, an Old Haunt by date), Monday or not', () => {
+    for (const [slug, standbyWeek] of [
+      ['the-encore', '2027-06-16'], // a Wednesday: was a foreign-key 500 at insert
+      ['the-encore', '2027-06-14'], // a Monday: was stored on a 'requested' row
+      ['the-old-haunt', '2027-06-14'],
+    ] as const) {
+      expect(
+        validateRequest(
+          body({ dish: slug, dates: ['2027-06-19'], standbyWeek }),
+          dishBySlug(slug)!,
+          engineFor(slug),
+          season,
+          now,
+        ),
+      ).toEqual({ ok: false, code: 'standby_not_allowed' });
+    }
+    // The same body without it is fine.
+    expect(
+      validateRequest(
+        body({ dish: 'the-encore', dates: ['2027-06-19'] }),
+        dishBySlug('the-encore')!,
+        engineFor('the-encore'),
+        season,
+        now,
+      ),
+    ).toMatchObject({ ok: true, mode: 'dates' });
+  });
   it('accepts a Flat White with 3 open lunches', () => {
     const v = validateRequest(
       bodyWithFixtureSlots('the-flat-white', [
