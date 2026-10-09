@@ -408,6 +408,16 @@ a:hover {
 .btn--block {
   width: 100%;
 }
+/* H2 (Jon, 2026-10-09): the open landing's "Book a Time with Jon" is a gold primary button: the gilt fill behind ink
+   (7.29:1, the token's own rule: gilt only behind ink, never as text or a border), the ink edge as every .btn */
+.btn--gold {
+  background: var(--c-gilt);
+  color: var(--c-ink);
+}
+.btn--gold:hover {
+  background: color-mix(in srgb, var(--c-gilt) 85%, var(--c-ink));
+  color: var(--c-ink);
+}
 /* VD4-06 (1.4.10 / 1.4.12): buttons wrap their label instead of overflowing at 320, 125% text or wider text spacing */
 .btn {
   white-space: normal;

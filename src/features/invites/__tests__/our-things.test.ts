@@ -33,7 +33,7 @@ describe('our things', () => {
     expect(OurThings.safeParse(['a', 'b', 'c', 'd']).success).toBe(false);
   });
   it('the hero line ignores an invite’s things: one line for every personal link, the general link and no link', () => {
-    expect(OPEN_LINE).toBe('We keep saying we should get or do that epic trip.');
+    expect(OPEN_LINE).toBe('We keep saying we should get together or do that epic trip.');
     const personal = (our_things: string[]) =>
       landingModel({
         state: 'valid',

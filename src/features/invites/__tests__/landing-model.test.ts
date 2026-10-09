@@ -20,17 +20,17 @@ describe('landingModel', () => {
     expect(landingModel({ state: 'valid', invite: inv({}) })).toMatchObject({
       variant: 'personal',
       name: 'Dave',
-      heroLine: 'We keep saying we should get or do that epic trip.', // Jon, 2026-10-05: whatever their things
+      heroLine: 'We keep saying we should get together or do that epic trip.', // Jon, 2026-10-05: whatever their things
       cta: { label: 'Book The Shore Ride', href: '/book/the-shore-ride' },
     });
   });
   it('AC3 no/invalid invite shows the open variant; stale flagged', () => {
     expect(landingModel({ state: 'none' })).toMatchObject({ variant: 'open', stale: false });
     expect(landingModel({ state: 'valid', invite: inv({ our_things: [] }) })).toMatchObject({
-      heroLine: 'We keep saying we should get or do that epic trip.',
+      heroLine: 'We keep saying we should get together or do that epic trip.',
     });
     expect(landingModel({ state: 'none' })).toMatchObject({
-      heroLine: 'We keep saying we should get or do that epic trip.',
+      heroLine: 'We keep saying we should get together or do that epic trip.',
     });
     expect(landingModel({ state: 'stale' })).toMatchObject({ variant: 'open', stale: true });
   });

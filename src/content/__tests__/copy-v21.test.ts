@@ -101,9 +101,10 @@ describe('v2.1 copy guard (decision 37)', () => {
 
   it('the v2.1 strings, word for word', () => {
     expect(content.OPEN_LINE).toBe(
-      'We keep saying we should get or do that epic trip.', // Jon, 2026-10-05: one line for everyone
+      'We keep saying we should get together or do that epic trip.', // Jon, 2026-10-09: "together" added; one line for everyone
     );
-    expect(content.SEE_THE_MENU).toBe('See the activity menu');
+    expect(content.SEE_THE_MENU).toBe('See the activity menu'); // E9's button
+    expect(content.BOOK_A_TIME).toBe('Book a Time with Jon'); // Jon, 2026-10-09: the open landing's gold button
     expect(content.PERSONAL.seeWholeMenu).toBe('See the whole activity menu');
     expect(content.NOT_FOUND.back).toBe('Back to the activity menu');
     expect(content.MENU_TITLE).toBe('The Activity Menu');
