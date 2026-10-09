@@ -41,6 +41,8 @@ const base: DetailView = {
   bigDayLocked: false,
   cancelWords: null,
   failed: [],
+  joinedTo: null,
+  canPromote: false,
 };
 const slotView: DetailView = {
   ...base,
@@ -67,7 +69,6 @@ const props = (view: DetailView, dish = 'the-encore'): DetailPaneProps => ({
   dish,
   dishName: 'The Encore',
   season: { start: '2027-04-01', end: '2027-06-30' },
-  joinedToRequestId: null,
   pitchLength: '',
   view,
   options: null,
