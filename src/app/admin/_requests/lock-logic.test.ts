@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ERRORS } from '@/content';
 import type { ApiAnswer, Send } from './api';
-import { sendLock } from './lock-logic';
+import { checkLock, sendLock, tickFor } from './lock-logic';
 
 function answering(a: ApiAnswer): { post: Send; calls: unknown[][] } {
   const calls: unknown[][] = [];
@@ -78,5 +78,37 @@ describe('sendLock', () => {
       const r = await sendLock('r1', { slotId: 's1' }, undefined, answering(a).post);
       expect(r).toEqual({ ok: false, code: a.code ?? null, message: ERRORS.generic });
     }
+  });
+});
+
+describe('checkLock (QA4 H1)', () => {
+  const T = { overrideWeek: false, bookAnyway: false };
+  it('posts the same body as the lock to lock-check and reads the verdict', async () => {
+    const a = answering({ status: 200, data: { check: { ok: true, warnings: [] } } });
+    await expect(checkLock('r1', { slotId: 's1' }, T, a.post)).resolves.toEqual({ ok: true });
+    expect(a.calls).toEqual([['POST', '/api/admin/requests/r1/lock-check', { slotId: 's1', ...T }]]);
+    const b = answering({
+      status: 200,
+      data: { check: { ok: false, reason: 'week_full', message: 'That week is full.', nth: 3 } },
+    });
+    await expect(checkLock('r1', { slotId: 's1' }, T, b.post)).resolves.toEqual({
+      ok: false,
+      code: 'week_full',
+      message: 'That week is full.',
+      nth: 3,
+    });
+  });
+  it('no answer (offline, a 5xx, a 404) is a refusal: the window never opens on a guess', async () => {
+    for (const a of [{ status: 0 }, { status: 500 }, { status: 404, code: 'request_not_found' }]) {
+      const r = await checkLock('r1', { slotId: 's1' }, T, answering(a).post);
+      expect(r).toMatchObject({ ok: false, message: ERRORS.generic });
+    }
+  });
+  it('tickFor: a full week asks for Override this week; a blocked day or a Big Day clash for Book anyway', () => {
+    expect(tickFor('week_full')).toBe('overrideWeek');
+    expect(tickFor('blocked')).toBe('bookAnyway');
+    expect(tickFor('big_day_clash')).toBe('bookAnyway');
+    expect(tickFor('time_taken')).toBeNull();
+    expect(tickFor(null)).toBeNull();
   });
 });

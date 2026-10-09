@@ -204,6 +204,8 @@ export const LOCK = {
   sent: 'Locked in. Invite sent.', // approved (wireframe 09 status messages)
   undone: (who: string) => `Undone. ${who}’s request is back in Needs a reply.`, // approved (g1 copy a3b)
   bookAnyway: 'Book anyway: that date’s blocked', // (wireframe 09 A3o)
+  /** QA4 H1: the dates sheet's tick for a Big Day clash (REFUSAL_MESSAGE big_day_clash says "Tick Book anyway"). */
+  bookAnywayClash: 'Book anyway: that day already has a booking', // NEW COPY (needs Jon)
   overrideWeek: (nth: string) => `Override this week: it would be the ${nth}`, // (wireframe 09 A3o2)
   /** T2.3.U1 contract: a live stand-by offer covers the time (the lock still went through). */
   standbyOfferLive: 'A stand-by offer was out for that time. It’s withdrawn.', // approved: Jon (2026-10-03)

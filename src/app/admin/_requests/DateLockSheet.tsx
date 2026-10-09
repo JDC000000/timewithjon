@@ -3,9 +3,10 @@
 // Distance, a weekend Old Haunt) or a pitch (wireframe 09 A3g2, A3g3, A3h): Date -> Start (the dish's default
 // picked; Other… opens a time field) -> Length -> for a pitch, Counts as. Never all-day (C3 rule 14). Its commit
 // closes the sheet and starts the same A3b undo window as a slots lock; the POST goes when the window ends.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Field, KeepWhole, Sheet } from '@/ui';
-import { LOCK_SHEET, SHEETS } from '@/content/ui/admin-requests';
+import { LOCK, LOCK_SHEET, ordinal, SHEETS } from '@/content/ui/admin-requests';
+import { moveFocus } from '@/ui/focus';
 import type { CountsToward } from '@/features/availability/types';
 import { dishAfterPossessive } from '@/content/menu-helpers';
 import { dayLabel, vancouverInstant } from '@/lib/time';
@@ -19,6 +20,7 @@ import {
   parseClock,
   startOptions,
 } from './lock-sheet';
+import { type LockCheckOutcome, type LockTicks, tickFor } from './lock-logic';
 import { Tick } from './Tick';
 
 export interface DatesTarget {
@@ -65,6 +67,8 @@ export function CommitLabel({ verb, when }: { verb: string; when: string }) {
   );
 }
 
+const NO_TICKS: LockTicks = { overrideWeek: false, bookAnyway: false };
+
 export function DateLockSheet(props: {
   requestId: string;
   who: string;
@@ -78,7 +82,12 @@ export function DateLockSheet(props: {
   overnight?: boolean;
   open: boolean;
   onClose: () => void;
-  onCommit: (target: DatesTarget, label: string) => void;
+  /**
+   * QA4 H1: runs the pre-check and, when the lock would go through, opens the undo window (the sheet then closes).
+   * A refusal comes back here: the sheet stays open with the server's words and, for a full week or a blocked day,
+   * the same tick the time lock offers.
+   */
+  onCommit: (target: DatesTarget, label: string, ticks: LockTicks) => Promise<LockCheckOutcome | null>;
 }) {
   const d = defaultsFor(props.dish, props.overnight);
   // QA4 M2: a pitch, or a dated request with only a rough window, has no dates to pick from: any season date.
@@ -92,16 +101,36 @@ export function DateLockSheet(props: {
   const id = `lock-${props.requestId}`;
   const countsToward = counts ?? defaultCountsToward(props.dish, minutes);
   const startAt = other === null ? start : parseClock(other);
+  const [checking, setChecking] = useState(false);
+  const [ticks, setTicks] = useState<LockTicks>(NO_TICKS);
+  const [refused, setRefused] = useState<Extract<LockCheckOutcome, { ok: false }> | null>(null);
+  // A refusal (and its tick) belongs to the date, time, length and kind it was asked for: change one, it goes.
+  const targetKey = [date, startAt, minutes, countsToward].join('|');
+  const [refusedFor, setRefusedFor] = useState(targetKey);
+  if (refusedFor !== targetKey) {
+    setRefusedFor(targetKey);
+    setRefused(null);
+    setTicks(NO_TICKS);
+  }
+  const errRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (refused) moveFocus(errRef.current, 'script');
+  }, [refused]);
+  const tick = refused ? tickFor(refused.code) : null;
 
-  const commit = () => {
-    if (!date) return;
+  const commit = async () => {
+    if (!date || checking) return;
     if (!startAt) return setOtherError(LOCK_SHEET.startBad);
-    props.onClose();
     const at = vancouverInstant(date, startAt);
-    props.onCommit(
+    setChecking(true);
+    const out = await props.onCommit(
       { date, start: startAt, lengthMinutes: minutes, countsToward },
       `${dayLabel(at)}, ${clockLabel(at)}`,
+      ticks,
     );
+    setChecking(false);
+    if (out?.ok) props.onClose();
+    else if (out) setRefused(out);
   };
 
   return (
@@ -112,7 +141,14 @@ export function DateLockSheet(props: {
       title={LOCK_SHEET.title(props.who, dishAfterPossessive(props.dish))}
       closeLabel={SHEETS.close(LOCK_SHEET.title(props.who, dishAfterPossessive(props.dish)))}
       footer={
-        <Button variant="commit" dt block type="submit" form={`${id}-form`} disabled={!date}>
+        <Button
+          variant="commit"
+          dt
+          block
+          type="submit"
+          form={`${id}-form`}
+          disabled={!date || checking || Boolean(tick && !ticks[tick])}
+        >
           {date && startAt ? <CommitLabel {...commitParts(date, startAt)} /> : LOCK_SHEET.lockOpen}
         </Button>
       }
@@ -123,7 +159,7 @@ export function DateLockSheet(props: {
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          commit();
+          void commit();
         }}
       >
         {anyDate ? (
@@ -232,6 +268,29 @@ export function DateLockSheet(props: {
           </fieldset>
         ) : null}
 
+        {refused ? (
+          <>
+            <p className="err" role="alert" tabIndex={-1} ref={errRef} style={{ marginTop: 'var(--s5)' }}>
+              {refused.message}
+            </p>
+            {tick ? (
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={ticks[tick]}
+                  onChange={(e) => setTicks({ ...ticks, [tick]: e.currentTarget.checked })}
+                />
+                <span>
+                  {tick === 'overrideWeek'
+                    ? LOCK.overrideWeek(ordinal(refused.nth ?? 3))
+                    : refused.code === 'big_day_clash'
+                      ? LOCK.bookAnywayClash
+                      : LOCK.bookAnyway}
+                </span>
+              </label>
+            ) : null}
+          </>
+        ) : null}
         <p className="ui" style={{ marginTop: 'var(--s5)' }}>
           <KeepWhole
             text={[
