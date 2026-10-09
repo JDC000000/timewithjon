@@ -60,6 +60,7 @@ describe('decision 41d: The Double Date and The Family Hang (NEW ACTIVITIES, COP
     dateRule: 'any-day',
     overnightAllowed: false,
     servesMax: 4,
+    servesMin: 4, // Q9: "serves 4" is a fixed size
     bookable: true,
     availableUntil: null,
   };

@@ -23,7 +23,8 @@ const FIELDS = {
   idea: { max: 2000 },
   when: { max: 200 },
   night: { max: 200 },
-  /** the details (a personal invite's arrive filled in) */
+  /** the details (a personal invite's arrive filled in); crew = the stepper's number as text (Q9) */
+  crew: { max: 2 },
   name: { max: 80 },
   email: { max: 254 },
 } as const satisfies Record<string, { max?: number; list?: number; nullable?: true; bool?: true }>;
@@ -41,6 +42,7 @@ export type Draft = {
   idea?: string;
   when?: string;
   night?: string;
+  crew?: string;
   name?: string;
   email?: string;
 };

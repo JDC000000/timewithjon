@@ -44,14 +44,18 @@ export function PitchFlow({
   const [night, setNight] = useState('');
   const [errors, setErrors] = useState<FormError[]>([]);
   const summaryRef = useRef<HTMLDivElement>(null);
-  const s = useSend(dish.slug, guest);
-  useDraft(dish.slug, { idea, when, overnight, night, name: s.name, email: s.email }, (d) => {
-    setIdea(d.idea ?? '');
-    setWhen(d.when ?? '');
-    setOvernight(Boolean(d.overnight && dish.overnightAllowed));
-    setNight(d.night ?? '');
-    s.restoreDetails(d);
-  });
+  const s = useSend(dish.slug, guest, undefined, dish.crew);
+  useDraft(
+    dish.slug,
+    { idea, when, overnight, night, crew: String(s.crew), name: s.name, email: s.email },
+    (d) => {
+      setIdea(d.idea ?? '');
+      setWhen(d.when ?? '');
+      setOvernight(Boolean(d.overnight && dish.overnightAllowed));
+      setNight(d.night ?? '');
+      s.restoreDetails(d);
+    },
+  );
 
   function onStarter(starter: string) {
     const next = addStarter(idea, starter);

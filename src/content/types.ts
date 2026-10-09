@@ -39,6 +39,8 @@ export interface Dish {
   dateRule?: DateRule;
   overnightAllowed: boolean;
   servesMax: number;
+  /** The smallest party, the guest included; absent = 1. Equal to servesMax = a fixed size (the menu says "serves N"). */
+  servesMin?: number;
   bookable: boolean;
   availableUntil: string | null; // Vancouver civil date; hidden after it
   /** At most this many locked/done bookings of this dish start in one week (canLock; Override this week lifts it). */

@@ -123,6 +123,18 @@ describe('POST /api/requests (route level)', () => {
     expect(res.status).toBe(409);
     expect(json).toMatchObject({ code: 'time_gone', message: VALIDATION_MESSAGE.time_gone });
   });
+  it('Q9 a crew over the dish max → 409 crew_out_of_range, nothing stored; one inside is stored as crew_size', async () => {
+    const over = email('crew16');
+    const { res, json } = await post(body({ email: over, crew: 16 }), { cookie }); // The Long Lunch serves 1–15
+    expect(res.status).toBe(409);
+    expect(json).toMatchObject({ code: 'crew_out_of_range', message: ERRORS.generic });
+    expect(await requestFor(over)).toEqual([]);
+    const ok = email('crew5');
+    expect((await post(body({ email: ok, crew: 5 }), { cookie })).res.status).toBe(200);
+    expect(await q(`select crew_size, big_crew from request where contact_email = $1`, [ok])).toEqual([
+      { crew_size: 5, big_crew: false },
+    ]);
+  });
   it('the honeypot filled → 200, spam_suspect, and no E1/E2', async () => {
     const b = body({ email: email('spam'), hp: 'http://spam.example' });
     const { res } = await post(b, { cookie });
