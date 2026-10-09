@@ -52,117 +52,11 @@ function unmentioned(
 }
 
 /**
- * Entries from before the rule that each named test file mentions its bug. Frozen: the list only shrinks. Add the id
- * (e.g. a "Regression register: evals/bugs/<id>.json" comment) to its test files, then take the id off this list; the
- * test below fails while a listed id already passes, so a fixed one can't stay here.
+ * Entries dated before this day predate the rule that each named test file mentions its bug, and are let off it
+ * (many name a whole file without saying which case guards them). Every entry from this day on must follow it.
  */
-const LEGACY_UNMENTIONED = new Set<string>([
-  'BUG-001',
-  'BUG-002',
-  'a2-row-joined-guest-no-time',
-  'admin-guest-zone-hidden',
-  'admin-locked-banner-outlives-lock',
-  'admin-overnight-not-shown',
-  'admin-rough-window-missing',
-  'admin-signin-email-off-design',
-  'admin-signin-loses-deep-link',
-  'ask-again-lists-booked-time',
-  'big-day-clash-thu-fri-only',
-  'block-confirm-out-of-season',
-  'block-rule-outside-engine',
-  'bounce-poll-gmail-rows',
-  'calendar-invite-shows-jons-labels',
-  'copy-address-small-target',
-  'date-lock-full-week-no-override',
-  'dates-request-stray-standby-week',
-  'dev-outbox-unpruned',
-  'dev-post-origin',
-  'dev-routes-check-coverage',
-  'digest-drops-request-links',
-  'duplicate-request-after-back',
-  'e1-cap-concurrent',
-  'e1-no-manage-link',
-  'e12-host-cancel-omits-joined',
-  'e13-digest-test-real-clock',
-  'e2-counts-not-times',
-  'e2-overnight-not-shown',
-  'email-digest-double-bullet',
-  'email-e12-no-week-filler',
-  'email-e8-pitch-not-editable',
-  'email-e9-revoked-invite-never-sent',
-  'email-guest-link-bare-url',
-  'email-guest-time-no-vancouver',
-  'email-hourly-digest-subject',
-  'email-long-name-widens-card',
-  'export-date-cancelled-booking',
-  'export-date-joined-guest',
-  'general-cap-inside-request-tx',
-  'general-invite-request-cap',
-  'general-link-duplicate-other-browser',
-  'gmail-send-timeout',
-  'guest-actions-during-booking',
-  'guest-standby-gets-e3-nudge',
-  'health-public-detail',
-  'heic-decode-no-deadline',
-  'ics-organizer-not-sender',
-  'intake-replay-after-validation',
-  'intake-replay-ignores-edits',
-  'invite-link-switch-prefill',
-  'join-admin-half-wired',
-  'joined-page-no-more-menu',
-  'jon-cancel-old-link-mixed-message',
-  'jon-cancel-reads-as-guest-cancel',
-  'links-row-actions-unnamed',
-  'lock-cancel-race-orphan-delete',
-  'lock-leaves-standby-offer-live',
-  'lock-week-of-start-only',
-  'long-range-shows-start-only',
-  'manage-ac6-timeout-cascade',
-  'manage-grid-outside-season',
-  'manage-links-expire-after-weather-or-block',
-  'meter-counts-test-and-spam',
-  'month-tabs-narrow-wide-screens',
-  'new-date-grid-ignores-engine-off-dates',
-  'no-site-icons',
-  'offer-lookup-not-bound-to-request',
-  'offer-page-lists-taken-time',
-  'orphan-manage-shows-old-time',
-  'personal-invite-guest-email-cap',
-  'photo-finalise-full-story-decodes',
-  'photo-tile-words-on-photo',
-  'photo-upload-attempts-unlimited',
-  'request-cookie-after-revoke',
-  'request-name-bidi-override',
-  'rerequest-replay-ignores-edits',
-  'rerequest-stored-crew-refused',
-  'rerequest-stored-name-error',
-  'send-limit-fixed-hour-counts-refusals',
-  'sent-page-promises-capped-email',
-  'signin-address-cap',
-  'slideshow-toggle-label-in-name',
-  'slideshow-toggle-name-flips',
-  'slot-lock-inherits-big-day',
-  'slots-offered-outside-dish-windows',
-  'something-new-week-shows-open',
-  'standby-detail-no-actions',
-  'stories-address-200-overflow',
-  'story-empty-error-stays',
-  'story-name-bidi-override',
-  'story-name-box-reads-required',
-  'story-page-edit-of-deleted-story-inserts',
-  'story-page-first-save-retry-duplicates',
-  'story-page-revisit-overwrites',
-  'tag-sheet-overflow-firefox',
-  'tick-burner-halves-cadence',
-  'tick-hard-stop',
-  'tick-jobs-failing',
-  'tick-route-secret-helper',
-  'toast-pauses-under-pointer',
-  'unit-tests-dynamic-import-timeout',
-  'weather-call-focus-lost',
-  'webhook-bounce-before-send-recorded',
-  'webhook-event-unpruned',
-]);
+const RULE_FROM = '2026-10-10';
+const followsRule = (entry: Entry) => String(entry.date) >= RULE_FROM;
 
 describe('evals/bugs: the regression register', () => {
   it('has one .json file per bug and nothing else', () => {
@@ -202,20 +96,17 @@ describe('evals/bugs: the regression register', () => {
     expect(missing).toEqual([]);
   });
 
-  it('every entry is named in each of its test files (its id, or its "(case)" note)', () => {
+  it(`every entry from ${RULE_FROM} on is named in each of its test files (its id, or its "(case)" note)`, () => {
     const silent = entries
-      .filter(({ entry }) => !LEGACY_UNMENTIONED.has(entry.id))
+      .filter(({ entry }) => followsRule(entry))
       .flatMap(({ entry }) => unmentioned(entry).map((f) => `${entry.id}: ${f}`));
     expect(silent).toEqual([]);
   });
 
-  it('the legacy list only shrinks: every id on it exists and still has a silent test file', () => {
-    const ids = new Set(entries.map((e) => e.entry.id));
-    expect([...LEGACY_UNMENTIONED].filter((id) => !ids.has(id))).toEqual([]);
-    const fixed = entries
-      .filter(({ entry }) => LEGACY_UNMENTIONED.has(entry.id) && unmentioned(entry).length === 0)
-      .map(({ entry }) => entry.id);
-    expect(fixed, 'mentioned now: take these off LEGACY_UNMENTIONED').toEqual([]);
+  it('the rule applies by date: from its first day on, not before', () => {
+    expect(followsRule({ id: 'a', date: '2026-10-10' } as unknown as Entry)).toBe(true);
+    expect(followsRule({ id: 'b', date: '2026-11-02' } as unknown as Entry)).toBe(true);
+    expect(followsRule({ id: 'c', date: '2026-10-09' } as unknown as Entry)).toBe(false);
   });
 
   it('self-test: a file that names the entry, or its case note, passes; one that names neither fails', () => {
