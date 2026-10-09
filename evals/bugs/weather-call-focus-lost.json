@@ -1,0 +1,9 @@
+{
+  "id": "weather-call-focus-lost",
+  "date": "2026-10-09",
+  "task": "UX-A11Y",
+  "area": "a11y",
+  "summary": "After “Send the weather call” the sheet closed, its “Weather call ›” button unmounted and focus fell to <body>.",
+  "fix": "Once the request re-reads (no longer locked), focus goes to the caption, as after a lock.",
+  "tests": ["src/app/admin/_requests/ux02-weather-focus.dom.test.tsx"]
+}

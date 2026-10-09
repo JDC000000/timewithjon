@@ -298,7 +298,8 @@ export function PitchSheet({ lengthGuess, ...b }: Base & { lengthGuess: string }
 }
 
 /** A3m: the weather call on a locked Big Day (E10: "It's pouring. Let's move it."). */
-export function WeatherSheet(b: Base) {
+/** UX-02: `onSent` lets A3 put focus somewhere real once the request re-reads (its Weather call button is gone then). */
+export function WeatherSheet(b: Base & { onSent?: () => void }) {
   const act = useAction();
   return (
     <ActionSheet
@@ -316,7 +317,10 @@ export function WeatherSheet(b: Base) {
           {},
           {
             status: SHEETS.sentTo(b.who),
-            after: b.onClose,
+            after: () => {
+              b.onClose();
+              b.onSent?.();
+            },
           },
         )
       }
