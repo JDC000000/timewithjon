@@ -1,3 +1,7 @@
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+
+# Transitive dependencies held at a fixed floor (postcss, css-tree and vite still allow older versions).
+overrides:
+  source-map-js: ^1.2.2
