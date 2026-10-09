@@ -3,6 +3,8 @@
 // Sizes its own text and viewport (ui/** runs in the t100 projects only), so it runs in CI's smoke on both engines.
 import { expect, test, type Page } from '@playwright/test';
 import { horizontalOverflow } from '../support/layout';
+import { EMAIL_KEY } from '../../../src/app/admin/sign-in/sign-in-logic';
+import { SIGN_IN } from '../../../src/content/ui/admin-requests';
 import { ROUTES } from '../../../src/ui/routes';
 
 async function at200(page: Page, width: number) {
@@ -37,3 +39,14 @@ for (const width of [320, 375]) {
     expect(await horizontalOverflow(page)).toBe(0);
   });
 }
+
+test('200% text at 320: the 6-digit code fits its box (WebKit cut the 6th digit)', async ({ page }) => {
+  await at200(page, 320);
+  await page.addInitScript((key) => sessionStorage.setItem(key, 'qa4-notadmin@example.com'), EMAIL_KEY);
+  await page.goto(`${ROUTES.admin.signIn}?step=code`);
+  const code = page.getByLabel(SIGN_IN.codeLabel);
+  await code.fill('123456');
+  const [scroll, client] = await code.evaluate((e) => [e.scrollWidth, e.clientWidth]);
+  expect(scroll).toBeLessThanOrEqual(client);
+  expect(await horizontalOverflow(page)).toBe(0);
+});
