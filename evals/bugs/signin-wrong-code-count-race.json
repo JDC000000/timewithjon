@@ -1,0 +1,9 @@
+{
+  "id": "signin-wrong-code-count-race",
+  "date": "2026-10-09",
+  "task": "T2.1.04",
+  "area": "admin",
+  "summary": "Wrong sign-in codes for an address were read before the check and counted after it, so codes sent at the same moment all passed the read and more than the hourly 30 could be checked.",
+  "fix": "Each try is counted first, atomically, and given back when the code was right: of any number sent at once, at most 30 are checked in an hour, and right codes never count.",
+  "tests": ["tests/int/admin-signin-limits.int.test.ts", "tests/int/admin-verify.int.test.ts"]
+}

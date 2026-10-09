@@ -28,6 +28,8 @@ import {
   resendFailedEmail,
 } from '@/features/email/status';
 import { sendAdminSignIn } from '@/features/admin/signin';
+// Sign-ins here come from the admin's known device (the 3rd argument): these cases are about the day's whole P0 cap,
+// not the per-address start limit or the slots kept for that device (admin-signin-limits.int.test.ts).
 import { sendOtpEmail, currentAuthEmail } from '@/features/admin/supabase';
 import { GET as getEmailStatus } from '@/app/api/admin/email/route';
 import { POST as resendRoute } from '@/app/api/admin/email/[id]/resend/route';
@@ -171,7 +173,7 @@ describe('AC5: the thresholds in the real send path', () => {
     expect(limit.resumesAtLocal).toMatch(/^\d{1,2}:05 (AM|PM)$/);
 
     // a sign-in still goes out, and is counted (P0, within its cap)
-    expect(await sendAdminSignIn(ADMIN, 'prototype')).toBe('sent');
+    expect(await sendAdminSignIn(ADMIN, 'prototype', true)).toBe('sent');
     expect(await count()).toBe(96);
   });
 
@@ -250,9 +252,9 @@ describe('AC6: app email never takes the counter past 95', () => {
   });
   it('a sign-in at 95+ is counted as P0 and never queued; its cap still holds', async () => {
     await setCount(99);
-    expect(await sendAdminSignIn(ADMIN, 'prototype')).toBe('sent');
-    expect(await sendAdminSignIn(ADMIN, 'prototype')).toBe('sent');
-    expect(await sendAdminSignIn(ADMIN, 'prototype')).toBe('capped'); // proto P0 cap = 2
+    expect(await sendAdminSignIn(ADMIN, 'prototype', true)).toBe('sent');
+    expect(await sendAdminSignIn(ADMIN, 'prototype', true)).toBe('sent');
+    expect(await sendAdminSignIn(ADMIN, 'prototype', true)).toBe('capped'); // proto P0 cap = 2
     expect(await count()).toBe(101);
     expect(await q('select 1 from email_queue')).toHaveLength(0);
   });
@@ -273,7 +275,7 @@ describe('AC7: a Resend quota 429', () => {
     // the rest of the day waits without calling Resend again; a sign-in still goes out
     expect(await deliverEmail(await queued('E1'), { inline: true, now })).toBe('queued');
     expect(sendSpy).toHaveBeenCalledTimes(1);
-    expect(await sendAdminSignIn(ADMIN, 'prototype')).toBe('sent');
+    expect(await sendAdminSignIn(ADMIN, 'prototype', true)).toBe('sent');
     // the email-retry path never touches a queued row
     expect(await q(`select 1 from email_log where status in ('pending','failed')`)).toHaveLength(0);
   });

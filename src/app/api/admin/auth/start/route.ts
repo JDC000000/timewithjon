@@ -1,11 +1,13 @@
 // src/app/api/admin/auth/start/route.ts — T2.1.03 + T2.1.08: the one door for admin sign-in emails (AD-7).
 // Public (there's no session yet), but same-origin only. Turnstile and the per-IP limit run the same way for
-// every address; then the same 200 goes out at once and the allowlist, slot and Supabase call run in after(),
-// so neither the answer nor its timing tells anyone which address is the admin's (review F12).
+// every address; then the same 200 goes out at once and the allowlist, the per-address limit, the slot and the
+// Supabase call run in after(), so neither the answer nor its timing tells anyone which address is the admin's
+// (review F12). A start from the admin's known device skips the per-address limit and may use the kept slots.
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { ERRORS } from '@/content';
 import { adminFeatureOff } from '@/features/admin/auth';
+import { isKnownDevice, KNOWN_DEVICE_COOKIE } from '@/features/admin/known-device';
 import { sendAdminSignIn } from '@/features/admin/signin';
 import { BODY_TOO_LARGE, clientIp, jsonError, readJson, sameOrigin, tooLarge } from '@/lib/http';
 import { check } from '@/lib/ratelimit';
@@ -40,9 +42,11 @@ export async function POST(req: NextRequest) {
   if (verdict === 'unavailable') return jsonError(503, 'unavailable', SIGN_IN.unavailable);
   if (verdict === 'allowed') {
     const { email } = parsed.data;
+    // Read now (the request is gone in after()); the answer is the same either way.
+    const knownDevice = isKnownDevice(req.cookies.get(KNOWN_DEVICE_COOKIE)?.value, email);
     after(async () => {
       try {
-        await sendAdminSignIn(email);
+        await sendAdminSignIn(email, undefined, knownDevice);
       } catch (e) {
         report(e, { area: 'admin_signin' });
       }

@@ -1,0 +1,9 @@
+{
+  "id": "signin-emails-per-address",
+  "date": "2026-10-09",
+  "task": "T2.1.07",
+  "area": "admin",
+  "summary": "Starts for the admin address from many IPs could use up the day's sign-in emails, so the admin's own sign-in on a new day sent nothing until midnight UTC.",
+  "fix": "A per-address limit on sign-in emails (3 an hour, keyed by a hash, counted after the answer so its timing is the same for every address), and 2 of the 8 daily sign-in emails are kept for the browser the admin last signed in on (a signed cookie set when a sign-in succeeds); that browser also skips the per-address limit.",
+  "tests": ["tests/int/admin-signin-limits.int.test.ts", "tests/int/admin-verify.int.test.ts"]
+}

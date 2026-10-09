@@ -39,6 +39,9 @@ export const LIMITS = {
   eventBeacon: { limit: 60, windowSec: 3600 }, // T3.11: POST /api/events (sheet/picker opened)
   devLogin: { limit: 10, windowSec: 3600 }, // T1.10.10: slows passphrase guessing on /dev/login
   adminSignInStart: { limit: 5, windowSec: 3600 }, // T2.1.08: every address alike; over it, the same 200
+  // Sign-in emails per admin ADDRESS (a hash), counted in after() so the answer's timing is the same for every
+  // address. A start from the admin's known device (features/admin/known-device.ts) skips it.
+  adminSignInStartEmail: { limit: 3, windowSec: 3600 },
   adminSignInVerify: { limit: 10, windowSec: 3600 }, // T2.1.04: codes + link opens per IP (the callback shares it)
   // Per address: counts WRONG codes only; at the limit, typed codes for that address wait out the hour (the emailed
   // link, which has its own per-IP bucket, still signs in). High enough that strangers rarely reach it, low enough
@@ -55,6 +58,7 @@ export type LimitScope = keyof typeof LIMITS;
  */
 export const FAIL_CLOSED: ReadonlySet<LimitScope> = new Set<LimitScope>([
   'adminSignInStart',
+  'adminSignInStartEmail',
   'adminSignInVerify',
   'adminSignInVerifyEmail',
   'devLogin',
@@ -115,6 +119,48 @@ async function slidingCheck(
     row.bucket,
   ]);
   return 'limited';
+}
+
+export interface Reservation {
+  verdict: LimitVerdict;
+  /** Gives this try back (it turned out not to count, e.g. a right code). Never takes the count below zero. */
+  refund: () => Promise<void>;
+}
+
+/**
+ * Counts one try FIRST, atomically, and says whether it is within the limit; the caller refunds it when the try
+ * turns out not to count. Unlike peek-then-check, concurrent tries can't all pass: of N at once, at most `limit`
+ * are allowed in a window (for buckets that should count only some outcomes, such as wrong sign-in codes).
+ */
+export async function reserve(scope: LimitScope, key: string): Promise<Reservation> {
+  const { limit, windowSec } = LIMITS[scope];
+  const none = async () => {};
+  try {
+    const [row] = await q<{ count: number; window_start: Date }>(
+      `insert into rate_limit (scope, key, window_start, count)
+       values ($1, $2, date_bin(make_interval(secs => $3), now(), timestamptz 'epoch'), 1)
+       on conflict (scope, key, window_start) do update set count = rate_limit.count + 1
+       returning count, window_start`,
+      [scope, key, windowSec],
+    );
+    if (!row) return { verdict: 'allowed', refund: none };
+    const refund = async () => {
+      try {
+        await q(
+          `update rate_limit set count = count - 1
+            where scope = $1 and key = $2 and window_start = $3 and count > 0`,
+          [scope, key, row.window_start],
+        );
+      } catch (e) {
+        report(e, { area: 'ratelimit', scope, step: 'refund' });
+      }
+    };
+    return { verdict: row.count <= limit ? 'allowed' : 'limited', refund };
+  } catch (e) {
+    const closed = FAIL_CLOSED.has(scope);
+    report(e, { area: 'ratelimit', scope, ...(closed ? { mode: 'fail_closed' } : {}) });
+    return { verdict: closed ? 'unavailable' : 'allowed', refund: none };
+  }
 }
 
 /**

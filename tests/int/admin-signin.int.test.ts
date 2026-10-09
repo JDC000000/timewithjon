@@ -60,7 +60,7 @@ beforeEach(async () => {
   otp.mockReset();
   await q('delete from email_budget');
   await q('delete from system_status where key = $1', [SIGNIN_FAILED_KEY]);
-  await q(`delete from rate_limit where scope = 'adminSignInStart'`);
+  await q(`delete from rate_limit where scope in ('adminSignInStart', 'adminSignInStartEmail')`);
 });
 
 describe('the budget counter (T2.1.07)', () => {
@@ -92,7 +92,10 @@ describe('the budget counter (T2.1.07)', () => {
     'AC8: 20 parallel sign-ins in %s make at most %i calls and count at most that',
     async (mode, cap) => {
       accepted();
-      const outcomes = await Promise.all(Array.from({ length: 20 }, () => sendAdminSignIn(ADMIN, mode)));
+      // From the known device, so the day's whole cap is in play (other browsers: admin-signin-limits.int.test.ts).
+      const outcomes = await Promise.all(
+        Array.from({ length: 20 }, () => sendAdminSignIn(ADMIN, mode, true)),
+      );
       expect(outcomes.filter((o) => o === 'sent')).toHaveLength(cap);
       expect(otp).toHaveBeenCalledTimes(cap);
       expect(await today()).toEqual({ sent: cap, signin: cap });
