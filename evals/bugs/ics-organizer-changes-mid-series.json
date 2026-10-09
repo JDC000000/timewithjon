@@ -1,0 +1,9 @@
+{
+  "id": "ics-organizer-changes-mid-series",
+  "date": "2026-10-09",
+  "task": "T3.4.04",
+  "area": "calendar",
+  "summary": "The .ics organiser was worked out at send time from the mailer then in use, so a switch between a booking's REQUEST and its CANCEL gave the same event two different organisers, and a calendar may ignore the CANCEL.",
+  "fix": "The first .ics of a booking stores its organiser in the email row; every later update or cancel of that booking reuses it.",
+  "test": "tests/int/ics-organizer.int.test.ts"
+}

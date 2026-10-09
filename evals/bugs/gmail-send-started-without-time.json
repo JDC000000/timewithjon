@@ -1,0 +1,9 @@
+{
+  "id": "gmail-send-started-without-time",
+  "date": "2026-10-09",
+  "task": "T3.9.01",
+  "area": "email",
+  "summary": "A Gmail send started with whatever time was left before the tick's hard stop (it could be about a second); Gmail has no idempotency key, so a send it accepted whose answer was cut off was sent again by the next tick and arrived twice.",
+  "fix": "A Gmail send does not start with less than 5 s left (GMAIL_MIN_START_MS); it waits for the next tick as a retryable TimeoutError.",
+  "test": "src/lib/adapters/__tests__/gmail-mime.test.ts"
+}

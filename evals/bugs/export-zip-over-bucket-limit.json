@@ -1,0 +1,9 @@
+{
+  "id": "export-zip-over-bucket-limit",
+  "date": "2026-10-09",
+  "task": "T3.10.01",
+  "area": "export",
+  "summary": "The stories export uploaded its zip without checking its size, so a zip over the exports bucket's limit was sent in full and then refused.",
+  "fix": "The export checks the zip against EXPORT_MAX_BYTES (the same number as the bucket's limit) before the upload: the job is failed and the route answers 413 export_too_large.",
+  "test": "tests/int/export.int.test.ts"
+}

@@ -12,6 +12,8 @@ import { pool, q, withTx } from '@/lib/db';
 import { createRequestTx } from '@/features/requests/create';
 import { RequestBody } from '@/features/requests/schema';
 import { runExport } from '@/features/export/run';
+import { EXPORT_MAX_BYTES } from '@/features/export/limits';
+import { BUCKET_LIMITS } from '../../ops/bucket-limits';
 import { exportStories } from '@/features/export/build';
 import { removeRequests } from '../fixtures/requests-db';
 import { createMemoryStore, type MemoryStore } from '@/lib/adapters/mock/object-store';
@@ -28,6 +30,7 @@ let photos: MemoryStore;
 let inviteId = '';
 let slotId = '';
 const CANARY = `SEALED-CANARY-${randomUUID()}`;
+const NOW_EXPORT = new Date('2027-07-01T18:00:00Z');
 // pr50-verify N3: a private /tmp for this file, so the stale-zip sweep can't touch a sibling worktree's live zip.
 const prevTmp = process.env.TMPDIR; // pr60-verify N-H: restored afterwards
 const TMP = mkdtempSync(path.join(tmpdir(), 'twj-export-int-'));
@@ -321,6 +324,29 @@ describe('POST /api/admin/export: runExport (T3.10.01)', () => {
     expect(
       (await runExport({ consentedOnly: true, includeEmail: false }, { photos, exports: mem.exports })).ok,
     ).toBe(true);
+  });
+
+  it('a zip one byte over the cap is refused before the upload; one exactly at the cap still goes', async () => {
+    await story({ consent: true, photos: 2 });
+    const opts = { consentedOnly: true, includeEmail: false };
+    const first = await runExport(opts, { photos, exports: mem.exports }, NOW_EXPORT);
+    expect(first.ok).toBe(true);
+    const bytes = (first as { bytes: number }).bytes;
+    // the same content again, at a cap one byte under its size: refused, failed, nothing uploaded, no file left
+    mem.exports = createMemoryExportStore();
+    await q(`delete from export_job`);
+    const over = await runExport(opts, { photos, exports: mem.exports }, NOW_EXPORT, bytes - 1);
+    expect(over).toEqual({ ok: false, code: 'too_large', bytes, maxBytes: bytes - 1 });
+    expect(mem.exports.objects.size).toBe(0);
+    const [job] = await q<{ id: string; status: string }>(`select id, status from export_job`);
+    expect(job!.status).toBe('failed');
+    expect(existsSync(path.join(tmpdir(), `twj-export-${job!.id}.zip`))).toBe(false);
+    // at exactly its size: uploaded (the cap is the largest zip allowed)
+    const at = await runExport(opts, { photos, exports: mem.exports }, NOW_EXPORT, bytes);
+    expect(at).toMatchObject({ ok: true, bytes });
+    expect(mem.exports.objects.size).toBe(1);
+    // the default cap is the exports bucket's own limit
+    expect(EXPORT_MAX_BYTES).toBe(BUCKET_LIMITS.exports.fileSizeLimit);
   });
 
   it('a failed upload marks the job failed and removes the local file', async () => {

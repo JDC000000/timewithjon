@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   try {
     const out = await runExport(parsed.data, { photos: photoStore(), exports: exportStore() }, now);
+    if (!out.ok && out.code === 'too_large')
+      // NEW COPY (needs Jon): a message that the export is too big to download in one go; the generic line for now.
+      return noStore(jsonError(413, 'export_too_large', ERRORS.generic));
     if (!out.ok) return noStore(jsonError(409, 'export_running', ERRORS.generic));
     if (getEnv().APP_MODE === 'prototype') return noStore(zipAnswer(prototypeZip(out.jobId), now));
     return noStore(NextResponse.json(out));
