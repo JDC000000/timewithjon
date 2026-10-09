@@ -4,7 +4,7 @@
   "task": "QA4",
   "area": "a11y",
   "summary": "On Links, each row’s Copy link / Copy text / Revoke had no person’s name for a screen reader, and focus dropped to the page after Revoke.",
-  "fix": "Each action carries the person’s name (visually hidden); Keep it returns focus to Revoke and a done Revoke lands focus on the row’s name.",
+  "fix": "Each action’s accessible name carries the person’s name (“Copy link, Dana”); Keep it returns focus to Revoke and a done Revoke lands focus on the row’s name.",
   "tests": [
     "src/app/admin/(app)/invites/_a5/__tests__/invites-list.dom.test.tsx",
     "tests/e2e/admin/invites.spec.ts"

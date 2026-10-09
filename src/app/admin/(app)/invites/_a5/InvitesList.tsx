@@ -31,10 +31,8 @@ function Meta({ parts }: { parts: string[] }) {
   );
 }
 
-/** QA4 L8: a row action's name carries whose link it is ("Copy link, Dave"); the visible word stays as it is. */
-function Whose({ who }: { who: string }) {
-  return <span className="vh">, {who}</span>;
-}
+/** QA4 L8: a row action's name carries whose link it is ("Copy link, Dave"); the visible word starts it (WCAG 2.5.3). */
+const whose = (action: string, who?: string) => (who ? `${action}, ${who}` : undefined);
 
 function CopyButtons({
   item,
@@ -55,13 +53,11 @@ function CopyButtons({
   };
   return (
     <>
-      <TextButton onClick={() => copy(item.link)}>
+      <TextButton aria-label={whose(A5.copyLink, who)} onClick={() => copy(item.link)}>
         {A5.copyLink}
-        <Whose who={who} />
       </TextButton>
-      <TextButton onClick={() => copy(item.text)}>
+      <TextButton aria-label={whose(A5.copyText, who)} onClick={() => copy(item.text)}>
         {A5.copyText}
-        <Whose who={who} />
       </TextButton>
     </>
   );
@@ -104,9 +100,13 @@ function Confirm({
   }, [asking, doneFocus, triggerId]);
   if (!asking)
     return (
-      <TextButton id={triggerId} onClick={() => setAsking(true)} data-testid={testId}>
+      <TextButton
+        id={triggerId}
+        aria-label={whose(label, who)}
+        onClick={() => setAsking(true)}
+        data-testid={testId}
+      >
         {label}
-        {who ? <Whose who={who} /> : null}
       </TextButton>
     );
   return (
