@@ -1,0 +1,9 @@
+{
+  "id": "rerequest-stored-name-error",
+  "date": "2026-10-09",
+  "task": "T2.7.05",
+  "area": "requests",
+  "summary": "A re-request ran the stored name through today's name rules, so a name saved with direction marks before those rules existed made Ask for another time fail with a server error.",
+  "fix": "The re-request check passes placeholders through the schema and keeps the stored name and crew as they are.",
+  "test": "tests/int/manage.int.test.ts"
+}

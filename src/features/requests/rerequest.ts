@@ -270,21 +270,24 @@ async function check(
   const season = { start: loaded.settings.seasonStart, end: loaded.settings.seasonEnd };
   const busy = await getBusy(season);
   const engine = openWindows(engineInput(loaded, busy, invite.kind, dish.windows, requestId));
-  // The stored details stand in for the form fields a first Send would carry (validateRequest reads them).
+  // The stored details stand in for the form fields a first Send would carry. Only placeholders go through the
+  // schema: the stored name and crew are kept as they are, never re-validated, so a row saved under older rules (a
+  // name with direction marks, a crew outside today's range) still re-requests instead of failing here.
   const body: RequestBody = {
     ...RequestBody.parse({
       clientKey: '00000000-0000-4000-8000-000000000000',
       dish: r.dish,
-      name: r.contact_name,
+      name: 'Guest', // not used by validation; the row keeps its own
       email: 'guest@example.com', // not used by validation; the row keeps its own
-      crew: r.crew_size,
+      crew: 1,
     }),
     ...choices,
+    crew: r.crew_size,
     guestTimeZone: r.guest_time_zone ?? undefined,
     pitchIdea: newPitch ?? r.pitch_idea ?? undefined,
     surpriseNeedToKnow: r.surprise_need_to_know ?? undefined,
   };
-  const v = validateRequest(body, dish, engine, season, now);
+  const v = validateRequest(body, dish, engine, season, now, { keepStoredCrew: true });
   if (!v.ok) return { code: v.code };
   return {
     mode: v.mode,

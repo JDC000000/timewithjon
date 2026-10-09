@@ -51,6 +51,7 @@ export function validateRequest(
   engine: EngineOutput,
   season: { start: string; end: string },
   now = new Date(),
+  opts: { keepStoredCrew?: boolean } = {},
 ): Validated {
   if (!isBookable(dish, now)) return { ok: false, code: 'not_bookable' };
   if (b.overnight && !dish.overnightAllowed) return { ok: false, code: 'overnight_not_allowed' };
@@ -60,8 +61,11 @@ export function validateRequest(
     return { ok: false, code: 'need_to_know_required' };
   if (dish.flow === 'pitch' && !b.pitchIdea?.trim()) return { ok: false, code: 'idea_required' };
   // Q9: the booking screens offer only the dish's own range (crewRange); anything else is a hand-made body.
+  // A re-request (keepStoredCrew) never changes the crew, so it isn't re-checked: rows saved before the range
+  // existed (every Double Date at crew 1) or before a later trim must still be able to ask for another time.
   const crew = crewRange(dish);
-  if (b.crew < crew.min || b.crew > crew.max) return { ok: false, code: 'crew_out_of_range' };
+  if (!opts.keepStoredCrew && (b.crew < crew.min || b.crew > crew.max))
+    return { ok: false, code: 'crew_out_of_range' };
   const bigCrew = b.crew >= 16;
   const useSlots =
     dish.mode === 'slots' || (dish.mode === 'slots-or-dates' && b.dates.length === 0 && !b.windowText);
