@@ -1,0 +1,9 @@
+{
+  "id": "tag-sheet-overflow-firefox-2",
+  "date": "2026-10-09",
+  "task": "QA-R5",
+  "area": "guest",
+  "summary": "/tag still scrolled sideways in Firefox at 320/375/390: Firefox reports the stylesheet's zoom value as supported yet does not apply it, so the CSS.supports-gated fallback never ran.",
+  "fix": "SheetFit measures instead of asking the engine: a Letter page still wider than its column after layout gets data-fit=\"js\" and --sheet-k (column / page), which a stronger rule applies; print resets it to 1. Checked in Firefox 151: 0 px sideways at 320/375/390 (was 325 px at 375).",
+  "tests": ["src/app/tag/__tests__/sheet-fit.dom.test.tsx"]
+}
