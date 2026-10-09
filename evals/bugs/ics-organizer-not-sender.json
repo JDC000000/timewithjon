@@ -1,0 +1,9 @@
+{
+  "id": "ics-organizer-not-sender",
+  "date": "2026-10-08",
+  "task": "CR-07",
+  "area": "calendar/ics",
+  "summary": "Under the Gmail API mailer (staging, and production after the AD-5 flip) the .ics ORGANIZER was the guest-facing From address while Gmail sends from the connected account, so mail clients showed the invite as sent by someone other than its organiser.",
+  "fix": "The organiser is read at send time from the mailer that sends: the connected account under gmail_api, the guest-facing From address under Resend.",
+  "tests": ["src/features/calendar/__tests__/ics-attachment.test.ts"]
+}

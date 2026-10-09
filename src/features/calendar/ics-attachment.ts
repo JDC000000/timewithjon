@@ -1,9 +1,16 @@
 // src/features/calendar/ics-attachment.ts — T3.4.04 (AD-6 fallback): the .ics an E4c carries, built at SEND time
 // from the row's vars (a snapshot of the booking taken when it was queued) and stamped with the row's created_at,
 // so a retry sends the byte-identical file under the same provider idempotency key (like the pr40 H1 links).
+// CR-07: the ORGANIZER is the address the guest sees the email come from, which depends on the mailer that sends
+// it: Resend sends from the guest-facing From address; Gmail rewrites From to the connected account, so under
+// gmail_api the organiser is that account (else Gmail and Outlook show the invite as sent by someone other than its
+// organiser, and replies go elsewhere). Read at send time, so a row retried after the AD-5 flip still agrees.
+import 'server-only';
 import { getEnv } from '@/config/env';
 import type { TemplateId } from '@/content/emails';
+import { currentMailerMode } from '@/lib/adapters/mailer';
 import type { OutgoingEmail } from '@/lib/adapters/types';
+import { loadConnection } from './connection';
 import { buildIcs } from './ics';
 
 /** An E4c whose vars can't make a valid .ics: terminal like any other render failure (pr31 M3). */
@@ -11,20 +18,29 @@ export class IcsRenderError extends Error {
   override name = 'IcsRenderError';
 }
 
-/** The calendar name every invite shows as its organiser (NAMING.md), at the guest-facing From address. */
-function organizer(): { name: string; email: string } {
+/**
+ * The calendar name every invite shows as its organiser (NAMING.md), at the address the email comes from: the
+ * connected Google account under the Gmail mailer (it rewrites From to it), else the guest-facing From address.
+ */
+export async function icsOrganizer(): Promise<{ name: string; email: string }> {
+  const name = 'Time with Jon';
+  if ((await currentMailerMode()) === 'gmail_api') {
+    const account = (await loadConnection())?.account_email;
+    if (account) return { name, email: account };
+  }
   const from = getEnv().EMAIL_FROM_GUEST ?? '';
   const email = /<([^<>\s]+@[^<>\s]+)>/.exec(from)?.[1] ?? 'jon@timewithjon.com';
-  return { name: 'Time with Jon', email };
+  return { name, email };
 }
 
-export function emailAttachments(
+export async function emailAttachments(
   template: TemplateId,
   vars: Record<string, string | number>,
   to: string,
   stampedAt: Date,
-): OutgoingEmail['attachments'] {
+): Promise<OutgoingEmail['attachments']> {
   if (template !== 'E4c') return undefined;
+  const organizer = await icsOrganizer(); // a DB error here is not a render error: the row stays retryable
   const method = vars.method;
   if (method !== 'REQUEST' && method !== 'CANCEL') throw new IcsRenderError('method');
   let ics: string;
@@ -37,7 +53,7 @@ export function emailAttachments(
       endsAt: new Date(String(vars.endsAt)),
       summary: String(vars.summary ?? ''),
       description: String(vars.description ?? ''),
-      organizer: organizer(),
+      organizer,
       attendee: { name: String(vars.attendeeName ?? ''), email: to },
       now: stampedAt,
     });

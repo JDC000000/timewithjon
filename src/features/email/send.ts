@@ -173,7 +173,7 @@ export async function deliverEmail(id: string, opts: DeliverOptions): Promise<De
     const vars = await resolveLinkVars(id, row.vars, opts.now);
     r = await renderEmail(row.template, vars);
     // AD-6: E4c carries the .ics, built from the row alone (stamped with its created_at), so a retry is identical.
-    attachments = emailAttachments(row.template, vars, row.to_email, row.created_at);
+    attachments = await emailAttachments(row.template, vars, row.to_email, row.created_at);
   } catch (e) {
     return failRender(id, row.template, e);
   }
