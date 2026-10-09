@@ -4,7 +4,8 @@
 // advisory lock as lock-leave.spec.ts so the two never pick one slot. STANDBY_SHOTS=<dir> also writes screenshots.
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
-import { ACTIONS, LOCK, NOTES } from '../../../src/content/ui/admin-requests';
+import { ACTIONS, NOTES } from '../../../src/content/ui/admin-requests';
+import { landLock } from '../support/lock-landing';
 import { ROUTES } from '../../../src/ui/routes';
 import { BOOKED_WEEKS } from '../support/booked-weeks';
 import { signInAs } from '../support/sessions';
@@ -110,7 +111,7 @@ test('a stand-by request offers Lock in and Suggest, not Move to stand-by or Bef
   await expect(page.getByRole('menuitem', { name: ACTIONS.standby })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(lockIn).toBeEnabled();
-  await lockIn.click();
-  await expect(page.getByText(LOCK.sent)).toBeVisible({ timeout: 15_000 });
+  // The undo window, then the round trip (E4 is sent inline), each within its own bound (support/lock-landing.ts).
+  await landLock(page, test.info(), () => lockIn.click());
   expect(await status(id)).toBe('locked');
 });

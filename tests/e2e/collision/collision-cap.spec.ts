@@ -19,6 +19,7 @@ import { ROUTES } from '../../../src/ui/routes';
 import { BOOKED_WEEKS } from '../support/booked-weeks';
 import { expect, test } from '../support/fixtures';
 import { lockIn } from '../support/flows';
+import { lockAnswered, lockInAndLand, watchLock, type LockWatch } from '../support/lock-landing';
 import { clickLikeAPerson } from '../support/input';
 import { inScope } from '../support/scope';
 import { gotoScreen, TARGET } from '../support/screens';
@@ -166,15 +167,20 @@ test('T4.3.03: a collision, then the hidden cap (3rd lock blocked, override work
       s.collision.map((id) => adminPage(browser, baseURL!, sideErrors, id)),
     );
     await Promise.all([one!, two!].map((p) => expect(lockButton(p)).toBeEnabled()));
+    const watches = [one!, two!].map((p) => watchLock(p));
     await Promise.all([one!, two!].map((p) => lockIn(p)));
-    // Both undo windows run out; the two POSTs race. One reads "Locked in. Invite sent.", the other the 409.
-    const outcome = async (p: Page) => {
+    // Both undo windows run out; the two POSTs race (each phase within its own bound: support/lock-landing.ts).
+    // One answers 200 and reads "Locked in. Invite sent.", the other 409 and the time-taken line.
+    const outcome = async (p: Page, watch: LockWatch) => {
+      const res = await lockAnswered(p, test.info(), watch);
       const won = sent(p);
       const lost = p.getByRole('alert').filter({ hasText: TIME_TAKEN });
-      await expect(won.or(lost)).toBeVisible({ timeout: 25_000 });
-      return (await won.count()) > 0 ? 'locked' : 'refused';
+      await expect(won.or(lost)).toBeVisible();
+      const result = (await won.count()) > 0 ? 'locked' : 'refused';
+      expect(res.status(), `POST /lock answer for the ${result} side`).toBe(result === 'locked' ? 200 : 409);
+      return result;
     };
-    const results = await Promise.all([outcome(one!), outcome(two!)]);
+    const results = await Promise.all([outcome(one!, watches[0]!), outcome(two!, watches[1]!)]);
     expect(results.sort()).toEqual(['locked', 'refused']);
     expect((await statuses(s.collision)).sort()).toEqual(['locked', 'requested']);
     await Promise.all([one!, two!].map((p) => p.context().close()));
@@ -183,8 +189,7 @@ test('T4.3.03: a collision, then the hidden cap (3rd lock blocked, override work
   await test.step('Cap: lock two weekly_cap requests in one week', async () => {
     for (const id of s.capped.slice(0, 2)) {
       const admin = await adminPage(browser, baseURL!, sideErrors, id);
-      await lockIn(admin);
-      await expect(sent(admin)).toBeVisible({ timeout: 25_000 });
+      await lockInAndLand(admin, test.info());
       await admin.context().close();
     }
     expect(await statuses(s.capped.slice(0, 2))).toEqual(['locked', 'locked']);
@@ -209,8 +214,7 @@ test('T4.3.03: a collision, then the hidden cap (3rd lock blocked, override work
     await test.step('Tick Override this week: the lock lands', async () => {
       await clickLikeAPerson(admin, tick);
       await expect(tick).toBeChecked();
-      await lockIn(admin);
-      await expect(sent(admin)).toBeVisible({ timeout: 25_000 });
+      await lockInAndLand(admin, test.info());
       expect(await statuses([id])).toEqual(['locked']);
     });
     await admin.context().close();
