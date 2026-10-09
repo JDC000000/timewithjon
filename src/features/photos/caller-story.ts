@@ -11,7 +11,7 @@ import { readStoryCapability, readStoryPageCapability } from '@/features/invites
 import { requireInvite } from '@/features/invites/require';
 import { jsonError } from '@/lib/http';
 import { afterSendStoryId, ensureAfterSendStory } from './story';
-import { ownStoryPageStory } from './story-page';
+import { pageStory } from './story-page';
 
 export type PhotoTarget = 'after_send' | 'story_page';
 /** Anything but exactly `for=story_page` means After Send. */
@@ -22,24 +22,32 @@ export const photoTarget = (req: NextRequest): PhotoTarget =>
 export type CallerStory = { storyId: string | null } | { response: NextResponse };
 const expired = (): CallerStory => ({ response: jsonError(403, 'capability_expired', ERRORS.stale) });
 
-/** The caller's story_page story; no twj_story yet means no story yet (capability_expired). */
-async function storyPageStory(): Promise<CallerStory> {
+/**
+ * The caller's story_page story: the one this page view's key (`?key=`) made through this invite, while twj_story
+ * holds. No twj_story yet means no story yet (capability_expired); no key or another tab's story means none of
+ * the caller's (sign 403, finalise 404), so a photo never lands in another tab's story.
+ */
+async function storyPageStory(req: NextRequest): Promise<CallerStory> {
   const gate = await requireInvite();
   if ('response' in gate) return gate;
-  const storyId = await readStoryPageCapability();
-  return storyId ? { storyId: await ownStoryPageStory(storyId, gate.invite.id) } : expired();
+  const capability = await readStoryPageCapability();
+  if (!capability) return expired();
+  const key = req.nextUrl.searchParams.get('key');
+  const clientKey = key && UUID.test(key) ? key : null;
+  return { storyId: await pageStory(capability, clientKey, gate.invite.id) };
 }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Sign: the After-Send story (L7) is created on first use; the story-page story only by its first save. */
 export async function callerStoryForSign(req: NextRequest): Promise<CallerStory> {
-  if (photoTarget(req) === 'story_page') return storyPageStory();
+  if (photoTarget(req) === 'story_page') return storyPageStory(req);
   const requestId = await readStoryCapability(req);
   return requestId ? { storyId: await ensureAfterSendStory(requestId) } : expired();
 }
 
 /** Finalise never creates a story. */
 export async function callerStoryForFinalise(req: NextRequest): Promise<CallerStory> {
-  if (photoTarget(req) === 'story_page') return storyPageStory();
+  if (photoTarget(req) === 'story_page') return storyPageStory(req);
   const requestId = await readStoryCapability(req);
   return requestId ? { storyId: await afterSendStoryId(requestId) } : expired();
 }

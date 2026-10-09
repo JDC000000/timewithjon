@@ -64,6 +64,22 @@ export async function saveStoryPageStory(
   return updated[0]?.id ?? null;
 }
 
+/**
+ * The story this page view is working on: the one its first save made with `clientKey` through this invite, and only
+ * while the browser holds a twj_story for a story_page story of the same invite. One twj_story is shared by every tab,
+ * so it alone can't tell two tabs apart: the page's key does, and a tab never writes into another tab's story.
+ * Null (the stale line) without a key, with an unknown one, or without the capability.
+ */
+export async function pageStory(
+  capability: string | null,
+  clientKey: string | null | undefined,
+  inviteId: string,
+): Promise<string | null> {
+  if (!capability || !clientKey) return null;
+  if (!(await ownStoryPageStory(capability, inviteId))) return null;
+  return storyPageStoryByKey(clientKey, inviteId);
+}
+
 /** The story a page view's first save made with `clientKey` through this invite (a retried first save). */
 export async function storyPageStoryByKey(clientKey: string, inviteId: string): Promise<string | null> {
   const rows = await q<{ id: string }>(

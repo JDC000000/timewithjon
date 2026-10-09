@@ -3,8 +3,10 @@
 // Origin → per-IP limit → invite → body; a filled honeypot is stored as spam_suspect with the same answer.
 // The first save of a page view creates a story, so it carries the general invite's Turnstile token (as
 // /api/requests does) and counts toward the invite's daily limit; there is no total (Jon, 2026-10-04). QA r2 H1:
-// only a save the form marks `edit` (a later save in the same page view) updates the story twj_story names, so a
-// fresh /story within the cookie's 2 hours starts a new story instead of overwriting the last one.
+// only a save the form marks `edit` (a later save in the same page view) updates a story, so a fresh /story within
+// the cookie's 2 hours starts a new story instead of overwriting the last one. An edit also carries the page's
+// clientKey and updates only the story that key made: one twj_story is shared by every tab, so two tabs never
+// write into each other's story.
 // The first save carries the page view's clientKey, so a retry whose answer was lost gets the same story.
 // M4: on the general link the guest may give a name (the booking form's rules); a personal link uses its own.
 import { NextResponse, type NextRequest } from 'next/server';
@@ -15,7 +17,7 @@ import { requireInvite } from '@/features/invites/require';
 import { singleLine } from '@/features/requests/schema';
 import {
   createStoryPageStory,
-  ownStoryPageStory,
+  pageStory,
   saveStoryPageStory,
   storyPageStoryByKey,
 } from '@/features/photos/story-page';
@@ -59,10 +61,9 @@ export async function POST(req: NextRequest) {
   const story = { ...fields, name: invite.kind === 'general' ? name : undefined, spam: isHoneypotFilled(hp) };
 
   if (edit) {
-    // An edit never creates: its story (from twj_story only) is this invite's, or the answer is the stale line
-    // (the capability ran out, or Jon deleted the story, even between this check and the update).
-    const capability = await readStoryPageCapability();
-    const ownId = capability ? await ownStoryPageStory(capability, invite.id) : null;
+    // An edit never creates: its story is the one this page view's key made, through this invite, while twj_story
+    // holds; else the stale line (no key, the capability ran out, or Jon deleted the story, even mid-update).
+    const ownId = await pageStory(await readStoryPageCapability(), clientKey, invite.id);
     if (!ownId || !(await saveStoryPageStory(ownId, invite, story))) return noStore(expired());
     return noStore(NextResponse.json({ ok: true }));
   }

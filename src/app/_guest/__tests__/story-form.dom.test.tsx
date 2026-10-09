@@ -274,3 +274,28 @@ describe('StoryForm name box (QA4 L9)', () => {
     expect((name as HTMLInputElement).value).toBe('Sam RTL \u{1F468}\u200D\u{1F469}');
   });
 });
+
+describe('StoryForm on /story: the page view names its own story (two tabs share one twj_story)', () => {
+  it("the photo calls and later saves carry the key of this page view's first save", async () => {
+    const { user, send } = setup({
+      endpoint: '/api/story-page',
+      target: { query: '?for=story_page' },
+      storyPage: {},
+    });
+    await user.upload(addControl(), photo());
+    await act(async () => {
+      await new Promise((done) => setTimeout(done, 0));
+    });
+    const first = calls.find((c) => c.url === '/api/story-page')!;
+    const key = (JSON.parse(first.init.body as string) as { clientKey: string }).clientKey;
+    expect(key).toMatch(/^[0-9a-f-]{36}$/);
+    const sign = calls.find((c) => c.url.startsWith('/api/photos/sign'))!;
+    expect(sign.url).toBe(`/api/photos/sign?for=story_page&key=${key}`);
+    await answerSigns({ status: 409, json: { ok: false } }); // the photo itself doesn't matter here
+    await user.type(story(), 'A later save');
+    await user.click(send());
+    const saves = calls.filter((c) => c.url === '/api/story-page');
+    const last = JSON.parse(saves.at(-1)!.init.body as string) as { edit?: boolean; clientKey?: string };
+    expect(last).toMatchObject({ edit: true, clientKey: key });
+  });
+});
