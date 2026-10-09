@@ -19,7 +19,8 @@ base="http://127.0.0.1:${PORT}"
 find .next -mindepth 1 -maxdepth 1 ! -name cache -exec rm -rf {} + 2>/dev/null || true
 pnpm build >/dev/null
 
-pnpm start -H 127.0.0.1 -p "$PORT" >/dev/null &
+# --keepAliveTimeout 70000: as playwright.config.ts (the ?for= rewrite's proxy hop and Node's 5 s keep-alive race).
+pnpm start -H 127.0.0.1 -p "$PORT" --keepAliveTimeout 70000 >/dev/null &
 server=$!
 trap 'kill "$server" 2>/dev/null || true' EXIT
 # Same readiness probe and 60 s limit as the Playwright webServer (playwright.config.ts).

@@ -2,7 +2,8 @@
 //   1. the undo window: the POST /lock goes out only when the toast's count runs out (DetailPane onExpire);
 //   2. the round trip: the POST's answer;
 //   3. the A3 UI: 'Locked in. Invite sent.' with the normal expect budget.
-// One expect used to cover all three (20 s = ~10 s designed delay + the round trip). Now each has its own bound:
+// One expect used to cover all three (20 s = ~10 s designed delay + the round trip). Now each has its own bound
+// (the round trip's, LOCK_ROUND_TRIP_MS, sized for the work the route does before it answers):
 // the window is read from the toast the app renders (LOCK.countdown), not a magic number. No sleeps, no retries.
 // Failure-only: if the POST is not sent or not answered in time, pg_stat_activity (state, wait_event,
 // pg_blocking_pids, query) and ungranted pg_locks go into the test's attachments, so the next red names the blocker.
@@ -14,6 +15,13 @@ import { lockIn } from './flows';
 
 /** Fallback only: mirrors playwright.config.ts expect.timeout (the config isn't imported: it has side effects). */
 const EXPECT_BUDGET_MS = 5_000;
+/**
+ * The POST /lock round trip. The route answers only after its side effects ran inline (AD-1, runAfterCommit in
+ * src/features/requests/side-effects.ts): the calendar row, then E4 rendered with its .ics and sent. That is real
+ * work, not a stall: on a busy WebKit CI run the answer came at 5.75 s (main c18f9f2; the DB idle, no lock waits),
+ * past the generic 5 s expect budget it used to share. A stuck POST still fails here, with pg_stat_activity attached.
+ */
+const LOCK_ROUND_TRIP_MS = 15_000;
 
 const isLockPost = (r: Request) =>
   r.method() === 'POST' && /\/api\/admin\/requests\/[^/]+\/lock$/.test(new URL(r.url()).pathname);
@@ -84,7 +92,7 @@ export async function attachDbActivity(testInfo: TestInfo, name: string): Promis
 
 /**
  * Lock in on A3 and see it land: the undo window runs out (bounded by the toast's own count), the POST /lock
- * is answered within the normal expect budget, then the A3 status line says it is sent.
+ * is answered within LOCK_ROUND_TRIP_MS (it sends E4 inline), then the A3 status line says it is sent.
  */
 export async function lockInAndLand(page: Page, testInfo: TestInfo): Promise<void> {
   // The run's expect budget (playwright.config expect.timeout; the public FullProject type omits it).
@@ -106,7 +114,7 @@ export async function lockInAndLand(page: Page, testInfo: TestInfo): Promise<voi
   try {
     // The window: the app's own seconds, plus one expect budget for the tick/in-view start.
     await within(sent, seconds * 1_000 + budget, 'POST /lock not sent when the undo window ran out');
-    await within(answered, budget, 'POST /lock sent but not answered');
+    await within(answered, LOCK_ROUND_TRIP_MS, 'POST /lock sent but not answered');
   } catch (e) {
     await attachDbActivity(testInfo, 'pg_stat_activity at lock timeout');
     throw e;
