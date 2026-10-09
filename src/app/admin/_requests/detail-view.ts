@@ -1,7 +1,7 @@
 // src/app/admin/_requests/detail-view.ts — how one request reads on A3 (pack a3; wireframe 09 A3, A3g, A3h, A3j,
 // A3k): the caption, where "‹" goes back to, the facts list, and their times or dates. Pure (the page passes now).
 // The sealed plan is never here: only `hasSealedPlan` (C4, AD-11).
-import { CHECK, DETAIL, INBOX, ROW } from '@/content/ui/admin-requests';
+import { CHECK, DETAIL, INBOX, ROW, SHEETS } from '@/content/ui/admin-requests';
 import type { RequestDetail } from '@/features/admin/detail';
 import { PITCH } from '@/content/ui/booking';
 import { dishAfterPossessive } from '@/content/menu-helpers';
@@ -14,6 +14,8 @@ export interface Fact {
   value: string;
   /** A guest's own words, set as a quote ("“…”"). */
   quote?: boolean;
+  /** QA4b M3: the value as links (the people a booking is shared with), each to its own detail. */
+  links?: { text: string; href: string }[];
 }
 
 export interface TimeChoice {
@@ -64,6 +66,10 @@ export interface DetailView {
   cancelWords: { dish: string; day: string } | null;
   /** T3.2.U1: this request's emails that failed for good; each may offer Resend. */
   failed: { id: string; resendable: boolean }[];
+  /** QA4b M3: a joined guest riding on a booking that is on: "Joined to {host}'s booking.", to the host's detail. */
+  joinedTo: { text: string; href: string } | null;
+  /** QA4b M3: Make {name} the host applies: joined to a booking that is no longer on (T2.10 rule 4). */
+  canPromote: boolean;
 }
 
 function datePrefs(raw: unknown): { dates: string[]; windowText: string | null } {
@@ -145,6 +151,8 @@ function spamView(d: RequestDetail): DetailView {
     bigDayLocked: false,
     cancelWords: null,
     failed: [],
+    joinedTo: null,
+    canPromote: false,
   };
 }
 
@@ -185,6 +193,13 @@ export function detailView(
   if (open && d.inviteKind === 'general') facts.push({ label: DETAIL.labels.link, value: DETAIL.general });
   if (d.hasSealedPlan) facts.push({ label: DETAIL.labels.plan, value: DETAIL.sealed });
   if (d.needToKnow) facts.push({ label: DETAIL.labels.need, value: quote(d.needToKnow), quote: true });
+  // QA4b M3: the host's page names who rides on the booking, each a link to their own page.
+  if (d.joinedGuests.length && (filter === 'locked' || filter === 'done'))
+    facts.push({
+      label: DETAIL.labels.with,
+      value: d.joinedGuests.map((g) => g.name).join(', '),
+      links: d.joinedGuests.map((g) => ({ text: g.name, href: requestHref(g.id) })),
+    });
   if (d.note) facts.push({ label: DETAIL.labels.note, value: quote(d.note), quote: true });
 
   const times = [...d.times].sort((a, b) => a.startsAt.localeCompare(b.startsAt)).map((t) => timeChoice(t));
@@ -211,8 +226,15 @@ export function detailView(
       filter === 'locked' && d.lockedStartsAt
         ? { dish: dishAfterPossessive(d.dish), day: dayLabel(new Date(d.lockedStartsAt)) }
         : null,
+    joinedTo:
+      d.joinedHost?.on && (filter === 'locked' || filter === 'done')
+        ? { text: SHEETS.join.joined(d.joinedHost.name), href: requestHref(d.joinedHost.id) }
+        : null,
+    canPromote: Boolean(d.joinedHost && !d.joinedHost.on && d.status === 'needs_new_time'),
   };
 }
+
+const requestHref = (id: string) => `/admin/requests/${id}`;
 
 function timeChoice(t: RequestDetail['times'][number]): TimeChoice {
   const week = DETAIL.timeMeta.week(

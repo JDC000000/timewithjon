@@ -57,6 +57,10 @@ export interface RequestDetail {
   guestRsvp: 'pending' | 'yes' | 'no' | 'maybe' | null;
   /** T2.10: the booking this request is joined to (it shares that time), if any. */
   joinedToRequestId: string | null;
+  /** QA4b M3: that booking's guest, and whether it is still on (locked or done): Jon sees who they ride with. */
+  joinedHost: { id: string; name: string; on: boolean } | null;
+  /** QA4b M3: the guests riding on this booking (locked or done), earliest joined first. */
+  joinedGuests: { id: string; name: string }[];
 }
 
 interface DetailRow {
@@ -96,6 +100,8 @@ interface DetailRow {
   contact_problem: RequestDetail['contactProblem'];
   guest_rsvp: RequestDetail['guestRsvp'];
   joined_to_request_id: string | null;
+  host_name: string | null;
+  host_on: boolean | null;
 }
 
 /** Returns null when there is no such request. */
@@ -110,10 +116,18 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
             r.surprise_need_to_know, r.note, r.before60_note, r.jon_note, r.has_sealed_plan,
             (select count(*)::int from request o
               where o.guest_id = r.guest_id and o.id <> r.id and o.status <> 'cancelled') as other_requests,
-            r.awaiting_jon_since, r.created_at, r.locked_starts_at, r.locked_ends_at, r.calendar_state,
+            r.awaiting_jon_since, r.created_at,
+            -- QA4b M3: a guest riding on a booking that is on has no range of its own: the host's is theirs (rule 1)
+            case when r.locked_starts_at is null and r.status in ('locked', 'done') then h.locked_starts_at
+                 else r.locked_starts_at end as locked_starts_at,
+            case when r.locked_starts_at is null and r.status in ('locked', 'done') then h.locked_ends_at
+                 else r.locked_ends_at end as locked_ends_at,
+            -- and the host's event is theirs too (they're an attendee on it), not "Not on the calendar"
+            case when r.locked_starts_at is null and r.status in ('locked', 'done') and h.id is not null
+                 then h.calendar_state else r.calendar_state end as calendar_state,
             r.standby_week::text, i.kind as invite_kind,
             r.counts_toward, r.cancelled_at, r.cancelled_by, r.closed_in_person, r.contact_problem, r.guest_rsvp,
-            r.joined_to_request_id
+            r.joined_to_request_id, h.contact_name as host_name, h.status in ('locked', 'done') as host_on
        from request r join invite i on i.id = r.invite_id
             left join request h on h.id = r.joined_to_request_id
       where r.id = $1`,
@@ -122,6 +136,12 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
   if (!r) return null;
   const times =
     (await chosenTimes([{ id: r.id, dish: r.dish, inviteKind: r.invite_kind }], now)).get(r.id) ?? [];
+  const joinedGuests = await q<{ id: string; name: string }>(
+    `select j.id, j.contact_name as name from request j
+      where j.joined_to_request_id = $1 and j.status in ('locked', 'done')
+      order by j.created_at, j.id`,
+    [r.id],
+  );
   return {
     id: r.id,
     dish: r.dish,
@@ -160,5 +180,9 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
     contactProblem: r.contact_problem,
     guestRsvp: r.guest_rsvp,
     joinedToRequestId: r.joined_to_request_id,
+    joinedHost: r.joined_to_request_id
+      ? { id: r.joined_to_request_id, name: r.host_name ?? '', on: r.host_on ?? false }
+      : null,
+    joinedGuests,
   };
 }

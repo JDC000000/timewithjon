@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { Client } from 'pg';
 import { CLOSED_IN_PERSON_LABEL } from '@/content';
 import { adminCounts } from '@/features/admin/settings';
+import { getRequestDetail } from '@/features/admin/detail';
 import { loadEngineData } from '@/features/availability/load';
 import { bigDayDates } from '@/features/availability/rules';
 import { listRequests } from '@/features/admin/inbox';
@@ -277,6 +278,32 @@ describe('Join to booking (T2.10.01, rule 1)', () => {
     expect(b.peopleReached - a.peopleReached).toBe(2 + 1 + 3); // two guests + the host's 1 + the joined 3
     expect(b.confirmedBookings).toBe(a.confirmedBookings); // one booking either way; joined never counts
     expect(await row(joined)).toMatchObject({ status: 'locked' }); // nothing was written: done is derived
+  });
+});
+
+describe('the admin detail of a shared booking (QA4b M3)', () => {
+  it('each page names the other: the guest has the host and its time, the host its guests; after the host leaves, neither', async () => {
+    const lunch = await slotId('2027-06-11', 'lunch');
+    const host = await locked({ slotId: lunch });
+    const guest = await newRequest();
+    expect(await joinToBooking(guest, host)).toMatchObject({ ok: true });
+    const [h, g] = [await getRequestDetail(host), await getRequestDetail(guest)];
+    expect(g).toMatchObject({
+      status: 'locked',
+      lockedStartsAt: h!.lockedStartsAt, // the host's time is theirs (rule 1)
+      lockedEndsAt: h!.lockedEndsAt,
+      calendarState: h!.calendarState, // they're an attendee on the host's event
+      joinedHost: { id: host, name: 'Dave Guest', on: true },
+      joinedGuests: [],
+    });
+    expect(h).toMatchObject({ joinedHost: null, joinedGuests: [{ id: guest, name: 'Dave Guest' }] });
+    // The host leaves (rule 4): the guest's page names an old host that is no longer on (Make host applies).
+    expect(await cancelByGuest(host)).toEqual({ ok: true, already: false });
+    expect(await getRequestDetail(guest)).toMatchObject({
+      status: 'needs_new_time',
+      joinedHost: { id: host, on: false },
+    });
+    expect((await getRequestDetail(host))!.joinedGuests).toEqual([]);
   });
 });
 

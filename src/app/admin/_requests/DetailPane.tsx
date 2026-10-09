@@ -17,7 +17,7 @@ import { ACTIONS, DETAIL, LOCK, LOCK_SHEET, MAIL, NOTES, ordinal, SHEETS } from 
 import type { RequestOptions } from '@/features/admin/options';
 import { PitchSheet, StandbySheet, SuggestSheet, WeatherSheet } from './ActionSheets';
 import { DateLockSheet, type DatesTarget } from './DateLockSheet';
-import type { DetailView } from './detail-view';
+import type { DetailView, Fact } from './detail-view';
 import { whenLabel } from './format';
 import { send } from './api';
 import { type LockOutcome, type LockTicks, sendLock } from './lock-logic';
@@ -37,7 +37,6 @@ export interface DetailPaneProps {
   dish: string;
   dishName: string;
   season: { start: string; end: string };
-  joinedToRequestId: string | null;
   /** E8's length words, prefilled from the request (Q9). */
   pitchLength: string;
   view: DetailView;
@@ -176,7 +175,7 @@ export function DetailPane(p: DetailPaneProps) {
       ? [{ key: 'standby', label: ACTIONS.standby, onSelect: () => setSheet('standby') }]
       : []),
     { key: 'copy', label: ACTIONS.copyEmail, onSelect: () => copyEmail() },
-    ...(p.joinedToRequestId
+    ...(view.canPromote
       ? [{ key: 'promote', label: SHEETS.join.promote(view.who), onSelect: () => promote() }]
       : []),
   ];
@@ -283,6 +282,15 @@ export function DetailPane(p: DetailPaneProps) {
           </div>
         ))}
 
+        {view.joinedTo ? (
+          // QA4b M3: who this guest rides with, a link to that booking's page.
+          <p className="flag" style={{ marginTop: 'var(--s2)' }}>
+            <a href={view.joinedTo.href}>
+              <KeepWhole text={view.joinedTo.text} />
+            </a>
+          </p>
+        ) : null}
+
         {view.open && !locking
           ? options?.joinHosts.map((h) => (
               <div key={h.hostId} style={{ marginTop: 'var(--s4)' }}>
@@ -363,7 +371,13 @@ export function DetailPane(p: DetailPaneProps) {
         ) : (
           <dl className="kv">
             {view.facts.map((f) => (
-              <FactRow key={`${f.label}:${f.value}`} label={f.label} value={f.value} quote={f.quote} />
+              <FactRow
+                key={`${f.label}:${f.value}`}
+                label={f.label}
+                value={f.value}
+                quote={f.quote}
+                links={f.links}
+              />
             ))}
           </dl>
         )}
@@ -577,7 +591,7 @@ export function DetailPane(p: DetailPaneProps) {
               <span>{ACTIONS.copyEmail}</span>
             </button>
           </li>
-          {p.joinedToRequestId ? (
+          {view.canPromote ? (
             <li>
               <button className="row" type="button" onClick={() => promote()}>
                 <span>{SHEETS.join.promote(view.who)}</span>
@@ -645,11 +659,25 @@ export function DetailPane(p: DetailPaneProps) {
   );
 }
 
-function FactRow({ label, value, quote }: { label: string; value: string; quote?: boolean }) {
+function FactRow({ label, value, quote, links }: Fact) {
   return (
     <>
       <dt>{label}</dt>
-      <dd className={quote ? 'quote' : undefined}>{quote ? value : <KeepWhole text={value} />}</dd>
+      <dd className={quote ? 'quote' : undefined}>
+        {links ? (
+          // QA4b M3: each name goes to that guest's own page.
+          links.map((l, i) => (
+            <span key={l.href}>
+              {i > 0 ? ', ' : null}
+              <a href={l.href}>{l.text}</a>
+            </span>
+          ))
+        ) : quote ? (
+          value
+        ) : (
+          <KeepWhole text={value} />
+        )}
+      </dd>
     </>
   );
 }

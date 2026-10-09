@@ -1,7 +1,7 @@
 // A3 (pack a3; wireframe 09 A3, A3j, A3k): caption, back link, facts, times. The sealed plan never appears.
 import { describe, expect, it } from 'vitest';
 import { JON_FLAGS } from '@/content';
-import { DETAIL } from '@/content/ui/admin-requests';
+import { DETAIL, SHEETS } from '@/content/ui/admin-requests';
 import type { RequestDetail } from '@/features/admin/detail';
 import { vancouverInstant } from '@/lib/time';
 import { detailView } from './detail-view';
@@ -67,6 +67,8 @@ const base = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   contactProblem: null,
   guestRsvp: null,
   joinedToRequestId: null,
+  joinedHost: null,
+  joinedGuests: [],
   ...over,
 });
 
@@ -399,5 +401,63 @@ describe('detailView: QA4 M1 one night away, M2 rough window, L3 time zone', () 
       value: 'America/Argentina/Buenos Aires',
     });
     expect(detailView(hike(), now).facts.map((f) => f.label)).not.toContain(DETAIL.labels.zone);
+  });
+});
+
+describe('detailView: a shared booking (QA4b M3)', () => {
+  const HOST = '22222222-2222-4222-8222-222222222222';
+  const GUEST = '33333333-3333-4333-8333-333333333333';
+  const time = { lockedStartsAt: iso('2027-05-27', '12:00'), lockedEndsAt: iso('2027-05-27', '14:00') };
+  it('the joined guest: the shared time, and a link to the booking it rides on; Make host not offered', () => {
+    const v = detailView(
+      base({
+        status: 'locked',
+        awaitingJonSince: null,
+        ...time, // the host's (detail.ts reads it for a joined guest)
+        joinedToRequestId: HOST,
+        joinedHost: { id: HOST, name: 'Bea', on: true },
+      }),
+      now,
+    );
+    expect(v.facts).toContainEqual({ label: DETAIL.labels.when, value: 'Thu May 27 · noon–2 pm' });
+    expect(v.joinedTo).toEqual({ text: SHEETS.join.joined('Bea'), href: `/admin/requests/${HOST}` });
+    expect(v.canPromote).toBe(false); // the host is still on: the server refuses it (host_still_locked)
+    expect(v.cancelWords).not.toBeNull(); // Cancel for the guest has its day
+  });
+  it('the host: who rides on the booking, each name a link to their page', () => {
+    const v = detailView(
+      base({
+        status: 'locked',
+        awaitingJonSince: null,
+        ...time,
+        joinedGuests: [
+          { id: GUEST, name: 'Priya' },
+          { id: HOST, name: 'Sam' },
+        ],
+      }),
+      now,
+    );
+    expect(v.facts).toContainEqual({
+      label: DETAIL.labels.with,
+      value: 'Priya, Sam',
+      links: [
+        { text: 'Priya', href: `/admin/requests/${GUEST}` },
+        { text: 'Sam', href: `/admin/requests/${HOST}` },
+      ],
+    });
+    expect(v.joinedTo).toBeNull();
+  });
+  it('after the host left (rule 4): Make host is offered; no "Joined to" line', () => {
+    const v = detailView(
+      base({
+        status: 'needs_new_time',
+        joinedToRequestId: HOST,
+        joinedHost: { id: HOST, name: 'Bea', on: false },
+      }),
+      now,
+    );
+    expect(v.canPromote).toBe(true);
+    expect(v.joinedTo).toBeNull();
+    expect(detailView(base(), now).canPromote).toBe(false);
   });
 });
