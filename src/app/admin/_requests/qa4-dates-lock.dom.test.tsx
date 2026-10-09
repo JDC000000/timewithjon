@@ -98,7 +98,7 @@ describe('QA4 M2: only a rough window', () => {
 });
 
 describe('QA4 M1: one night away', () => {
-  it('the dates sheet offers the overnight length and picks it; the lock is 24 h', async () => {
+  it('the dates sheet offers the overnight and picks it: 3 pm, 20 h (to 11 am the next day)', async () => {
     const user = userEvent.setup({ delay: null });
     render(
       <DetailPane {...props(view({ overnight: true, dates: ['Sat May 8'], dateKeys: ['2027-05-08'] }))} />,
@@ -108,11 +108,11 @@ describe('QA4 M1: one night away', () => {
     const length = within(sheet).getByRole('radiogroup', { name: LOCK_SHEET.length });
     const night = within(length).getByRole('radio', { name: 'one night away' }) as HTMLInputElement;
     expect(night.checked).toBe(true);
-    await user.click(within(sheet).getByRole('button', { name: /^Lock in Sat May 8, 9 am$/ }));
+    await user.click(within(sheet).getByRole('button', { name: /^Lock in Sat May 8, 3 pm$/ }));
     await act(async () => void (await vi.advanceTimersByTimeAsync(11_000)));
     expect(vi.mocked(sendLock).mock.calls[0]![1]).toMatchObject({
       date: '2027-05-08',
-      lengthMinutes: 24 * 60,
+      lengthMinutes: 20 * 60,
     });
   });
 });

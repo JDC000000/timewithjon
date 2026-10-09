@@ -69,9 +69,11 @@ describe('QA4 M1: the overnight length', () => {
     expect(words('pitch-me')).toContain('one night away');
     expect(words('the-encore')).not.toContain('one night away');
     expect(words('the-encore', true)).toContain('one night away');
-    expect(defaultsFor('the-grind', true)).toEqual({ start: '09:00', minutes: 24 * 60 });
+    expect(defaultsFor('the-grind', true)).toEqual({ start: '15:00', minutes: 20 * 60 }); // 3 pm to 11 am
+    expect(startOptions('the-grind', true)).toContain('15:00');
+    expect(startOptions('the-grind')).not.toContain('15:00');
     expect(defaultsFor('the-grind')).toEqual({ start: '09:00', minutes: 240 });
-    expect(lengthWords(24 * 60)).toBe('one night away');
+    expect(lengthWords(20 * 60)).toBe('one night away');
   });
   it('stays inside what the lock API takes (72 h)', () => {
     for (const l of lengthOptions('pitch-me', true)) expect(l.minutes).toBeLessThanOrEqual(72 * 60);

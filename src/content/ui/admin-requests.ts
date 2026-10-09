@@ -305,9 +305,10 @@ export const LOCK_DEFAULTS = {
   /**
    * QA4 M1: the Length chip for a request that is "one night away" (the guest's own words, DATES.oneNight /
    * PITCH.oneNightAway). Offered when the dish allows a night away or the guest asked for one; picked when they did.
-   * NEW COPY (needs Jon): 24 h (the start to the same time the next day) is a placeholder length.
+   * Operator (2026-10-09): 3 pm to 11 am the next day (20 h); the spec sets no times, only "one night at most"
+   * (requirements F7, Q3). A request that asked for it starts at 3 pm.
    */
-  overnight: { words: PITCH.oneNightAway, minutes: 24 * 60 },
+  overnight: { words: PITCH.oneNightAway, start: '15:00', minutes: 20 * 60 },
   /** The Start options every dated dish offers (plus its own default). */
   starts: ['07:00', '09:00', '12:00'], // approved: Jon (2026-10-03)
   /** Per dish: the Start and Length picked when the sheet opens. */

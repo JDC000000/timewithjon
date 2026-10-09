@@ -7,10 +7,10 @@ import type { CountsToward } from '@/features/availability/types';
 import { dayLabel, vancouverInstant } from '@/lib/time';
 import { clockLabel } from './format';
 
-/** A dish's Start and Length; a request that is one night away starts on the overnight length (QA4 M1). */
+/** A dish's Start and Length; a request that is one night away starts on the overnight's: 3 pm, to 11 am (QA4 M1). */
 export function defaultsFor(dish: string, overnight = false): { start: string; minutes: number } {
-  const d = LOCK_DEFAULTS.byDish[dish] ?? LOCK_DEFAULTS.fallback;
-  return overnight ? { ...d, minutes: LOCK_DEFAULTS.overnight.minutes } : d;
+  if (overnight) return { start: LOCK_DEFAULTS.overnight.start, minutes: LOCK_DEFAULTS.overnight.minutes };
+  return LOCK_DEFAULTS.byDish[dish] ?? LOCK_DEFAULTS.fallback;
 }
 
 /**
@@ -25,9 +25,11 @@ export function lengthOptions(
   return offered ? [...LOCK_DEFAULTS.lengths, LOCK_DEFAULTS.overnight] : LOCK_DEFAULTS.lengths;
 }
 
-/** The Start options: the fixed three plus the dish's default, in clock order. */
-export function startOptions(dish: string): string[] {
-  return [...new Set([...LOCK_DEFAULTS.starts, defaultsFor(dish).start])].sort();
+/** The Start options: the fixed three plus the dish's default (an overnight's 3 pm included), in clock order. */
+export function startOptions(dish: string, overnight = false): string[] {
+  return [
+    ...new Set([...LOCK_DEFAULTS.starts, defaultsFor(dish).start, defaultsFor(dish, overnight).start]),
+  ].sort();
 }
 
 /** "10:30 am", "10:30am", "7 pm", "noon", "19:15" -> "HH:mm"; null if it isn't a time. */
