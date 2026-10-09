@@ -1,7 +1,8 @@
 // src/lib/adapters/google/calendar.ts — T3.4.01/.02 (AD-6): the real CalendarGateway on the "Time with Jon" calendar.
 // - Deterministic event id = the request id without hyphens (32 hex chars, valid base32hex), so an insert that
 //   timed out after Google stored it can't make a second event: the retry gets 409. Then a GET decides
-//   (pr39 F3): a live event only converges quietly (sendUpdates=none: the guest already has the invite); a
+//   (pr39 F3): a live event converges its content quietly (sendUpdates=none: the guest already has the invite)
+//   and its attendee list to the booking's (a re-sync can replace a pending attendee patch); a
 //   cancelled one (Google keeps a deleted event's id: a re-lock after a cancel) is revived with status
 //   'confirmed' and a real re-invite. Only that path ever sets status (pr39 F1): a plain patch never revives.
 // - J2 (pr39 F2 ruling): the connected account (oauth_connection.account_email, Jon's Gmail) rides along as an
@@ -9,8 +10,9 @@
 //   owns the calendar). The app itself never calls the API on `primary`: the write guard below refuses it.
 // - No guest attendee (the .ics fallback's "attendee-less" event) means sendUpdates=none: Google emails no one.
 // - A joined guest coming or going (patch with {attendees: true}) GETs the event and sends the new attendee list,
-//   keeping every staying attendee's entry (and so their responseStatus) as Google has it. A plain patch still
-//   sends content only.
+//   keeping every staying attendee's entry (and so their responseStatus) as Google has it, conditional on the
+//   GET's etag (a 412 re-reads once). That update carries what a guest sees; Jon's own text follows silently. A
+//   plain patch still sends content only.
 // - A 401 on the cached access token drops it and retries once with a fresh one: only a second refusal (or a
 //   refresh that fails) reaches the caller, so one stale token never alerts Jon.
 import 'server-only';
@@ -90,10 +92,10 @@ function attendees(e: CalendarEvent, ownerEmail: string) {
 }
 
 /** Content only: no status (pr39 F1) and no attendees (pr39 F5: resending them may reset the guest's RSVP). */
-function content(e: CalendarEvent) {
+function content(e: CalendarEvent, view: { summary: string; description: string } = e) {
   return {
-    summary: e.summary,
-    description: e.description,
+    summary: view.summary,
+    description: view.description,
     start: { dateTime: e.startsAt.toISOString(), timeZone: TZ },
     end: { dateTime: e.endsAt.toISOString(), timeZone: TZ },
   };
@@ -127,13 +129,18 @@ export function googleCalendarGateway(deps: GoogleCalendarDeps): CalendarGateway
   async function call<T>(
     op: string,
     eventPath: string,
-    init: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; json?: unknown; notify?: boolean },
+    init: {
+      method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+      json?: unknown;
+      notify?: boolean;
+      ifMatch?: string;
+    },
   ) {
     const stored = (await deps.target())?.calendarId ?? null;
     const calendarId = assertWritableCalendar(stored, stored);
     const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events${eventPath}`);
     if (init.notify !== undefined) url.searchParams.set('sendUpdates', init.notify ? 'all' : 'none');
-    return authorized<T>(url, { op, method: init.method, json: init.json });
+    return authorized<T>(url, { op, method: init.method, json: init.json, ifMatch: init.ifMatch });
   }
 
   const ownerEmail = async () => (await deps.target())?.ownerEmail ?? '';
@@ -149,15 +156,35 @@ export function googleCalendarGateway(deps: GoogleCalendarDeps): CalendarGateway
     await call('events_patch', eventPath(eventId), { method: 'PATCH', json: content(e), notify: hasGuests });
   }
 
-  /**
-   * GET the event, then send the derived attendee list, reusing Google's entry for everyone who stays (their
-   * responseStatus is kept). Added guests get the invite and removed ones the cancellation (sendUpdates=all).
-   * The same set as Google's = a plain content patch. Never sets status: a cancelled event stays cancelled.
-   */
+  interface ExistingEvent {
+    etag?: string;
+    status?: string;
+    attendees?: EventAttendee[];
+  }
+  const getEvent = (id: string) =>
+    call<ExistingEvent | undefined>('events_get', eventPath(id), { method: 'GET' });
+
+  /** A joined guest came or went: GET the event, then sync its attendee list (syncFrom). */
   async function syncAttendees(eventId: string, e: CalendarEvent): Promise<void> {
-    const existing = await call<{ attendees?: EventAttendee[] }>('events_get', eventPath(eventId), {
-      method: 'GET',
-    });
+    await syncFrom(eventId, e, await getEvent(eventId), { quietWhenSame: false });
+  }
+
+  /**
+   * Send the derived attendee list against what Google has, reusing Google's entry for everyone who stays (their
+   * responseStatus is kept). Added guests get the invite and removed ones the cancellation (sendUpdates=all).
+   * - That PATCH carries what a guest sees (e.guestView): a removed guest's cancellation never shows the host's
+   *   name or crew, even when the event is Jon's alone afterwards; Jon's own text follows in a silent PATCH.
+   * - It is conditional on the GET's etag: a guest who answered in between would have their answer reset by the
+   *   full list, so on 412 the GET and the diff run again, once.
+   * - The same set as Google's = a content patch only (silent on the 409/re-sync path, `quietWhenSame`).
+   * Never sets status: a cancelled event stays cancelled.
+   */
+  async function syncFrom(
+    eventId: string,
+    e: CalendarEvent,
+    existing: ExistingEvent | undefined,
+    opts: { quietWhenSame: boolean; retried?: boolean },
+  ): Promise<void> {
     const { list, hasGuests } = attendees(e, await ownerEmail());
     const key = (a: EventAttendee) => (a.email ?? '').trim().toLowerCase();
     const current = new Map((existing?.attendees ?? []).map((a) => [key(a), a]));
@@ -167,21 +194,31 @@ export function googleCalendarGateway(deps: GoogleCalendarDeps): CalendarGateway
       await call('events_patch', eventPath(eventId), {
         method: 'PATCH',
         json: content(e),
-        notify: hasGuests,
+        notify: opts.quietWhenSame ? false : hasGuests,
       });
       return;
     }
     const removedGuests = [...current.keys()].some((email) => !wanted.has(email));
-    await call('events_patch', eventPath(eventId), {
-      method: 'PATCH',
-      json: { ...content(e), attendees: list.map((a) => current.get(key(a)) ?? a) },
-      notify: hasGuests || removedGuests,
-    });
+    const shown = e.guestView ?? e;
+    try {
+      await call('events_patch', eventPath(eventId), {
+        method: 'PATCH',
+        json: { ...content(e, shown), attendees: list.map((a) => current.get(key(a)) ?? a) },
+        notify: hasGuests || removedGuests,
+        ifMatch: existing?.etag,
+      });
+    } catch (err) {
+      if (!(err instanceof GoogleApiError && err.status === 412) || opts.retried) throw err;
+      return syncFrom(eventId, e, await getEvent(eventId), { ...opts, retried: true });
+    }
+    if (shown.summary !== e.summary || shown.description !== e.description) {
+      await call('events_patch', eventPath(eventId), { method: 'PATCH', json: content(e), notify: false });
+    }
   }
 
-  /** The 409 path: the id exists at Google. GET first (events.get returns cancelled events too). */
+  /** The 409 path (a retried insert, or a re-sync): the id exists at Google. GET first (cancelled events too). */
   async function converge(id: string, e: CalendarEvent): Promise<void> {
-    const existing = await call<{ status?: string }>('events_get', eventPath(id), { method: 'GET' });
+    const existing = await getEvent(id);
     const { list, hasGuests } = attendees(e, await ownerEmail());
     if (existing?.status === 'cancelled') {
       // A re-lock after a cancel: a real re-invite, the full event back to confirmed.
@@ -192,8 +229,10 @@ export function googleCalendarGateway(deps: GoogleCalendarDeps): CalendarGateway
       });
       return;
     }
-    // A retry after a timed-out insert: Google already sent the invite, so converge the content silently.
-    await call('events_patch', eventPath(id), { method: 'PATCH', json: content(e), notify: false });
+    // A live event: a retried insert (Google already sent the invite: the content converges silently), or a re-sync
+    // that replaced a pending attendee patch: the attendee list is brought in line too, with an invite or a
+    // cancellation only for the guests that changed.
+    await syncFrom(id, e, existing, { quietWhenSame: true });
   }
 
   return {

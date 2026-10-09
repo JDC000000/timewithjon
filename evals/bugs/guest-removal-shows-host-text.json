@@ -1,0 +1,12 @@
+{
+  "id": "guest-removal-shows-host-text",
+  "date": "2026-10-09",
+  "task": "T3.15",
+  "area": "calendar",
+  "summary": "When the last joined guest left an event that was the host's alone afterwards, the update that emailed them their cancellation carried the host's first name and crew.",
+  "fix": "The removal update carries what a guest sees; the host's own text follows in an update that emails no one.",
+  "tests": [
+    "src/lib/adapters/__tests__/google-calendar.test.ts",
+    "src/features/calendar/__tests__/outbox.test.ts"
+  ]
+}

@@ -6,7 +6,8 @@ import { fakeGoogle } from '../fixtures/fake-google';
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { pool, q } from '@/lib/db';
+import { pool, q, withTx } from '@/lib/db';
+import { enqueueCalendar } from '@/features/requests/side-effects';
 import { encryptToken } from '@/features/calendar/crypto';
 import { resetAccessTokenCacheForTests } from '@/features/calendar/connection';
 import { OUTBOX_MAX_ATTEMPTS, processOutbox } from '@/features/calendar/outbox';
@@ -147,6 +148,41 @@ describe('Re-sync calendar (T3.15.02)', () => {
     expect(later.map((c) => c.method)).toEqual(['GET', 'PATCH']);
     expect(later[1]!.url.searchParams.get('sendUpdates')).toBe('none');
     expect([...google.events.keys()].filter((k) => k.endsWith(eventId(a)))).toHaveLength(2); // CAL1's, CAL2's
+  });
+
+  it('a joined guest whose attendee patch failed (Google down) is invited by the re-sync; one who left is taken off', async () => {
+    const host = await booking('2027-04-08');
+    await resyncCalendar(NOW); // the host's event exists
+    const kim = await newRequest();
+    await joinDirect(kim, host);
+    const kimEmail = (await state(kim)).email;
+    // Google is down for the attendee patch: it fails and waits for its retry.
+    const down = (call: { method: string }) =>
+      call.method === 'PATCH'
+        ? { status: 503, json: { error: { errors: [{ reason: 'backendError' }] } } }
+        : undefined;
+    google.state.overrides.push(down);
+    const row = await withTx((c) => enqueueCalendar(c, 'calendar_patch', host, { attendees: true }));
+    expect(await processOutbox(row, { inline: true, now: NOW })).toBe('failed');
+    google.state.overrides.length = 0;
+    const listed = () =>
+      ((onCalendar(CAL1, host)!.attendees as { email: string }[]) ?? []).map((x) => x.email);
+    expect(listed()).not.toContain(kimEmail);
+    // Jon presses Re-sync: the idle patch is closed, the re-sync row meets the live event (409) and converges the list.
+    await resyncCalendar(NOW);
+    expect(listed()).toContain(kimEmail);
+    expect(await openRows(host)).toEqual([]);
+    // She leaves, and the removal patch fails too: the next re-sync takes her off.
+    await q(
+      `update request set joined_to_request_id = null, status = 'cancelled', cancelled_at = now() where id = $1`,
+      [kim],
+    );
+    google.state.overrides.push(down);
+    const leave = await withTx((c) => enqueueCalendar(c, 'calendar_patch', host, { attendees: true }));
+    expect(await processOutbox(leave, { inline: true, now: NOW })).toBe('failed');
+    google.state.overrides.length = 0;
+    await resyncCalendar(NOW);
+    expect(listed()).not.toContain(kimEmail);
   });
 
   it("an 'ics_sent' booking: Jon's calendar gets the attendee-less event, the guest gets nothing, the backlog closes", async () => {
