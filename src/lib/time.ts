@@ -1,7 +1,9 @@
-// src/lib/time.ts — the ONLY time helpers in the app (AD-2: date-fns-tz, America/Vancouver).
+// src/lib/time.ts — the server's time helpers (AD-2: date-fns-tz, America/Vancouver). Browser code uses the
+// date-fns-free helpers in src/lib/civil.ts instead (T4.6: no date-fns in the guest pages' scripts).
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { TZ } from './tz';
 
-export const TZ = 'America/Vancouver';
+export { TZ };
 
 /** Civil date (YYYY-MM-DD) of an instant, in Vancouver. Never use toISOString().slice(0,10). */
 export function vancouverDate(instant: Date): string {

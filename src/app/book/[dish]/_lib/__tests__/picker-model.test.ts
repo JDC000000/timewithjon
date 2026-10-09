@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WeekOut } from '@/features/availability/types';
-import { addCivilDays, dayRange, longDate, parseCivil, shortDate } from '../civil';
+import { addCivilDays, dayRange, longDate, parseCivil, shortDate } from '@/lib/civil';
 import {
   initialMonth,
   monthStandbyWeeks,

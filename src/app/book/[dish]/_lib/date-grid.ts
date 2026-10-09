@@ -2,7 +2,7 @@
 // days off for the engine's unavailableDates (C3 rule 11) or the dish's date rule, two dates max (a third swaps
 // out the oldest), and the roving-tabindex moves. Pure; DateGrid renders it and DatesFlow holds the state.
 import type { DateRule } from '@/content';
-import { addCivilDays, longDate, monthName, parseCivil, shortDate } from './civil';
+import { addCivilDays, longDate, monthName, parseCivil, shortDate } from '@/lib/civil';
 
 /** Why a day can't be picked: the engine said so, or the dish's date rule (Old Haunt weekends, Big Days). */
 export type DayOff = 'unavailable' | 'rule' | null;
