@@ -4,7 +4,7 @@
 // and the collapsed spoken-for run. State lives in the flow (BookingFlow); this renders it.
 import Link from 'next/link';
 import { useRef, type KeyboardEvent } from 'react';
-import { KeepWhole } from '@/ui';
+import { KeepWhole, ROUTES } from '@/ui';
 import { moveFocus } from '@/ui/focus';
 import { DISHES, FLOW, SECTIONS } from '@/content';
 import { bookHref } from '@/content/menu-helpers';
@@ -178,7 +178,7 @@ function WeekRow({ row, ...p }: { row: PickerRow } & TimePickerProps) {
             <p>{FLOW.spokenForRun}</p>
             <p className="alts">
               {BIG_DAYS && (
-                <Link className="tap" href={`/#${BIG_DAYS.id}`}>
+                <Link className="tap" href={`${ROUTES.menu}#${BIG_DAYS.id}`}>
                   {BIG_DAYS.title}
                 </Link>
               )}
