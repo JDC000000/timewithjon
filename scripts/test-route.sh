@@ -22,7 +22,8 @@ fi
 # Fresh build output; keep Turbopack's cache (.next/cache), which CI restores between runs.
 [[ "${SKIP_BUILD:-}" == "1" ]] || { find .next -mindepth 1 -maxdepth 1 ! -name cache -exec rm -rf {} + 2>/dev/null || true; pnpm build >/dev/null; }
 # Own process group, so the cleanup kills next-server too (killing only the pnpm wrapper leaves it running).
-setsid pnpm start -H 127.0.0.1 -p "$PORT" >.next/route-server.log 2>&1 &
+# --keepAliveTimeout 70000: as playwright.config.ts (the ?for= rewrite's proxy hop and Node's 5 s keep-alive race).
+setsid pnpm start -H 127.0.0.1 -p "$PORT" --keepAliveTimeout 70000 >.next/route-server.log 2>&1 &
 pid=$!
 trap 'kill -- -$pid 2>/dev/null || true' EXIT
 for _ in $(seq 1 60); do curl -sf -o /dev/null "http://127.0.0.1:$PORT/robots.txt" && break; sleep 1; done

@@ -2,7 +2,7 @@
 // landing's stories@ address (one long word) breaks inside the column, and /admin/sign-in fits (WebKit 320 too).
 // Sizes its own text and viewport (ui/** runs in the t100 projects only), so it runs in CI's smoke on both engines.
 import { expect, test, type Page } from '@playwright/test';
-import { horizontalOverflow } from '../support/layout';
+import { expectNoSideScroll } from '../support/layout';
 import { EMAIL_KEY } from '../../../src/app/admin/sign-in/sign-in-logic';
 import { SIGN_IN } from '../../../src/content/ui/admin-requests';
 import { ROUTES } from '../../../src/ui/routes';
@@ -29,14 +29,14 @@ for (const width of [320, 375]) {
     await expect(address).toBeVisible();
     const box = (await address.boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(width);
-    expect(await horizontalOverflow(page)).toBe(0);
+    await expectNoSideScroll(page, `the landing at 200% text, ${width} wide`);
   });
 
   test(`200% text at ${width}: admin sign-in has no sideways scroll`, async ({ page }) => {
     await at200(page, width);
     await page.goto(ROUTES.admin.signIn);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    expect(await horizontalOverflow(page)).toBe(0);
+    await expectNoSideScroll(page, `admin sign-in at 200% text, ${width} wide`);
   });
 }
 
@@ -48,5 +48,5 @@ test('200% text at 320: the 6-digit code fits its box (WebKit cut the 6th digit)
   await code.fill('123456');
   const [scroll, client] = await code.evaluate((e) => [e.scrollWidth, e.clientWidth]);
   expect(scroll).toBeLessThanOrEqual(client);
-  expect(await horizontalOverflow(page)).toBe(0);
+  await expectNoSideScroll(page, 'the code step at 200% text, 320 wide');
 });

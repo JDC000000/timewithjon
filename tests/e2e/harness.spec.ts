@@ -1,7 +1,7 @@
 // Guards the harness itself (T4.3.09 run rules): the matrix is what the rules say, and each project's text size
 // is in force before the page's own scripts run.
 import { expect, test } from './support/fixtures';
-import { horizontalOverflow } from './support/layout';
+import { elementsPastViewport, expectNoSideScroll, horizontalOverflow } from './support/layout';
 import { PROFILES, profileFromEnv, projectSpecs } from './support/profiles';
 
 const ROOT_FONT_PX = { t100: 16, t200: 32, sp125: 20 } as const;
@@ -76,6 +76,17 @@ test.describe('probes', () => {
     expect(await horizontalOverflow(page)).toBeGreaterThan(0);
     await expect.poll(() => pageErrors.length).toBe(2);
     expect(pageErrors).toEqual(expect.arrayContaining(['probe: console', 'probe: thrown']));
+  });
+  test('the settled sideways-scroll check fails on a page that stays too wide, and names the element', async ({
+    page,
+  }) => {
+    await page.setContent('<p>fits</p><div class="too-wide" style="width:3000px">wide</div>');
+    expect(await elementsPastViewport(page)).toEqual([
+      expect.stringMatching(/^div\.too-wide right=3\d{3} "wide"$/),
+    ]);
+    await expect(expectNoSideScroll(page, 'a fixture page')).rejects.toThrow(/sideways scroll/);
+    await page.setContent('<p>fits</p>');
+    await expectNoSideScroll(page, 'a fixture page that fits');
   });
 });
 
