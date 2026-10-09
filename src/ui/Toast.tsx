@@ -74,6 +74,10 @@ export function Toast({
     armed: false,
     ended: false,
     armTimer: undefined as ReturnType<typeof setTimeout> | undefined,
+    /** UX-07: the pointer was over the toast as it appeared (an enter before `armed`) */
+    early: false,
+    /** UX-07: where that pointer first moved over it; only a move to another place is a hover. */
+    at: null as { x: number; y: number } | null,
   });
 
   // mount: room + the toast in view; a reload during the window lands like a first load
@@ -169,12 +173,34 @@ export function Toast({
       aria-label={label}
       aria-labelledby={label ? undefined : msgId}
       ref={toast}
+      // UX-07: the toast often appears under the pointer that just pressed Lock in (the phone layout's action bar);
+      // browsers report that as an enter, and send same-place moves on layout. An enter in the first ARM_MS is that
+      // case: it pauses only once the pointer really moves (to another place). Later, an enter is a hover: it pauses.
       onMouseEnter={() => {
-        flags.current.over = true;
+        const f = flags.current;
+        if (!f.armed) {
+          f.early = true;
+          return;
+        }
+        f.over = true;
+        pause();
+      }}
+      onMouseMove={(e) => {
+        const f = flags.current;
+        if (f.over || !f.early) return;
+        if (!f.at) {
+          f.at = { x: e.clientX, y: e.clientY };
+          return;
+        }
+        if (f.at.x === e.clientX && f.at.y === e.clientY) return;
+        f.over = true;
         pause();
       }}
       onMouseLeave={() => {
-        flags.current.over = false;
+        const f = flags.current;
+        f.over = false;
+        f.early = false;
+        f.at = null;
         resume();
       }}
       onFocus={() => {
