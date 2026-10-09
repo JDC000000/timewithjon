@@ -36,6 +36,8 @@ type SlideshowState = {
   mounted: number;
   toggle: () => void;
   loaded: (i: number) => void;
+  /** photo i (0-based) could not load: the rotation goes past it */
+  failed: (i: number) => void;
   /** the figure entered or left the screen (SlideshowSlides' sentinel) */
   seen: (visible: boolean) => void;
 };
@@ -70,6 +72,7 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   const [visible, setVisible] = useState(false);
   const [everSeen, setEverSeen] = useState(false);
   const ready = useRef<boolean[]>([true]);
+  const broken = useRef<boolean[]>([]);
 
   useEffect(() => {
     // after the load event, at the next idle moment (where the browser can say): the photos come after everything else
@@ -99,10 +102,18 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   useEffect(() => {
     if (!running) return;
     const t = window.setInterval(() => {
-      // the next photo, once it has loaded; until then the current one stays
+      // the next photo, once it has loaded; until then the current one stays. A photo that failed to load is passed
+      // over (its reach still moves on, so the one after it joins the page), so one bad file never stops the show.
       setShow((s) => {
-        const next = (s.active + 1) % count;
-        return ready.current[next] ? { active: next, reach: Math.max(s.reach, next) } : s;
+        for (let step = 1; step < count; step++) {
+          const next = (s.active + step) % count;
+          if (broken.current[next]) {
+            if (next > s.reach) return { active: s.active, reach: next };
+            continue;
+          }
+          return ready.current[next] ? { active: next, reach: Math.max(s.reach, next) } : s;
+        }
+        return s;
       });
     }, SLIDE_MS);
     return () => window.clearInterval(t);
@@ -111,6 +122,9 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   const loaded = useCallback((i: number) => {
     ready.current[i] = true;
   }, []);
+  const failed = useCallback((i: number) => {
+    broken.current[i] = true;
+  }, []);
   const seen = useCallback((v: boolean) => {
     setVisible(v);
     if (v) setEverSeen(true);
@@ -118,8 +132,8 @@ export function SlideshowScope({ count, children }: { count: number; children: R
   // photos reached so far + the next one; none until the figure has been on screen
   const mounted = on && everSeen ? Math.min(count - 1, reach + 1) : 0;
   const value = useMemo(
-    () => ({ count, on, active: on ? active : 0, paused, mounted, toggle, loaded, seen }),
-    [count, on, active, paused, mounted, toggle, loaded, seen],
+    () => ({ count, on, active: on ? active : 0, paused, mounted, toggle, loaded, failed, seen }),
+    [count, on, active, paused, mounted, toggle, loaded, failed, seen],
   );
   return <SlideshowContext.Provider value={value}>{children}</SlideshowContext.Provider>;
 }
@@ -195,6 +209,7 @@ function renderSlides(
         fetchPriority="low"
         decoding="async"
         onLoad={() => show.loaded(i + 1)}
+        onError={() => show.failed(i + 1)}
         style={s.style as CSSProperties | undefined}
       />
     </span>
@@ -214,7 +229,7 @@ export function SlideshowToggle({ label }: { label?: string } = {}) {
     <button
       type="button"
       className="ph-play"
-      aria-label={label ? `${word} ${label}` : undefined} // NEW COPY (needs Jon): "Pause {dish}" / "Play {dish}"
+      aria-label={label ? SLIDESHOW.named(word, label) : undefined}
       onClick={show.toggle}
     >
       {word}
