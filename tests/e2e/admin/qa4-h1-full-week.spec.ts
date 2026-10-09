@@ -35,9 +35,17 @@ const seed = (who: string) =>
           where w.week_start between '2027-04-05' and '2027-06-14' and w.week_start <> all($1::date[])
             and not exists (select 1 from request r where r.status in ('locked','done')
                               and r.locked_starts_at::date between w.week_start - 1 and w.week_start + 8)
+            -- a week another spec has seeded but not locked yet (lock-leave, standby-actions…) is theirs: never fill it
+            and not exists (select 1 from request_slot_choice x join request xr on xr.id = x.request_id
+                              join slot sl on sl.id = x.slot_id
+                             where xr.status <> 'cancelled' and sl.date between w.week_start and w.week_start + 6)
+            and not exists (select 1 from request xr where xr.status <> 'cancelled'
+                              and (xr.standby_week = w.week_start
+                                   or exists (select 1 from jsonb_array_elements_text(coalesce(xr.date_prefs -> 'dates', '[]'::jsonb)) d
+                                               where d::date between w.week_start and w.week_start + 6)))
             and not exists (select 1 from availability_block b where b.end_date >= w.week_start
                               and b.start_date <= w.week_start + 6)
-          order by w.week_start desc limit 1`,
+          order by w.week_start limit 1`,
         [BOOKED_WEEKS],
       );
       if (!w) throw new Error('no free week in the test DB');
