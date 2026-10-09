@@ -115,7 +115,9 @@ export function dateWeekStatus(
   if (dates.length > 0 && dates.every((d) => blockCovering(d, input.blocks, 'away'))) return 'away';
   const off = new Set(unavailableDates(input));
   const booked = new Set(
-    rangedBookings(input.bookings, input.viewerRequestId).flatMap((b) => datesTouched(b.startsAt, b.endsAt)),
+    rangedBookings(input.bookings, input.viewerRequestId)
+      .filter((b) => b.countsToward !== 'none') // a phone call doesn't take a Big Day's day (canLock)
+      .flatMap((b) => datesTouched(b.startsAt, b.endsAt)),
   );
   const full =
     (dish.countsToward === 'weekly_cap' &&
