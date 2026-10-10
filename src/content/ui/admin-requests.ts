@@ -285,6 +285,8 @@ export const LOCK_SHEET = {
   startBad: 'Add a time, like 10:30 am.', // approved: Jon (2026-10-03)
   length: 'Length', // (wireframe 09 A3g2)
   countsAs: 'Counts as', // (wireframe 09 A3h)
+  /** The optional place on the lock (empty = none); the guest's E4 then says "Where: {where}." */
+  where: 'Where', // E4's own approved word ("Where: {where}.", approved: Jon 2026-10-09, r6 Q1)
   countsHint: 'A day out counts as a Big Day by default.', // (wireframe 09 A3h)
   counts: { big_day: 'Big Day', weekly_cap: 'This week’s 2', none: 'Neither' }, // (wireframe 09 A3h)
   lockIn: (day: string, time: string) => `Lock in ${day}, ${time}`, // (wireframe 09 A3g2)

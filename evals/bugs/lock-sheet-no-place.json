@@ -1,0 +1,13 @@
+{
+  "id": "lock-sheet-no-place",
+  "date": "2026-10-10",
+  "task": "R6",
+  "area": "admin",
+  "summary": "The admin Lock sheet had no way to set the place, so E4's approved “Where: {where}.” and the locked page's Where row could never be filled from the admin (only the API took a place).",
+  "fix": "The dates Lock sheet (and the pitch sheet) has an optional Where field (E4's own word): typed, the place goes with the pre-check and the lock and reaches E4 (a joined guest gets the host's); empty, no place as before. The Long Distance (a call) has no field.",
+  "tests": [
+    "src/app/admin/_requests/lock-sheet-where.dom.test.tsx",
+    "tests/int/lock-where.int.test.ts",
+    "tests/e2e/admin/lock-sheet-where.spec.ts"
+  ]
+}
