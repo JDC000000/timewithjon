@@ -39,6 +39,9 @@ const SITE = 'http://localhost:3000';
 const OPEN = new Date('2027-03-15T18:00:00Z');
 // Thu/Fri pairs, one week per test that locks (the weekly cap is per week).
 const DAYS = [
+  '2027-05-13',
+  '2027-05-14',
+  '2027-05-20',
   '2027-04-22',
   '2027-04-23',
   '2027-04-29',
@@ -947,6 +950,37 @@ describe('after the host has gone (QA5 N-M2, Make host with its ticks)', () => {
     const other = await orphanOf(range('2027-04-23', '13:00', '14:00'));
     expect(await moveToStandby(other.guest, '2027-04-19', OPEN)).toEqual({ ok: true });
     expect(await row(other.guest)).toMatchObject({ status: 'standby', joined_to_request_id: null });
+  });
+
+  it('R6-L1: after Jon offers that guest times (which detaches them), their page still lists no old time; their own new pick shows', async () => {
+    const lunch = await slotId('2027-05-13', 'lunch');
+    const host = await locked({ slotId: lunch });
+    const guest = await newRequest({ slotIds: [lunch] }); // they picked the host's time
+    expect(await joinToBooking(guest, host, OPEN)).toMatchObject({ ok: true });
+    expect(await cancelByGuest(host, OPEN)).toMatchObject({ ok: true });
+    expect((await suggestTimes(guest, { slotIds: [await slotId('2027-05-14', 'lunch')] }, '', OPEN)).ok).toBe(
+      true,
+    );
+    expect((await row(guest)).joined_to_request_id).toBeNull(); // detached (#109)
+    const token = await withTx((c) => issueManageToken(c, guest));
+    const model = (await loadManageModel(token)) as Extract<
+      Awaited<ReturnType<typeof loadManageModel>>,
+      { kind: 'manage' }
+    >;
+    expect(model).toMatchObject({ status: 'needs_new_time', when: null, hostLeft: true });
+    expect(await sentLines(model)).toEqual([]);
+    // They ask for another time themselves: their own new pick is what the page lists.
+    const fri = await slotId('2027-05-20', 'lunch');
+    expect(
+      await rerequest(guest, { slotIds: [fri], dates: [], overnight: false }, OPEN, {
+        clientKey: randomUUID(),
+      }),
+    ).toEqual({
+      ok: true,
+    });
+    const again = (await loadManageModel(token)) as typeof model;
+    expect(again).toMatchObject({ status: 'requested', hostLeft: false });
+    expect((await sentLines(again)).length).toBe(1);
   });
 
   it('a guest still riding a live host is not offered times of its own', async () => {

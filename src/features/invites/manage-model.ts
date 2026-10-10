@@ -74,6 +74,7 @@ interface Row {
   own_pitch: string | null;
   own_when: string | null;
   joined_to_request_id: string | null;
+  host_left_since_pick: boolean;
   overnight: boolean;
 }
 
@@ -98,7 +99,16 @@ async function loadView(
             case when r.joined_to_request_id is null then r.locked_where else h.locked_where end as where_text,
             case when $2 then r.surprise_plan_sealed end as own_plan,
             case when $2 then r.pitch_idea end as own_pitch,
-            case when $2 then r.date_prefs->>'window_text' end as own_when, r.joined_to_request_id, r.overnight
+            case when $2 then r.date_prefs->>'window_text' end as own_when, r.joined_to_request_id, r.overnight,
+            -- R6-L1: the booking they joined fell through (host_left) after they last picked times themselves, so
+            -- their stored pick is that booking's time. Kept by the audit, not by joined_to_request_id: offering
+            -- them times or stand-by detaches them from the old host (suggest.ts).
+            coalesce((select max(a.at) from audit_log a where a.request_id = r.id and a.action = 'host_left'),
+                     '-infinity'::timestamptz)
+              > coalesce((select max(a.at) from audit_log a
+                           where a.request_id = r.id
+                             and a.action in ('request_created', 'request_rerequested', 'times_proposed')),
+                         '-infinity'::timestamptz) as host_left_since_pick
        from request r left join request h on h.id = r.joined_to_request_id
       where r.id = $1`,
     [requestId, withPlan],
@@ -122,8 +132,8 @@ async function loadView(
     tz: r.guest_time_zone,
     jonCancelled: isJonCancelled(r),
     started: hasStarted(r, now),
-    // A joined guest whose host left (rule 4) still names it, and waits on Jon for a new time.
-    hostLeft: r.status === 'needs_new_time' && r.joined_to_request_id !== null,
+    // A joined guest whose host left (rule 4), waiting on Jon for a new time: nothing of theirs is booked or asked.
+    hostLeft: r.status === 'needs_new_time' && r.host_left_since_pick,
     overnight: r.overnight,
   };
 }
