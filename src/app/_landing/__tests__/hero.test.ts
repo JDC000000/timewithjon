@@ -107,6 +107,7 @@ describe('S2 personal hero', () => {
       links(personal({ picked_dish: 'the-bluebird' })).filter(([, t]) => t === 'Book a Time with Jon →'),
     ).toHaveLength(1); // R6-M1: the menu call to action is the gold one
   });
+  // evals/bugs: personal-landing-cta-not-gold
   it('no picked dish: the hero body, one menu link', () => {
     const html = personal({ picked_dish: null });
     expect(text(html)).toContain('Pick something off the menu and I');

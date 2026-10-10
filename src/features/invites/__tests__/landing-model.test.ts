@@ -41,6 +41,7 @@ describe('landingModel', () => {
       gold: true,
     });
   });
+  // evals/bugs: personal-landing-cta-not-gold
   it('R6-M1: a personal link with no picked dish gets the gold "Book a Time with Jon" to the menu', () => {
     expect(landingModel({ state: 'valid', invite: inv({ picked_dish: null }) }).cta).toEqual({
       label: 'Book a Time with Jon',

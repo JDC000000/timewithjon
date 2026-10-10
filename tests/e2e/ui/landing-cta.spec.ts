@@ -1,4 +1,4 @@
-// R6-M1 (Jon's H2, 2026-10-09): the landing's menu call to action is the gold "Book a Time with Jon" for everyone:
+// R6-M1 (evals/bugs: personal-landing-cta-not-gold; Jon's H2, 2026-10-09): the landing's menu call to action is the gold "Book a Time with Jon" for everyone:
 // no link, the general link, and a personal link with no picked dish (most guests). Same target, /menu.
 import { randomBytes } from 'node:crypto';
 import { Client } from 'pg';
