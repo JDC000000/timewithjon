@@ -90,7 +90,7 @@ const placeOf = (id: string) =>
         .rows[0]!.w,
   );
 
-for (const place of ['Lynn Canyon parking lot', null]) {
+for (const place of ['North gate', null]) {
   test(`lock through the sheet ${place ? 'with a place' : 'without a place'}`, async ({ page, baseURL }) => {
     test.skip((page.viewportSize()?.width ?? 0) < 1000, 'desktop pane; the sheet is one component');
     const id = await seed(`Where ${token()}`);

@@ -6,7 +6,9 @@ import { pool, q } from '@/lib/db';
 import { lockRequest } from '@/features/requests/lock';
 import { joinToBooking } from '@/features/requests/joined';
 import { vancouverInstant } from '@/lib/time';
-import { made, newRequest, removeRequests } from '../fixtures/requests-db';
+import { NextRequest } from 'next/server';
+import { POST as lockRoute } from '@/app/api/admin/requests/[id]/lock/route';
+import { made, newRequest, removeRequests, slotId } from '../fixtures/requests-db';
 
 vi.mock('@/features/admin/supabase', () => ({ currentAuthEmail: vi.fn(async () => 'jon@example.com') }));
 
@@ -36,15 +38,15 @@ describe('a place on the lock (r6)', () => {
     const id = await newRequest({ dish: 'the-grind' });
     const res = await lockRequest({
       requestId: id,
-      target: { ...range('2027-06-19'), where: 'Lynn Canyon parking lot' },
+      target: { ...range('2027-06-19'), where: 'North gate' },
       mode: 'lock',
     });
     expect(res).toMatchObject({ ok: true });
     expect((await q<{ w: string }>(`select locked_where as w from request where id = $1`, [id]))[0]!.w).toBe(
-      'Lynn Canyon parking lot',
+      'North gate',
     );
     const mail = await e4(id);
-    expect(mail).toContain('Where: Lynn Canyon parking lot.');
+    expect(mail).toContain('Where: North gate.');
     expect(mail).not.toContain('You pick the place');
   });
 
@@ -67,5 +69,63 @@ describe('a place on the lock (r6)', () => {
       (await q<{ w: string | null }>(`select locked_where as w from request where id = $1`, [id]))[0]!.w,
     ).toBeNull();
     expect(await e4(id)).toContain('You pick the place');
+  });
+});
+
+// evals/bugs: time-dish-no-place (TWJ11): the one-click time lock (POST /lock with a slotId) may carry the place too.
+describe('a place on a one-click time lock (TWJ11)', () => {
+  const SITE = 'http://localhost:3000';
+  const post = (id: string, body: unknown) =>
+    lockRoute(
+      new NextRequest(`${SITE}/api/admin/requests/${id}/lock`, {
+        method: 'POST',
+        headers: { origin: SITE, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+  it('with a place: stored, and the E4 says "Where: …."', async () => {
+    const s = await slotId('2027-06-18', 'lunch');
+    const id = await newRequest({ slotIds: [s] });
+    const res = await post(id, { slotId: s, where: '  North gate ' });
+    expect(res.status).toBe(200);
+    expect((await q<{ w: string }>(`select locked_where as w from request where id = $1`, [id]))[0]!.w).toBe(
+      'North gate',
+    );
+    expect(await e4(id)).toContain('Where: North gate.');
+  });
+
+  it('without one (the field left empty, or no key at all): the lock goes as before, no place', async () => {
+    const a = await slotId('2027-05-20', 'lunch');
+    const noKey = await newRequest({ slotIds: [a] });
+    expect((await post(noKey, { slotId: a })).status).toBe(200);
+    const b = await slotId('2027-05-21', 'evening');
+    const empty = await newRequest({ slotIds: [b] });
+    expect((await post(empty, { slotId: b, where: '' })).status).toBe(200);
+    const places = await q<{ w: string | null }>(
+      `select locked_where as w from request where id = any($1::uuid[])`,
+      [[noKey, empty]],
+    );
+    expect(places).toEqual([{ w: null }, { w: null }]);
+    expect(await e4(noKey)).toContain('You pick the place');
+  });
+
+  it('a place longer than 200 characters is refused (400), nothing locked', async () => {
+    const s = await slotId('2027-06-18', 'evening');
+    const id = await newRequest({ slotIds: [s] });
+    expect((await post(id, { slotId: s, where: 'x'.repeat(201) })).status).toBe(400);
+    expect((await q<{ status: string }>(`select status from request where id = $1`, [id]))[0]!.status).toBe(
+      'requested',
+    );
+  });
+
+  it('a guest joined to a time booking gets its place', async () => {
+    const s = await slotId('2027-06-11', 'lunch');
+    const host = await newRequest({ slotIds: [s], name: 'Host Guest' });
+    expect((await post(host, { slotId: s, where: 'North gate' })).status).toBe(200);
+    const rider = await newRequest({ slotIds: [s], name: 'Rider Guest' });
+    expect(await joinToBooking(rider, host)).toMatchObject({ ok: true });
+    expect(await e4(rider)).toContain('Where: North gate.');
   });
 });

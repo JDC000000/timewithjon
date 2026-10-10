@@ -31,7 +31,8 @@ import { releaseLiveOffers, withdrawStandbyOffers } from './offers';
 import { enqueueCalendar, noSideEffects, queuedId, runAfterCommit, type AfterCommit } from './side-effects';
 
 export type LockTarget =
-  { slotId: string } | { startsAt: Date; endsAt: Date; countsToward?: CountsToward; where: string | null }; // no countsToward = the request's
+  | { slotId: string; where?: string | null } // TWJ11: a time lock's optional place
+  | { startsAt: Date; endsAt: Date; countsToward?: CountsToward; where: string | null }; // no countsToward = the request's
 
 /** T2.4.07: the guest takes an offered time. The lock marks that offer taken (the others are released anyway). */
 export interface TakenOffer {
@@ -206,8 +207,8 @@ export async function applyLock(
   const countsToward = slot
     ? slotCountsToward(dishBySlug(r.dish))
     : ('countsToward' in i.target && i.target.countsToward) || r.counts_toward;
-  // A slot lock has no place yet. (Change time was removed 2026-09-29: a guest who needs another time emails Jon.)
-  const where = 'where' in i.target ? i.target.where : null;
+  // A slot lock may carry a place too (TWJ11). (Change time was removed 2026-09-29: a guest who needs another time emails Jon.)
+  const where = ('where' in i.target ? i.target.where : null) ?? null; // TWJ11: a time lock without one = none
 
   // PR-G2: a repeat plain Lock in (the leave-commit keepalive POST racing the window's own, or a
   // retry after a lost answer): already locked to exactly this target = done, not a refusal.

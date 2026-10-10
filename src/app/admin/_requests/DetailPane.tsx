@@ -10,13 +10,13 @@
 // never covers the focused control (site.css scroll-padding, FOC-05). The sealed plan is never here (C4).
 import { useRouter } from 'next/navigation';
 import { type ComponentProps, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Button, KeepWhole, Menu, Sheet, TextButton, Toast } from '@/ui';
+import { Button, Field, KeepWhole, Menu, Sheet, TextButton, Toast } from '@/ui';
 import { announce, keepVisible, moveFocus } from '@/ui/focus';
 import { JON_FLAGS } from '@/content';
 import { ACTIONS, DETAIL, LOCK, LOCK_SHEET, MAIL, NOTES, ordinal, SHEETS } from '@/content/ui/admin-requests';
 import type { RequestOptions } from '@/features/admin/options';
 import { PitchSheet, StandbySheet, SuggestSheet, WeatherSheet } from './ActionSheets';
-import { DateLockSheet, type DatesTarget } from './DateLockSheet';
+import { asksWhere, DateLockSheet, type DatesTarget } from './DateLockSheet';
 import type { DetailView, Fact } from './detail-view';
 import { whenLabel } from './format';
 import { send } from './api';
@@ -53,7 +53,7 @@ export interface DetailPaneProps {
 }
 
 type SheetName = 'more' | 'suggest' | 'standby' | 'lock' | 'pitch' | 'weather' | null;
-type Target = { slotId: string } | DatesTarget;
+type Target = { slotId: string; where?: string | null } | DatesTarget;
 
 export function DetailPane(p: DetailPaneProps) {
   const { requestId, view, options } = p;
@@ -83,6 +83,8 @@ export function DetailPane(p: DetailPaneProps) {
   }
   const [pending, setPending] = useState<{ target: Target; label: string } | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // TWJ11 (Jon, 2026-10-10): the place on a one-click time lock (optional; empty = none, as before)
+  const [slotWhere, setSlotWhere] = useState('');
   // QA4 H1 (c): a refusal that came back after Jon had left this page (refusal-store.ts), shown when he's back.
   const leftRefused = useSyncExternalStore(
     onRefusal,
@@ -253,6 +255,8 @@ export function DetailPane(p: DetailPaneProps) {
   ];
 
   const lockWhen = datesMode ? (view.dates[0] ?? '') : (pickedTime?.label ?? '');
+  // TWJ11: a time dish that locks in one click gets the sheet's optional Where here (not a call: The Long Distance)
+  const showSlotWhere = view.open && !datesMode && view.times.length > 0 && asksWhere(p.dish);
 
   return (
     <>
@@ -523,6 +527,17 @@ export function DetailPane(p: DetailPaneProps) {
             ))}
           </fieldset>
         ) : null}
+        {showSlotWhere ? (
+          <Field
+            id={`where-${requestId}`}
+            name="where"
+            label={LOCK_SHEET.where}
+            maxLength={200}
+            value={slotWhere}
+            disabled={locking}
+            onChange={(e) => setSlotWhere(e.currentTarget.value)}
+          />
+        ) : null}
         {view.open && pickedTime && needsTick && !locking ? (
           <label className="check">
             <input
@@ -650,7 +665,14 @@ export function DetailPane(p: DetailPaneProps) {
                 onClick={() =>
                   datesMode
                     ? setSheet('lock')
-                    : pickedTime && void startWindow({ slotId: pickedTime.slotId }, pickedTime.label)
+                    : pickedTime &&
+                      void startWindow(
+                        {
+                          slotId: pickedTime.slotId,
+                          ...(showSlotWhere ? { where: slotWhere.trim() || null } : {}),
+                        },
+                        pickedTime.label,
+                      )
                 }
               >
                 {datesMode && !lockWhen ? (

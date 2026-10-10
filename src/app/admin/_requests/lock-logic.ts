@@ -17,7 +17,7 @@ export type LockOutcome =
 export async function sendLock(
   requestId: string,
   target:
-    | { slotId: string }
+    | { slotId: string; where?: string | null }
     | { date: string; start: string; lengthMinutes: number; countsToward?: string; where?: string | null },
   ticks: LockTicks = { overrideWeek: false, bookAnyway: false },
   post: Send = send,

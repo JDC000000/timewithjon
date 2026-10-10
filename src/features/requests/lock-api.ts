@@ -25,7 +25,8 @@ export const RangeFields = {
   where: z.string().trim().max(200).nullable().default(null),
 };
 export const LockBody = z.union([
-  z.strictObject({ slotId: z.uuid(), ...Flags }),
+  // TWJ11 (Jon, 2026-10-10): a one-click time lock may carry the place too (optional; empty = none, as before)
+  z.strictObject({ slotId: z.uuid(), where: RangeFields.where, ...Flags }),
   z.strictObject({
     ...RangeFields,
     countsToward: z.enum(['weekly_cap', 'big_day', 'none']),
@@ -36,7 +37,7 @@ export type LockBody = z.infer<typeof LockBody>;
 
 /** Vancouver wall clock → a concrete range; null when that wall-clock time doesn't exist (a DST gap). */
 export function targetFrom(b: LockBody): LockTarget | null {
-  if ('slotId' in b) return { slotId: b.slotId };
+  if ('slotId' in b) return { slotId: b.slotId, where: b.where || null };
   const r = rangeFrom(b);
   return r && { ...r, countsToward: b.countsToward };
 }
