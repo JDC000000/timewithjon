@@ -9,11 +9,16 @@ import type { BookGate } from '@/app/_landing/book-gate';
 import { DishLink, DishSheets } from './DishSheets';
 import type { DishRowModel, MenuModel } from './menu-model';
 
+/** R6-L4: the ids a card's link names itself by (its dish name, then its Book label). */
+export const cardIds = (slug: string) => ({ name: `card-${slug}-name`, book: `card-${slug}-book` });
+
 // T4.6.04: the first dish's photo is in the first viewport on a phone (the page's largest paint): fetched first, not lazy.
 function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
   return (
     <>
-      <h3 className="dish-name">{d.name}</h3>
+      <h3 className="dish-name" id={cardIds(d.slug).name}>
+        {d.name}
+      </h3>
       <PhotoSlot
         slot={d.slot}
         kind="dish"
@@ -35,7 +40,7 @@ function DishInner({ d, first }: { d: DishRowModel; first: boolean }) {
           the gate: the card always opens its sheet, which shows Book or the gate line (e.g. "Booking opens …"). */}
       {d.sheet ? (
         // approved: Jon (2026-10-09): the card label "Book The Flat White" (the sheet's button words, on every card)
-        <span className="btn dish-book">
+        <span className="btn dish-book" id={cardIds(d.slug).book}>
           {d.sheet.book.label}{' '}
           <span className="arr" aria-hidden="true">
             →
@@ -110,7 +115,13 @@ export function Menu({ model, gate }: { model: MenuModel; gate: BookGate }) {
                   d.href ? (
                     <li className="dish" key={d.slug}>
                       <DishPhotoScope slot={d.slot} label={d.name}>
-                        <DishLink slug={d.slug} href={d.href}>
+                        <DishLink
+                          slug={d.slug}
+                          href={d.href}
+                          labelledBy={
+                            d.sheet ? `${cardIds(d.slug).name} ${cardIds(d.slug).book}` : cardIds(d.slug).name
+                          }
+                        >
                           <DishInner d={d} first={d.slug === firstSlug} />
                         </DishLink>
                       </DishPhotoScope>

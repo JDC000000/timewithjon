@@ -125,6 +125,7 @@ export const DETAIL = {
     need: 'You need',
     was: 'Was', // (wireframe 09 A2d)
     with: 'With', // NEW COPY (needs Jon): QA4b M3, the guests riding on this booking (no wireframe label)
+    where: 'Where', // R6-L2: the place Jon set; E4's own approved word ("Where: {where}.", Jon 2026-10-09 r6 Q1)
     zone: 'Time zone', // NEW COPY (needs Jon): QA4 L3, the Long Distance guest's zone (no wireframe label)
   },
   general: 'General',
