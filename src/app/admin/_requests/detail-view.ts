@@ -176,6 +176,9 @@ export function detailView(
   if (d.lockedStartsAt && d.lockedEndsAt && !open) {
     const label = filter === 'cancelled' ? DETAIL.labels.was : DETAIL.labels.when;
     facts.push({ label, value: whenLabel(new Date(d.lockedStartsAt), new Date(d.lockedEndsAt)) });
+    // R6-L2: the place Jon set at lock time
+    if (d.lockedWhere && filter !== 'cancelled')
+      facts.push({ label: DETAIL.labels.where, value: d.lockedWhere });
     if (filter === 'locked')
       facts.push({ label: DETAIL.labels.calendar, value: DETAIL.calendarState[d.calendarState] });
   }
@@ -189,7 +192,9 @@ export function detailView(
       value: d.overnightNight ? `${PITCH.oneNightAway} · ${quote(d.overnightNight)}` : PITCH.oneNightAway,
     });
   if (d.guestTimeZone) facts.push({ label: DETAIL.labels.zone, value: zoneLabel(d.guestTimeZone) }); // QA4 L3
-  if (open) facts.push({ label: DETAIL.labels.crew, value: DETAIL.crew(d.crewSize) }); // a locked page drops it (A3k)
+  // R6-L2: Jon wants the head count after locking too (it used to drop off a locked page, A3k)
+  if (open || filter === 'locked' || filter === 'done')
+    facts.push({ label: DETAIL.labels.crew, value: DETAIL.crew(d.crewSize) });
   if (open && d.inviteKind === 'general') facts.push({ label: DETAIL.labels.link, value: DETAIL.general });
   if (d.hasSealedPlan) facts.push({ label: DETAIL.labels.plan, value: DETAIL.sealed });
   if (d.needToKnow) facts.push({ label: DETAIL.labels.need, value: quote(d.needToKnow), quote: true });

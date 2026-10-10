@@ -37,6 +37,8 @@ export interface RequestDetail {
   awaitingJonSince: string | null;
   createdAt: string;
   lockedStartsAt: string | null;
+  /** R6-L2: the place Jon set at lock time (a joined booking: its host's), shown on a locked page. */
+  lockedWhere: string | null;
   lockedEndsAt: string | null;
   /** The Google event's state; 'failed' = out of retries, the admin must see it (AD-6, pr28 review L5). */
   calendarState: 'none' | 'pending' | 'synced' | 'ics_sent' | 'failed';
@@ -87,6 +89,7 @@ interface DetailRow {
   awaiting_jon_since: Date | null;
   created_at: Date;
   locked_starts_at: Date | null;
+  locked_where: string | null;
   calendar_state: RequestDetail['calendarState'];
   locked_ends_at: Date | null;
   standby_week: string | null;
@@ -118,6 +121,8 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
             -- QA4b M3: a guest riding on a booking that is on has no range of its own: the host's is theirs (rule 1)
             ${sharedTime('locked_starts_at')} as locked_starts_at,
             ${sharedTime('locked_ends_at')} as locked_ends_at,
+            case when r.locked_starts_at is null and r.status in ('locked', 'done') then h.locked_where
+                 else r.locked_where end as locked_where,
             -- and the host's event is theirs too (they're an attendee on it), not "Not on the calendar"
             case when r.locked_starts_at is null and r.status in ('locked', 'done') and h.id is not null
                  then h.calendar_state else r.calendar_state end as calendar_state,
@@ -162,6 +167,7 @@ export async function getRequestDetail(id: string, now = new Date()): Promise<Re
     awaitingJonSince: iso(r.awaiting_jon_since),
     createdAt: r.created_at.toISOString(),
     lockedStartsAt: iso(r.locked_starts_at),
+    lockedWhere: r.locked_where,
     lockedEndsAt: iso(r.locked_ends_at),
     calendarState: r.calendar_state,
     standbyWeek: r.standby_week,

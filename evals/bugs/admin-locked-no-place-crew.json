@@ -1,0 +1,9 @@
+{
+  "id": "admin-locked-no-place-crew",
+  "date": "2026-10-10",
+  "task": "R6",
+  "area": "admin",
+  "summary": "The admin page of a locked booking showed neither the place Jon set at lock time nor the Crew, so Jon couldn't see the head count or the place after locking.",
+  "fix": "A locked (or done) booking's page shows Where (the place Jon set; a joined guest's, its host's) after When, and Crew.",
+  "tests": ["src/app/admin/_requests/detail-view.test.ts", "tests/int/admin-ui-reads.int.test.ts"]
+}

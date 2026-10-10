@@ -225,6 +225,28 @@ describe('QA4 M1/M2/L3: what the guest told Jon reaches A2 and A3', () => {
   });
 });
 
+// evals/bugs: admin-locked-no-place-crew
+describe('R6-L2: a locked booking reads the place Jon set', () => {
+  it('its own place; a guest joined to it reads the host’s', async () => {
+    const startsAt = new Date('2027-06-30T16:00:00Z');
+    const endsAt = new Date('2027-06-30T16:30:00Z');
+    const host = await makeRequest({
+      status: 'locked',
+      locked_starts_at: startsAt,
+      locked_ends_at: endsAt,
+      locked_where: 'Lynn Canyon parking lot',
+    });
+    const rider = await makeRequest({ status: 'locked', joined_to_request_id: host });
+    expect((await getRequestDetail(host))!.lockedWhere).toBe('Lynn Canyon parking lot');
+    expect((await getRequestDetail(rider))!.lockedWhere).toBe('Lynn Canyon parking lot');
+    // a locked rider has no range of its own: out of later tests' way
+    await q(
+      `update request set status = 'cancelled', joined_to_request_id = null where id = any($1::uuid[])`,
+      [[rider, host]],
+    );
+  });
+});
+
 describe('requestOptions: what the A3 sheets offer', () => {
   it('open times skip their own picks, are open by the engine and capped; weeks start at their pick', async () => {
     const [pick] = await q<{ id: string; date: string }>(
