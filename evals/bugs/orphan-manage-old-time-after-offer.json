@@ -1,0 +1,9 @@
+{
+  "id": "orphan-manage-old-time-after-offer",
+  "date": "2026-10-10",
+  "task": "R6-L1",
+  "area": "requests/manage",
+  "summary": "After the booking a guest had joined fell through and Jon offered them times (which detaches them from the old host), their manage page listed the old booking's time again as theirs.",
+  "fix": "A guest whose host left after they last picked times themselves (by the audit, not by the host link) is shown no time until they pick again.",
+  "tests": ["tests/int/joined.int.test.ts (R6-L1)"]
+}
