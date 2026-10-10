@@ -88,6 +88,19 @@ export async function takeAppSlot(ceiling: number): Promise<AppSlot> {
   return { taken: false, ...(seen ?? { day: '', count: 0, limitHit: false }) };
 }
 
+/**
+ * R6-M2: today's sends that were yesterday's held mail (the next-UTC-day queue flushed this morning). They count
+ * toward today's budget like any send, but not toward the threshold that collapses Jon's notices into the digest.
+ */
+export async function catchUpSentToday(): Promise<number> {
+  const [r] = await q<{ n: number }>(
+    `select count(*)::int as n from email_queue eq join email_log l on l.id = eq.email_log_id
+      where eq.kind = 'next_day' and eq.sent_at >= (now() at time zone 'utc')::date::timestamp at time zone 'utc'
+        and l.status in ('sent', 'delayed', 'bounced', 'complained')`,
+  );
+  return r?.n ?? 0;
+}
+
 /** T3.2.07: the day's "Email limit reached" moment (a P1 email had to wait, or Resend refused for quota). */
 export async function markLimitHit(day: string): Promise<void> {
   await q(

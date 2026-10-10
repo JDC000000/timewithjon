@@ -123,7 +123,20 @@ describe('link vars minted at send time (T2.3.05, pr40-review)', () => {
     const mail = captureMailer(true);
     const id = await queueE4(manageLink(requestId));
     expect(await deliverEmail(id, { inline: true })).toBe('failed');
-    expect(await deliverEmail(id, { inline: false, now: new Date(Date.now() + 3600_000) })).toBe('sent');
+    // The tick's retry re-checks what the E4 says (email/stale.ts): the booking is locked, as an E4 says.
+    await q(
+      `update request set status = 'locked', locked_starts_at = '2031-05-13T19:00Z', locked_ends_at = '2031-05-13T21:00Z'
+        where id = $1`,
+      [requestId],
+    );
+    try {
+      expect(await deliverEmail(id, { inline: false, now: new Date(Date.now() + 3600_000) })).toBe('sent');
+    } finally {
+      await q(
+        `update request set status = 'requested', locked_starts_at = null, locked_ends_at = null where id = $1`,
+        [requestId],
+      );
+    }
     expect(mail.texts).toHaveLength(2);
     expect(mail.texts[1]).toBe(mail.texts[0]); // same body under the same idempotency key
     const [raw] = mail.tokens();

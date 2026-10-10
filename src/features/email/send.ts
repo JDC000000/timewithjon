@@ -15,6 +15,7 @@ import type { Pool, PoolClient } from 'pg';
 import { getEnv } from '@/config/env';
 import type { TemplateId } from '@/content/emails';
 import { emailAttachments } from '@/features/calendar/ics-attachment';
+import { isStaleOnSend, STALE_ERROR } from './stale';
 import { adapters } from '@/lib/adapters';
 import {
   MailerHttpError,
@@ -26,7 +27,7 @@ import type { OutgoingEmail } from '@/lib/adapters/types';
 import { pool, q, withTx } from '@/lib/db';
 import { currentMailerMode } from '@/lib/adapters/mailer';
 import { errorName, report } from '@/lib/report';
-import { markLimitHit, releaseSlot, takeAppSlot } from './budget';
+import { catchUpSentToday, markLimitHit, releaseSlot, takeAppSlot } from './budget';
 import {
   ceilingFor,
   decide,
@@ -152,6 +153,7 @@ export async function deliverEmail(id: string, opts: DeliverOptions): Promise<De
     vars: Record<string, unknown>;
     event_key: string | null;
     created_at: Date;
+    request_id: string | null;
   }>(
     `update email_log l
         set attempts = attempts + 1,
@@ -161,7 +163,7 @@ export async function deliverEmail(id: string, opts: DeliverOptions): Promise<De
       where id = $1 and status in ('pending', 'failed') and attempts < ${MAX_ATTEMPTS}
         and ((attempts = 0 and $2) or next_attempt_at <= coalesce($3, now()))
         and not ${e4cWaits('$3')} and not ${E4C_SUPERSEDED}
-      returning template, to_email::text as to_email, vars, event_key, created_at`,
+      returning template, to_email::text as to_email, vars, event_key, created_at, request_id`,
     [id, opts.inline, opts.now ?? null],
   );
   if (!row) {
@@ -181,6 +183,16 @@ export async function deliverEmail(id: string, opts: DeliverOptions): Promise<De
       [id, opts.now ?? null],
     );
     return 'skipped'; // already sent, being sent, not due, out of attempts, or waiting its turn (E4c)
+  }
+  // R6-M2: a tick send (the held-mail flush, a retry) can go out hours after it was queued. If the request has
+  // moved on from what it says (cancelled, another time, the host gone, a "Locked in" already there), it is
+  // dropped here, before any slot is taken: recorded as stale, never sent, never offered for Resend.
+  if (!opts.inline && (await isStaleOnSend(row))) {
+    await q(
+      `update email_log set status = 'failed', attempts = ${MAX_ATTEMPTS}, last_error = $2 where id = $1`,
+      [id, STALE_ERROR],
+    );
+    return 'skipped';
   }
   const now = opts.now ?? new Date();
   const priority = opts.priority ?? PRIORITY[row.template];
@@ -301,7 +313,14 @@ type GuardedSlot = { day: string } | { park: Exclude<GuardDecision, 'send'>; day
  * it tries again.
  */
 async function guardSlot(priority: AppPriority, digestable: boolean): Promise<GuardedSlot> {
-  const limits = GUARD_LIMITS[await currentMailerMode()]; // pr36 F5: the thresholds of the mailer that sends
+  const mode = GUARD_LIMITS[await currentMailerMode()]; // pr36 F5: the thresholds of the mailer that sends
+  // R6-M2: yesterday's held mail going out this morning doesn't push Jon's own notices (P3) into the digest for the
+  // whole day: the digest threshold moves up by those catch-up sends, never past the budget. The budget and the
+  // P1 ceiling still count every send.
+  const limits =
+    priority === 3 && digestable
+      ? { ...mode, digestFrom: Math.min(mode.digestFrom + (await catchUpSentToday()), mode.budget) }
+      : mode;
   for (let i = 0; i < 3; i++) {
     const s = await takeAppSlot(ceilingFor(priority, digestable, limits));
     if (s.taken) return { day: s.day };

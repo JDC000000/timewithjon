@@ -6,6 +6,7 @@ import { vancouverClock } from '@/lib/time';
 import { currentMailerMode } from '@/lib/adapters/mailer';
 import { GUARD_LIMITS, nextQueueOpen } from './guard';
 import { deliverEmail, TERMINAL_RENDER_ERRORS, type DeliverResult } from './send';
+import { STALE_ERROR } from './stale';
 
 /**
  * pr58-verify N1/N2: only the NEWEST .ics (E4c) of a booking may be re-sent by hand. An older one is refused once any
@@ -62,8 +63,9 @@ export async function failedEmails(limit = 50): Promise<FailedEmail[]> {
   return q<FailedEmail>(
     `select id, template, request_id as "requestId", created_at as "createdAt", last_error as "lastError",
             coalesce(last_error, '') <> all($2::text[]) and not ${E4C_HAS_NEWER} as resendable
-       from email_log l where status = 'failed' order by created_at desc limit $1`,
-    [limit, TERMINAL_RENDER_ERRORS],
+       from email_log l where status = 'failed' and coalesce(last_error, '') <> $3
+      order by created_at desc limit $1`,
+    [limit, TERMINAL_RENDER_ERRORS, STALE_ERROR], // a stale email was dropped on purpose: nothing failed
   );
 }
 

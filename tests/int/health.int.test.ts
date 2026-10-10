@@ -304,7 +304,7 @@ describe('healthReport (T3.14.01)', () => {
   it('warnings: abandoned emails are a named line (review V3) and the budget two days running; still 200', async () => {
     await healthy();
     const [{ n: base }] = (await q<{ n: number }>(
-      `select count(*)::int as n from email_log where status = 'failed' and attempts >= 4`,
+      `select count(*)::int as n from email_log where status = 'failed' and attempts >= 4 and coalesce(last_error, '') <> 'stale'`,
     )) as [{ n: number }];
     await failedEmail(4);
     await failedEmail(2); // still retrying: not abandoned

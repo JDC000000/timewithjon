@@ -15,6 +15,7 @@ import { SIGNIN_FAILED_KEY } from '@/features/admin/signin';
 import { BROKEN_REASONS } from '@/features/calendar/alerts';
 import { OUTBOX_MAX_ATTEMPTS } from '@/features/calendar/outbox';
 import { MAX_ATTEMPTS as EMAIL_MAX_ATTEMPTS } from '@/features/email/send';
+import { STALE_ERROR } from '@/features/email/stale';
 import { budgetHitTwoDaysRunning } from '@/features/email/status';
 import { SeedInvitePresent, seedSecretsToCheck } from '@/features/invites/seed-invites';
 import { q } from '@/lib/db';
@@ -128,7 +129,8 @@ export async function healthReport(
                        where provider = 'google' and refresh_token_enc is not null) as google_connected,
               (select last_ok_at from oauth_connection where provider = 'google') as google_ok_at,
               (select last_error from oauth_connection where provider = 'google') as google_error,
-              (select count(*)::int from email_log where status = 'failed' and attempts >= $5) as abandoned_emails,
+              (select count(*)::int from email_log
+                where status = 'failed' and attempts >= $5 and coalesce(last_error, '') <> '${STALE_ERROR}') as abandoned_emails,
               exists (select 1 from invite where token_secret = any($6::text[])) as seed_invites`,
       [
         now,

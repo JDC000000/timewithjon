@@ -1,0 +1,9 @@
+{
+  "id": "catch-up-pushes-digest",
+  "date": "2026-10-10",
+  "task": "R6-M2",
+  "area": "email/budget",
+  "summary": "Yesterday's held mail going out at the start of the next UTC day counted toward that day's digest threshold, so Jon's own notices went into the hourly digest for the whole day.",
+  "fix": "The digest threshold moves up by the day's catch-up sends (never past the budget); the budget and the urgent ceiling still count every send.",
+  "tests": ["tests/int/held-email-recheck.int.test.ts"]
+}
