@@ -32,6 +32,7 @@ const base = (over: Partial<RequestDetail> = {}): RequestDetail => ({
   awaitingJonSince: iso('2027-03-03', '11:00'),
   createdAt: iso('2027-03-03', '11:00'),
   lockedStartsAt: null,
+  lockedWhere: null,
   lockedEndsAt: null,
   calendarState: 'none',
   standbyWeek: null,
@@ -120,7 +121,7 @@ describe('detailView: other states', () => {
     expect(v.open).toBe(true);
     expect(v.back.href).toBe('/admin');
   });
-  it('locked: When and Calendar, no crew, back to the Locked in filter', () => {
+  it('locked: When, Calendar and Crew (R6-L2), back to the Locked in filter', () => {
     const v = detailView(
       base({
         status: 'locked',
@@ -139,6 +140,7 @@ describe('detailView: other states', () => {
       { label: 'Dish', value: 'The Long Lunch' },
       { label: 'When', value: 'Thu May 13 · noon–2 pm' },
       { label: 'Calendar', value: DETAIL.calendarState.synced },
+      { label: 'Crew', value: '3 of us' },
     ]);
     expect(v.open).toBe(false);
     expect(v.cancelWords).toEqual({ dish: 'Long Lunch', day: 'Thu May 13' });
@@ -161,7 +163,7 @@ describe('detailView: other states', () => {
     const range = { lockedStartsAt: iso('2027-04-15', '12:00'), lockedEndsAt: iso('2027-04-15', '14:00') };
     const done = detailView(base({ status: 'done', ...range }), now);
     expect(done.back).toEqual({ href: '/admin#done', label: 'Done' });
-    expect(done.facts.map((f) => f.label)).toEqual(['Dish', 'When', 'Note']);
+    expect(done.facts.map((f) => f.label)).toEqual(['Dish', 'When', 'Crew', 'Note']);
     const cancelled = detailView(base({ status: 'cancelled', ...range }), now);
     expect(cancelled.caption).toEqual({ text: 'Cancelled by guest' });
     expect(cancelled.facts.map((f) => f.label)).toEqual(['Dish', 'Was', 'Note']);
@@ -459,5 +461,39 @@ describe('detailView: a shared booking (QA4b M3)', () => {
     expect(v.canPromote).toBe(true);
     expect(v.joinedTo).toBeNull();
     expect(detailView(base(), now).canPromote).toBe(false);
+  });
+});
+
+// R6-L2 (evals/bugs: admin-locked-no-place-crew): the admin page of a locked booking shows the place Jon set and the
+// head count.
+describe('detailView: R6-L2 place and crew on a locked booking', () => {
+  const range = { lockedStartsAt: iso('2027-05-13', '12:00'), lockedEndsAt: iso('2027-05-13', '14:00') };
+  it('the place (as E4 words it: "Where") after When, and the Crew', () => {
+    const v = detailView(
+      base({
+        status: 'locked',
+        awaitingJonSince: null,
+        ...range,
+        lockedWhere: 'Lynn Canyon parking lot',
+        crewSize: 8,
+        calendarState: 'synced',
+        note: null,
+      }),
+      now,
+    );
+    expect(v.facts).toEqual([
+      { label: 'Dish', value: 'The Long Lunch' },
+      { label: 'When', value: 'Thu May 13 · noon–2 pm' },
+      { label: 'Where', value: 'Lynn Canyon parking lot' },
+      { label: 'Calendar', value: DETAIL.calendarState.synced },
+      { label: 'Crew', value: '8 of us' },
+    ]);
+  });
+  it('no place set: no Where row; a cancelled booking shows neither the place nor the crew', () => {
+    const locked = detailView(base({ status: 'locked', awaitingJonSince: null, ...range }), now);
+    expect(locked.facts.map((f) => f.label)).not.toContain('Where');
+    const cancelled = detailView(base({ status: 'cancelled', ...range, lockedWhere: 'Somewhere' }), now);
+    expect(cancelled.facts.map((f) => f.label)).not.toContain('Where');
+    expect(cancelled.facts.map((f) => f.label)).not.toContain('Crew');
   });
 });

@@ -1,0 +1,9 @@
+{
+  "id": "menu-card-long-name",
+  "date": "2026-10-10",
+  "task": "R6",
+  "area": "a11y",
+  "summary": "Each menu card is one link whose accessible name was the whole card (100–250 characters), read in full on every card.",
+  "fix": "The card's name is its dish name and its Book label (aria-labelledby to the card's own heading and label); nothing visible changes.",
+  "tests": ["src/app/_menu/__tests__/menu.dom.test.tsx"]
+}

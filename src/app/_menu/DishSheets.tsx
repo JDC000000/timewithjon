@@ -21,7 +21,18 @@ import { opensSheet, slugFromHash } from './sheet-open';
 
 const OpenSheet = createContext<(slug: DishSlug) => void>(() => {});
 
-export function DishLink({ slug, href, children }: { slug: DishSlug; href: string; children: ReactNode }) {
+export function DishLink({
+  slug,
+  href,
+  labelledBy,
+  children,
+}: {
+  slug: DishSlug;
+  href: string;
+  /** R6-L4: the card's name is its dish name and its Book label, not the whole card's text */
+  labelledBy?: string;
+  children: ReactNode;
+}) {
   const open = useContext(OpenSheet);
   const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (!opensSheet(e)) return;
@@ -29,7 +40,7 @@ export function DishLink({ slug, href, children }: { slug: DishSlug; href: strin
     open(slug);
   };
   return (
-    <a className="dish-row" href={href} aria-haspopup="dialog" onClick={onClick}>
+    <a className="dish-row" href={href} aria-haspopup="dialog" aria-labelledby={labelledBy} onClick={onClick}>
       {children}
     </a>
   );

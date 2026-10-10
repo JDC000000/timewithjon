@@ -208,3 +208,18 @@ describe('S04 /menu', () => {
     expect(container.querySelectorAll('figure[data-slides], .ph-ctl, .ph-play')).toHaveLength(0);
   });
 });
+
+// R6-L4 (evals/bugs: menu-card-long-name): a card is one link; its name used to be the whole card (100–250 characters). Now it is the dish name and
+// its Book label, read from the card itself (aria-labelledby): no visible change.
+describe('menu card names (R6-L4)', () => {
+  it('every bookable card is named "{dish} {Book label}"', () => {
+    render(<Menu model={model} gate={{ kind: 'book' }} />);
+    const dishes = model.courses.flatMap((c) => c.dishes).filter((d) => d.href && d.sheet);
+    expect(dishes.length).toBeGreaterThan(5);
+    for (const d of dishes) {
+      const link = screen.getByRole('link', { name: `${d.name} ${d.sheet!.book.label}` });
+      expect(link.getAttribute('href')).toBe(d.href);
+      expect(link.textContent).toContain(d.line); // the card's words are all still there, just not its name
+    }
+  });
+});
