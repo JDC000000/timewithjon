@@ -101,7 +101,7 @@ describe('A3b: the lock POST waits for the undo window (INT-03)', () => {
     expect(sendLock).toHaveBeenCalledTimes(1);
     expect(sendLock).toHaveBeenCalledWith(
       'r1',
-      { slotId: 's1' },
+      { slotId: 's1', where: null }, // TWJ11: the Where field left empty = no place, the lock as before
       { overrideWeek: false, bookAnyway: false },
       expect.any(Function),
     );

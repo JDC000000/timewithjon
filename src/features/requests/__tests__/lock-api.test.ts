@@ -5,14 +5,24 @@ import { LockBody, targetFrom } from '@/features/requests/lock-api';
 const dates = { date: '2027-05-14', start: '09:00', lengthMinutes: 240, countsToward: 'big_day' };
 
 describe('LockBody + targetFrom', () => {
-  it('a slot target carries only the slot id and the two ticks (default off)', () => {
+  it('a slot target carries the slot id, no place by default (TWJ11), and the two ticks (default off)', () => {
     const b = LockBody.parse({ slotId: '00000000-0000-4000-8000-000000000001' });
     expect(b).toEqual({
       slotId: '00000000-0000-4000-8000-000000000001',
+      where: null,
       overrideWeek: false,
       bookAnyway: false,
     });
-    expect(targetFrom(b)).toEqual({ slotId: '00000000-0000-4000-8000-000000000001' });
+    expect(targetFrom(b)).toEqual({ slotId: '00000000-0000-4000-8000-000000000001', where: null });
+  });
+  it('TWJ11 (evals/bugs: time-dish-no-place): a slot target may carry a place (trimmed; blank = none; max 200)', () => {
+    const slotId = '00000000-0000-4000-8000-000000000001';
+    expect(targetFrom(LockBody.parse({ slotId, where: '  North gate ' }))).toEqual({
+      slotId,
+      where: 'North gate',
+    });
+    expect(targetFrom(LockBody.parse({ slotId, where: '   ' }))).toEqual({ slotId, where: null });
+    expect(LockBody.safeParse({ slotId, where: 'x'.repeat(201) }).success).toBe(false);
   });
   it('dates mode: Vancouver wall clock + length → a concrete range; a blank place is null', () => {
     const t = targetFrom(LockBody.parse({ ...dates, where: '  ', bookAnyway: true }));

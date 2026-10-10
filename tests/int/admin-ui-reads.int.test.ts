@@ -234,11 +234,11 @@ describe('R6-L2: a locked booking reads the place Jon set', () => {
       status: 'locked',
       locked_starts_at: startsAt,
       locked_ends_at: endsAt,
-      locked_where: 'Lynn Canyon parking lot',
+      locked_where: 'North gate',
     });
     const rider = await makeRequest({ status: 'locked', joined_to_request_id: host });
-    expect((await getRequestDetail(host))!.lockedWhere).toBe('Lynn Canyon parking lot');
-    expect((await getRequestDetail(rider))!.lockedWhere).toBe('Lynn Canyon parking lot');
+    expect((await getRequestDetail(host))!.lockedWhere).toBe('North gate');
+    expect((await getRequestDetail(rider))!.lockedWhere).toBe('North gate');
     // a locked rider has no range of its own: out of later tests' way
     await q(
       `update request set status = 'cancelled', joined_to_request_id = null where id = any($1::uuid[])`,

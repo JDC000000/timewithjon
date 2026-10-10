@@ -1,0 +1,13 @@
+{
+  "id": "time-dish-no-place",
+  "date": "2026-10-10",
+  "task": "TWJ11",
+  "area": "admin",
+  "summary": "A time dish (a lunch, an evening) locks in one click from the detail page, with no sheet, and the lock API's slot body took no place, so Jon could never set one for those bookings.",
+  "fix": "The slot lock body takes an optional where (max 200, empty = none) and the detail page has the sheet's optional Where beside the one-click Lock in; the place reaches E4 and the calendar, and a joined guest gets it. Empty, the one-click lock goes as before. No field for a call (The Long Distance).",
+  "tests": [
+    "src/app/admin/_requests/time-dish-where.dom.test.tsx",
+    "tests/int/lock-where.int.test.ts",
+    "tests/e2e/admin/time-dish-where.spec.ts"
+  ]
+}

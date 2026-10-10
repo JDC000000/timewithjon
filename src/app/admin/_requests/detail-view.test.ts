@@ -474,7 +474,7 @@ describe('detailView: R6-L2 place and crew on a locked booking', () => {
         status: 'locked',
         awaitingJonSince: null,
         ...range,
-        lockedWhere: 'Lynn Canyon parking lot',
+        lockedWhere: 'North gate',
         crewSize: 8,
         calendarState: 'synced',
         note: null,
@@ -484,7 +484,7 @@ describe('detailView: R6-L2 place and crew on a locked booking', () => {
     expect(v.facts).toEqual([
       { label: 'Dish', value: 'The Long Lunch' },
       { label: 'When', value: 'Thu May 13 · noon–2 pm' },
-      { label: 'Where', value: 'Lynn Canyon parking lot' },
+      { label: 'Where', value: 'North gate' },
       { label: 'Calendar', value: DETAIL.calendarState.synced },
       { label: 'Crew', value: '8 of us' },
     ]);

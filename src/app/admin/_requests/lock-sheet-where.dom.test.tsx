@@ -88,10 +88,8 @@ async function lockWith(dish: string, place: string | null) {
 
 describe('the Lock sheet’s Where (r6)', () => {
   it('a typed place goes with the pre-check and the lock', async () => {
-    expect((await lockWith('the-grind', '  Lynn Canyon parking lot ')).where).toBe('Lynn Canyon parking lot');
-    expect((vi.mocked(checkLock).mock.calls[0]![1] as { where: string | null }).where).toBe(
-      'Lynn Canyon parking lot',
-    );
+    expect((await lockWith('the-grind', '  North gate ')).where).toBe('North gate');
+    expect((vi.mocked(checkLock).mock.calls[0]![1] as { where: string | null }).where).toBe('North gate');
   });
   it('left empty: no place (null), as before', async () => {
     expect((await lockWith('the-grind', null)).where).toBeNull();
