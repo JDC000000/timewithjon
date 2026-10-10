@@ -34,8 +34,9 @@ function PickedLine({ line, dish }: { line: string; dish: PersonalHeroProps['dis
 }
 
 export function PersonalHero({ model, dish, gate }: PersonalHeroProps) {
-  // The CTA is "Book {dish}" (skipping the dish sheet, G0.5 #4) or "See the whole menu" when the dish can't be
-  // booked; a gate note (e.g. "Booking opens March 1.") stands in for Book. Never two identical links.
+  // The CTA is "Book {dish}" (skipping the dish sheet, G0.5 #4) or, when there is no dish to book, the open landing's
+  // gold "Book a Time with Jon" to the menu (R6-M1); a gate note (e.g. "Booking opens March 1.") stands in for Book.
+  // Never two identical links.
   const booking = model.cta.href !== model.secondary.href;
   return (
     <HeroFrame>
@@ -48,7 +49,17 @@ export function PersonalHero({ model, dish, gate }: PersonalHeroProps) {
         {booking && gate.kind === 'note' ? (
           <span className="ui">{gate.text}</span>
         ) : (
-          <Button href={model.cta.href}>{model.cta.label}</Button>
+          <Button href={model.cta.href} variant={model.cta.gold ? 'gold' : 'default'}>
+            {model.cta.label}
+            {model.cta.gold ? (
+              <>
+                {' '}
+                <span className="arr" aria-hidden="true">
+                  →
+                </span>
+              </>
+            ) : null}
+          </Button>
         )}
         {booking ? (
           <a className="textbtn" href={model.secondary.href}>

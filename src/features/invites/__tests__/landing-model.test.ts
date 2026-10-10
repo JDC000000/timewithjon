@@ -36,8 +36,17 @@ describe('landingModel', () => {
   });
   it('AC4 a picked dish that is not bookable shows no Book button for it', () => {
     expect(landingModel({ state: 'valid', invite: inv({ picked_dish: 'the-bluebird' }) }).cta).toEqual({
-      label: 'See the whole activity menu',
+      label: 'Book a Time with Jon', // R6-M1: the menu call to action is the gold one, as on the open landing
       href: '/menu',
+      gold: true,
+    });
+  });
+  // evals/bugs: personal-landing-cta-not-gold
+  it('R6-M1: a personal link with no picked dish gets the gold "Book a Time with Jon" to the menu', () => {
+    expect(landingModel({ state: 'valid', invite: inv({ picked_dish: null }) }).cta).toEqual({
+      label: 'Book a Time with Jon',
+      href: '/menu',
+      gold: true,
     });
   });
 });
