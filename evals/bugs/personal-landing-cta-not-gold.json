@@ -1,0 +1,13 @@
+{
+  "id": "personal-landing-cta-not-gold",
+  "date": "2026-10-10",
+  "task": "R6",
+  "area": "guest",
+  "summary": "Jon's gold “Book a Time with Jon” showed only on the open landing; a personal link with no bookable picked dish (most guests) still showed the plain “See the whole activity menu”.",
+  "fix": "When the personal landing's main button is the menu, it is the same gold “Book a Time with Jon” to /menu; a bookable picked dish keeps its “Book {dish}” and the menu link.",
+  "tests": [
+    "src/features/invites/__tests__/landing-model.test.ts",
+    "src/app/_landing/__tests__/hero.test.ts",
+    "tests/e2e/ui/landing-cta.spec.ts"
+  ]
+}

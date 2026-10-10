@@ -46,7 +46,7 @@ export function Hero({ model }: { model: OpenModel }) {
       <FactLine />
       <p className="body hero-body">{HERO_BODY}</p>
       <p className="cta">
-        <Button href={model.cta.href} variant="gold">
+        <Button href={model.cta.href} variant={model.cta.gold ? 'gold' : 'default'}>
           {model.cta.label}{' '}
           <span className="arr" aria-hidden="true">
             →

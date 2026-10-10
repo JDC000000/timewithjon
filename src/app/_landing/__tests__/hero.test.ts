@@ -104,13 +104,21 @@ describe('S2 personal hero', () => {
       [],
     );
     expect(
-      links(personal({ picked_dish: 'the-bluebird' })).filter(([, t]) => t === 'See the whole activity menu'),
-    ).toHaveLength(1);
+      links(personal({ picked_dish: 'the-bluebird' })).filter(([, t]) => t === 'Book a Time with Jon →'),
+    ).toHaveLength(1); // R6-M1: the menu call to action is the gold one
   });
   it('no picked dish: the hero body, one menu link', () => {
     const html = personal({ picked_dish: null });
     expect(text(html)).toContain('Pick something off the menu and I');
-    expect(links(html)).toEqual([['/menu', 'See the whole activity menu']]);
+    expect(links(html)).toEqual([['/menu', 'Book a Time with Jon →']]); // R6-M1
+    expect(html).toMatch(
+      /<a[^>]*class="btn btn--gold"[^>]*href="\/menu"|<a[^>]*href="\/menu"[^>]*class="btn btn--gold"/,
+    );
+  });
+  it('a bookable picked dish keeps its own Book button (not gold) and the plain menu link', () => {
+    const html = personal({});
+    expect(html).not.toContain('btn--gold');
+    expect(links(html).map(([, t]) => t)).toContain('See the whole activity menu');
   });
   it('before release the gate line stands where Book was; the menu link stays', () => {
     const html = personal({}, { kind: 'note', text: 'Booking opens February 25.' });
