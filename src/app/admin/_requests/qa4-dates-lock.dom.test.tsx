@@ -97,6 +97,7 @@ describe('QA4 M2: only a rough window', () => {
       start: '09:00',
       lengthMinutes: 240,
       countsToward: 'big_day',
+      where: null, // nothing typed in Where: no place, as before
     });
   });
 });

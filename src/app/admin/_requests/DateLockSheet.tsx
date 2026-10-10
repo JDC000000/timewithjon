@@ -28,7 +28,12 @@ export interface DatesTarget {
   start: string;
   lengthMinutes: number;
   countsToward: CountsToward;
+  /** The place Jon sets (optional; E4 says "Where: {where}."), null = none, as before. */
+  where: string | null;
 }
+
+/** r6: a call has no place (The Long Distance), so its sheet has no Where field. */
+export const asksWhere = (dish: string): boolean => dish !== 'the-long-distance';
 
 function Seg<T extends string | number>(props: {
   label: string;
@@ -102,6 +107,7 @@ export function DateLockSheet(props: {
   const countsToward = counts ?? defaultCountsToward(props.dish, minutes);
   const startAt = other === null ? start : parseClock(other);
   const [checking, setChecking] = useState(false);
+  const [where, setWhere] = useState('');
   const [ticks, setTicks] = useState<LockTicks>(NO_TICKS);
   const [refused, setRefused] = useState<Extract<LockCheckOutcome, { ok: false }> | null>(null);
   // A refusal (and its tick) belongs to the date, time, length and kind it was asked for: change one, it goes.
@@ -124,7 +130,13 @@ export function DateLockSheet(props: {
     const at = vancouverInstant(date, startAt);
     setChecking(true);
     const out = await props.onCommit(
-      { date, start: startAt, lengthMinutes: minutes, countsToward },
+      {
+        date,
+        start: startAt,
+        lengthMinutes: minutes,
+        countsToward,
+        where: asksWhere(props.dish) ? where.trim() || null : null,
+      },
       `${dayLabel(at)}, ${clockLabel(at)}`,
       ticks,
     );
@@ -266,6 +278,17 @@ export function DateLockSheet(props: {
               onChange={setCounts}
             />
           </fieldset>
+        ) : null}
+
+        {asksWhere(props.dish) ? (
+          <Field
+            id={`${id}-where`}
+            name="where"
+            label={LOCK_SHEET.where}
+            maxLength={200}
+            value={where}
+            onChange={(e) => setWhere(e.currentTarget.value)}
+          />
         ) : null}
 
         {refused ? (
