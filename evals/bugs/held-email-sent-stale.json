@@ -1,0 +1,9 @@
+{
+  "id": "held-email-sent-stale",
+  "date": "2026-10-10",
+  "task": "R6-M2",
+  "area": "email/send",
+  "summary": "Guest emails held by the daily budget went out the next UTC day with no fresh check: a guest who had cancelled got 'Locked in' and 'Cancelled' together, a joined guest got 'Locked in' with 'That plan fell through', and a 'Got it' arrived after its 'Locked in'.",
+  "fix": "At send time from the tick (the held-mail flush, retries), a guest email whose request has moved on (cancelled, another time, the host gone, a newer 'Locked in' sent, its offer gone) is dropped and recorded as stale; it is never sent and not listed as failed. One still true goes out as before.",
+  "tests": ["tests/int/held-email-recheck.int.test.ts"]
+}

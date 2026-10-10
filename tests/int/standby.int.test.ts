@@ -242,7 +242,8 @@ describe('T2.4.04 Offer a freed window to one stand-by guest → E7', () => {
         where id = $1`,
       [log!.id, new Date(NOW.getTime() - 60e3)],
     );
-    expect(await deliverEmail(log!.id, { inline: false, now: NOW })).toBe('failed');
+    // (inline: the tick's own send drops this E7 even earlier, as stale: its offer was taken; email/stale.ts)
+    expect(await deliverEmail(log!.id, { inline: true, now: NOW })).toBe('failed');
     const [failed] = await q<{ attempts: number; last_error: string }>(
       `select attempts, last_error from email_log where id = $1`,
       [log!.id],

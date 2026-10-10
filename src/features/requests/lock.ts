@@ -155,6 +155,10 @@ export function lockedEmailVars(
     dish: dishName(dishSlug),
     day: dayLabel(startsAt),
     when: guestWhen(startsAt, endsAt, timeZone),
+    // Not shown: the booking's instants, so a held E4 can be checked against the booking when it finally goes out
+    // (email/stale.ts), whatever the wording of `when`.
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString(),
     manageLink: manageLink(requestId),
     ...(placeKnown || dishSlug === CALL_DISH ? { placeKnown: 1 } : {}),
     ...(place ? { where: place } : {}),
