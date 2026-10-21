@@ -3,5 +3,8 @@ allowBuilds:
   unrs-resolver: true
 
 # Transitive dependencies held at a fixed floor (postcss, css-tree and vite still allow older versions).
+# vite >= 8.3.3: patch floor. rolldown held at 1.2.13: 1.2.14 needs an @oxc-project/types release that is not published; lift when it is.
 overrides:
   source-map-js: ^1.2.2
+  vite: ^8.3.3
+  rolldown: 1.2.13
