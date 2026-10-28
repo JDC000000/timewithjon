@@ -236,7 +236,7 @@ jobs:
             browsers: webkit
     needs: changes
     if: ${{ !cancelled() && (github.event_name == 'push' || (!github.event.pull_request.draft && needs.changes.outputs.e2e == 'true')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: ubuntu-latest became 26.04 and the Playwright WebKit build needs libicu74 (Oct 28)
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
